@@ -41,6 +41,7 @@
 #include <global.h>
 
 #include <sys/mman.h>
+#include <pthread.h>
 
 static int cacheidx_of(size_t size);
 static void *cache_alloc(size_t bytes, simpstack *cache,
@@ -52,8 +53,8 @@ static void slab_free(slab_t *s);
 static unsigned int slab_max_blocks(slab_t *s);
 static block_t *alloc_from_slab(slab_t *s);
 static void dealloc_from_slab(block_t *b, slab_t *s);
-static bool slab_full(slab_t *s);
-static bool slab_empty(slab_t *s);
+static bool slab_priv_full(slab_t *s);
+static bool slab_priv_empty(slab_t *s);
 static slab_t *slab_of(block_t *b);
 static int write_block_magics(block_t *b, size_t bytes);
 static int block_magics_valid(block_t *b, size_t bytes);
@@ -114,33 +115,53 @@ void *cache_alloc(size_t bytes, simpstack *cache,
             return NULL;
         slab_init(s, arg);
         simpstack_push(&s->sanc, cache);
-    } else if(slab_full(s) && cache->size > IDEAL_CACHED_SLABS){
+    } else if(slab_priv_full(s) && cache->size > IDEAL_CACHED_SLABS){
         if(cof(simpstack_pop(cache), slab_t, sanc) != s)
             LOGIC_ERROR();
         slab_release(s);
     }
-    
-    block_t *found = alloc_from_slab(s);
-    if(slab_empty(s))
+
+    block_t *b = alloc_from_slab(s);
+    if(slab_priv_empty(s))
         if(cof(simpstack_pop(cache), slab_t, sanc) != s)
             LOGIC_ERROR();
 
     enable_interrupts();
     
-    assert(found);
-    assert(slab_of(found)->block_size >= bytes);
-    assert(aligned(found, MIN_ALIGNMENT));
-    return found;
+    assert(b);
+    assert(slab_of(b)->block_size >= bytes);
+    assert(aligned(b, MIN_ALIGNMENT));
+    return b;
 }
 
-static inline
+static
+block_t *alloc_from_slab(slab_t *s){
+    if(s->nblocks_contig)
+        return (block_t *) &s->blocks[s->block_size * --s->nblocks_contig];
+    block_t *b = cof(simpstack_pop(&s->free_blocks), block_t, sanc);
+    if(b)
+        return b;
+    int nwb;
+    b = cof(stack_pop_all(&s->wayward_blocks, &nwb), block_t, sanc);
+    if(b && b->sanc.next)
+        simpstack_replace(b->sanc.next, &s->free_blocks, nwb);
+    return b;
+}
+
+static
 void cache_dealloc(block_t *b, slab_t *s, simpstack *cache){
     *b = (block_t) FRESH_BLOCK;
 
     disable_interrupts();
-    if(slab_empty(s))
-        simpstack_push(&s->sanc, cache);
-    dealloc_from_slab(b, s);
+    if(s->owner == pthread_self()){
+        if(slab_priv_empty(s))
+            simpstack_push(&s->sanc, cache);
+        dealloc_from_slab(b, s);
+    }else{
+        int nwb = stack_push(&b->sanc, &s->wayward_blocks);
+        if(&s->blocks[s->block_size * nwb] == (void *) &s[1])
+            slab_free(s);
+    }
     enable_interrupts();
 }
 
@@ -151,6 +172,36 @@ int cacheidx_of(size_t size){
             return i;
     LOGIC_ERROR();
     return -1;
+}
+
+static
+void dealloc_from_slab(block_t *b, slab_t *s){
+    if(b == (block_t *) &s->blocks[s->nblocks_contig * s->block_size])
+        s->nblocks_contig++;
+    else
+        simpstack_push(&b->sanc, &s->free_blocks);
+}
+
+static
+unsigned int slab_max_blocks(slab_t *s){
+    return (SLAB_SIZE - offsetof(slab_t, blocks)) / s->block_size;
+}
+
+static
+bool slab_priv_full(slab_t *s){
+    int nb = s->free_blocks.size + s->nblocks_contig;
+    return &s->blocks[s->block_size * nb] == (void *) &s[1];
+}
+
+static
+bool slab_priv_empty(slab_t *s){
+    return
+        !s->free_blocks.size && !s->nblocks_contig;
+}
+
+static
+slab_t *slab_of(block_t *b){
+    return (slab_t *) align_down_pow2(b, SLAB_SIZE);
 }
 
 static
@@ -167,12 +218,12 @@ slab_t *slab_new(size_t size){
         s[i] = (slab_t) FRESH_SLAB;
         s[i].block_size = size;
         s[i].nblocks_contig = slab_max_blocks(&s[i]);
+        s[i].owner = pthread_self();
         for(int i = 0; i < s[i].nblocks_contig; i++)
             assert(write_block_magics((block_t *) &s[i].blocks[i * size],
                                       size));
         stack_push(&s[i].sanc, &hot_slabs);
     }
-        
     
     /* if(!s && lowest_cold_slab < (slab_t *) HEAP_HIGH){ */
     /*     static slab_t *lowest_cold_slab = (slab_t *) HEAP_LOW; */
@@ -186,6 +237,7 @@ slab_t *slab_new(size_t size){
     *s = (slab_t) FRESH_SLAB;
     s->block_size = size;
     s->nblocks_contig = slab_max_blocks(s);
+    s->owner = pthread_self();
     for(int i = 0; i < s->nblocks_contig; i++)
         assert(write_block_magics((block_t *) &s->blocks[i * size], size));
     
@@ -194,47 +246,11 @@ slab_t *slab_new(size_t size){
 
 static
 void slab_free(slab_t *s){
+    s->wayward_blocks = (stack) FRESH_STACK;
+    s->free_blocks = (simpstack) FRESH_SIMPSTACK;
+    s->nblocks_contig = slab_max_blocks(s);
+    /* TODO: need some protocol for clearing tid */
     stack_push(&s->sanc, &hot_slabs);
-}
-
-static 
-unsigned int slab_max_blocks(slab_t *s){
-    return (SLAB_SIZE - offsetof(slab_t, blocks)) / s->block_size;
-}
-
-static
-block_t *alloc_from_slab(slab_t *s){
-    if(s->nblocks_contig)
-        return (block_t *) &s->blocks[s->block_size * --s->nblocks_contig];
-    block_t *found = cof(simpstack_pop(&s->free_blocks), block_t, sanc);
-    return found;
-}
-
-static
-void dealloc_from_slab(block_t *b, slab_t *s){
-    if(b == (block_t *) &s->blocks[s->nblocks_contig * s->block_size])
-        s->nblocks_contig++;
-    else
-        simpstack_push(&b->sanc, &s->free_blocks);
-}
-
-static
-bool slab_full(slab_t *s){
-    return
-        &s->blocks[s->block_size * (s->free_blocks.size +
-                                    s->nblocks_contig)]
-        == (uint8_t *) &s[1];
-}
-
-static
-bool slab_empty(slab_t *s){
-    return
-        !s->free_blocks.size && !s->nblocks_contig;
-}
-
-static
-slab_t *slab_of(block_t *b){
-    return (slab_t *) align_down_pow2(b, SLAB_SIZE);
 }
 
 static

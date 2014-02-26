@@ -78,6 +78,8 @@ typedef struct __attribute__((__aligned__(SLAB_SIZE))){
         int64_t hx;
     };
     int nblocks_contig;
+    stack wayward_blocks;
+    pid_t owner;
     __attribute__((__aligned__(8)))
     uint8_t blocks[];
 } slab_t;

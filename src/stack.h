@@ -46,7 +46,7 @@ typedef struct{
         .top = {.tag = 0, .ptr = NULL, .size = 0},        \
     }
                                                                         
-void stack_push(sanchor_t *anc, stack *stack);
+int stack_push(sanchor_t *anc, stack *stack);
 int stack_size(stack *stack);
 sanchor_t *stack_pop(stack *stack);
 sanchor_t *stack_pop_all(stack *stack, int *size);

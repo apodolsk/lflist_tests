@@ -16,7 +16,7 @@
 
 #define MAX_FAILURES 5
 
-void stack_push(sanchor_t *anc, stack *stack){
+int stack_push(sanchor_t *anc, stack *stack){
     trace(anc, p);
 
     tagptr_t top;
@@ -41,6 +41,8 @@ void stack_push(sanchor_t *anc, stack *stack){
                        &stack->top.raw,
                        top.raw)
             != top.raw);
+
+    return new_top.size;
 }
 
 sanchor_t *stack_pop(stack *stack){
