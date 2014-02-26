@@ -170,6 +170,7 @@ slab_t *slab_new(size_t size){
         for(int i = 0; i < s[i].nblocks_contig; i++)
             assert(write_block_magics((block_t *) &s[i].blocks[i * size],
                                       size));
+        stack_push(&s[i].sanc, &hot_slabs);
     }
         
     

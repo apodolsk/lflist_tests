@@ -68,6 +68,7 @@ void linref_down(lineage_t *l);
 
 typedef struct __attribute__((__aligned__(SLAB_SIZE))){
     sanchor_t sanc;
+    size_t block_size;
     simpstack free_blocks;
     union hxchg_t{
         struct{
@@ -76,7 +77,6 @@ typedef struct __attribute__((__aligned__(SLAB_SIZE))){
         };
         int64_t hx;
     };
-    size_t block_size;
     int nblocks_contig;
     __attribute__((__aligned__(8)))
     uint8_t blocks[];
