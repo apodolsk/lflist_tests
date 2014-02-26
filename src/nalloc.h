@@ -64,6 +64,7 @@ void linref_down(lineage_t *l);
 #define MIN_ALIGNMENT 8
 #define SLAB_SIZE (PAGE_SIZE)
 #define NALLOC_MAGIC_INT 0x01FA110C
+#define MMAP_BATCH 16
 
 typedef struct __attribute__((__aligned__(SLAB_SIZE))){
     sanchor_t sanc;

@@ -41,8 +41,6 @@ void stack_push(sanchor_t *anc, stack *stack){
                        &stack->top.raw,
                        top.raw)
             != top.raw);
-
-    /* xadd(1, &stack->size); */
 }
 
 sanchor_t *stack_pop(stack *stack){

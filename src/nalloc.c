@@ -159,10 +159,19 @@ slab_t *slab_new(size_t size){
     if(s)
         return s;
     
-    s = mmap(NULL, SLAB_SIZE, PROT_WRITE,
+    s = mmap(NULL, MMAP_BATCH * SLAB_SIZE, PROT_WRITE,
              MAP_SHARED | MAP_ANONYMOUS | MAP_POPULATE, -1, 0);
     if(s == MAP_FAILED)
         return NULL;
+    for(int i = 1; i < MMAP_BATCH; i++){
+        s[i] = (slab_t) FRESH_SLAB;
+        s[i].block_size = size;
+        s[i].nblocks_contig = slab_max_blocks(&s[i]);
+        for(int i = 0; i < s[i].nblocks_contig; i++)
+            assert(write_block_magics((block_t *) &s[i].blocks[i * size],
+                                      size));
+    }
+        
     
     /* if(!s && lowest_cold_slab < (slab_t *) HEAP_HIGH){ */
     /*     static slab_t *lowest_cold_slab = (slab_t *) HEAP_LOW; */
@@ -176,7 +185,7 @@ slab_t *slab_new(size_t size){
     *s = (slab_t) FRESH_SLAB;
     s->block_size = size;
     s->nblocks_contig = slab_max_blocks(s);
-    for(int i = 0; i < slab_max_blocks(s); i++)
+    for(int i = 0; i < s->nblocks_contig; i++)
         assert(write_block_magics((block_t *) &s->blocks[i * size], size));
     
     return s;
@@ -189,7 +198,7 @@ void slab_free(slab_t *s){
 
 static 
 unsigned int slab_max_blocks(slab_t *s){
-    return (SLAB_SIZE - sizeof(slab_t)) / s->block_size;
+    return (SLAB_SIZE - offsetof(slab_t, blocks)) / s->block_size;
 }
 
 static
@@ -211,7 +220,9 @@ void dealloc_from_slab(block_t *b, slab_t *s){
 static
 bool slab_full(slab_t *s){
     return
-        s->free_blocks.size + s->nblocks_contig == slab_max_blocks(s);
+        &s->blocks[s->block_size * (s->free_blocks.size +
+                                    s->nblocks_contig)]
+        == (uint8_t *) &s[1];
 }
 
 static
