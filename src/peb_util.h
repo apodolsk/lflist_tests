@@ -10,6 +10,8 @@
 
 #include <peb_macros.h>
 
+typedef __int128_t int128_t;
+
 /* Aladdin system doesn't have librt installed. I'm sick of wrangling with the
    loader. */
 #include <time.h>

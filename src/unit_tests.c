@@ -16,7 +16,7 @@
 #include <nalloc.h>
 #include <stdlib.h>
 #include <time.h>
-#include <asm_util.h>
+#include <atomics.h>
 #include <global.h>
 #include <unistd.h>
 
@@ -59,7 +59,7 @@ struct child_args{
     int parent_tid;
     union {
          __attribute__ ((__aligned__(64)))
-        lfstack_t s;
+        stack s;
     } block_stacks[NUM_STACKS];
 };
 
@@ -122,29 +122,30 @@ void profile_init(void){
     free(ptr);
 }
 
-/* Avoiding IFDEF catastrophe with the magic of weak symbols. */
-__attribute__ ((weak))
-nalloc_profile_t *get_profile();
+/* /\* Avoiding IFDEF catastrophe with the magic of weak symbols. *\/ */
+/* __attribute__ ((weak)) */
+/* nalloc_profile_t *get_profile(); */
         
 void profile_report(void){
-    static pthread_mutex_t report_lock;
-
-    if(!print_profile)
-        return;
-
-    pthread_mutex_lock(&report_lock);
-        
-    PFLT(malloc_cavg);
-    PFLT(free_cavg);
-    
-    if(get_profile){
-        nalloc_profile_t *prof = get_profile();
-        PLUNT(prof->num_bytes_highwater);
-        PLUNT(prof->num_slabs_highwater);
-    }
-
-    pthread_mutex_unlock(&report_lock);
 }
+/*     static pthread_mutex_t report_lock; */
+
+/*     if(!print_profile) */
+/*         return; */
+
+/*     pthread_mutex_lock(&report_lock); */
+        
+/*     PFLT(malloc_cavg); */
+/*     PFLT(free_cavg); */
+    
+/*     if(get_profile){ */
+/*         nalloc_profile_t *prof = get_profile(); */
+/*         PLUNT(prof->num_bytes_highwater); */
+/*         PLUNT(prof->num_slabs_highwater); */
+/*     } */
+
+/*     pthread_mutex_unlock(&report_lock); */
+/* } */
 
 void mt_child_rand(int parent_tid);
 
@@ -209,7 +210,7 @@ void mt_child_rand(int parent_tid){
             wsfree(cur_block, cur_block->size);
     }
 
-    profile_report();
+    /* profile_report(); */
     /* exit(_gettid()); */
 }
 
@@ -221,7 +222,7 @@ void malloc_test_sharing(){
     struct child_args shared;
     shared.parent_tid = _gettid();
     for(int i = 0; i < NUM_STACKS; i++)
-        shared.block_stacks[i].s = (lfstack_t) FRESH_STACK;
+        shared.block_stacks[i].s = (stack) FRESH_STACK;
 
     pthread_t kids[num_threads];
     for(int i = 0; i < num_threads; i++)
@@ -250,7 +251,7 @@ void mt_sharing_child(struct child_args *shared){
     int num_blocks = 0;
     for(int i = 0; i < NUM_OPS; i++){
         int size;
-        lfstack_t *blocks= &shared->block_stacks[prand() % NUM_STACKS].s;
+        stack *blocks= &shared->block_stacks[prand() % NUM_STACKS].s;
         int malloc_prob =
             num_blocks < num_allocations/2 ? 75 :
             num_blocks < num_allocations ? 50 :
@@ -304,7 +305,7 @@ void producer_test(void){
     struct child_args shared;
     shared.parent_tid = _gettid();
     for(int i = 0; i < NUM_STACKS; i++)
-        shared.block_stacks[i].s = (lfstack_t) FRESH_STACK;
+        shared.block_stacks[i].s = (stack) FRESH_STACK;
 
     pthread_t kids[num_threads];
     for(int i = 0; i < num_threads; i++)
@@ -319,7 +320,7 @@ void producer_test(void){
         assert(!pthread_join(kids[i], (void *[]){NULL}));
 
     for(int i = 0; i < NUM_STACKS; i++){
-        lfstack_t *blocks = &shared.block_stacks[i].s;
+        stack *blocks = &shared.block_stacks[i].s;
         struct tblock_t *cur_block;
         FOR_EACH_SPOP_LOOKUP(cur_block, struct tblock_t, sanc, blocks)
             wsfree(cur_block, cur_block->size);
@@ -330,12 +331,12 @@ void produce(struct child_args *shared){
     int tid = _gettid();
     prand_init();
 
-    simpstack_t priv_blocks = (simpstack_t) FRESH_SIMPSTACK;
+    simpstack priv_blocks = (simpstack) FRESH_SIMPSTACK;
     struct tblock_t *cur_block;
     int num_blocks = 0;
     for(int i = 0; i < NUM_OPS; i++){
         int size;
-        lfstack_t *blocks= &shared->block_stacks[prand() % NUM_STACKS].s;
+        stack *blocks= &shared->block_stacks[prand() % NUM_STACKS].s;
         int malloc_prob =
             num_blocks < num_threads * num_allocations/2 ? 90 :
             num_blocks < num_threads * num_allocations ? 70 :
@@ -387,10 +388,10 @@ void consumer_child(struct child_args *shared){
     while(rdy == FALSE)
         _yield(parent_tid);
 
-    lfstack_t priv_blocks = FRESH_STACK;
+    stack priv_blocks = FRESH_STACK;
     int num_blocks = 0;
     for(int i = 0; i < NUM_OPS; i++){
-        lfstack_t *blocks= &shared->block_stacks[prand() % NUM_STACKS].s;
+        stack *blocks= &shared->block_stacks[prand() % NUM_STACKS].s;
         int free_prob = 
             num_blocks < num_allocations/2 ? 25 :
             num_blocks < num_allocations ? 50 :
@@ -457,6 +458,8 @@ void cas_update(void){
 
 int main(int argc, char **argv){
     unmute_log();
+
+    PSTR("HI");
 
     int program = 1;
 

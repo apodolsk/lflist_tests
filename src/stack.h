@@ -39,17 +39,17 @@ typedef struct{
        in the cmpxchg loop. Tune in for next week's edition of Fuck You GCC!
        */
     volatile tagptr_t top __attribute__((__aligned__ (16)));
-}lfstack_t;
+}stack;
 
 #define FRESH_STACK                                       \
     {                                                     \
         .top = {.tag = 0, .ptr = NULL, .size = 0},        \
     }
                                                                         
-void stack_push(sanchor_t *anc, lfstack_t *stack);
-int stack_size(lfstack_t *stack);
-sanchor_t *stack_pop(lfstack_t *stack);
-sanchor_t *stack_pop_all(lfstack_t *stack, int *size);
+void stack_push(sanchor_t *anc, stack *stack);
+int stack_size(stack *stack);
+sanchor_t *stack_pop(stack *stack);
+sanchor_t *stack_pop_all(stack *stack, int *size);
 
 #define lookup_sanchor(ptr, container_type, field)    \
     container_of(ptr, container_type, field)          
@@ -86,17 +86,19 @@ sanchor_t *stack_pop_all(lfstack_t *stack, int *size);
 /* You can open your eyes now. */
     
 
-typedef struct simpstack_t{
+typedef struct simpstack{
     sanchor_t *top;
     size_t size;
-} simpstack_t;
+} simpstack;
 
 #define FRESH_SIMPSTACK {.top = NULL, .size = 0 }
 
-void simpstack_push(sanchor_t *sanc, simpstack_t *stack);
-sanchor_t *simpstack_pop(simpstack_t *stack);
-sanchor_t *simpstack_peek(simpstack_t *stack);
-void simpstack_replace(sanchor_t *new_head, simpstack_t *stack, int size);
+void simpstack_push(sanchor_t *sanc, simpstack *stack);
+sanchor_t *simpstack_pop(simpstack *stack);
+sanchor_t *simpstack_peek(simpstack *stack);
+void simpstack_replace(sanchor_t *new_head, simpstack *stack, int size);
+
+int sanchor_unused(sanchor_t *s);
 
 #define simpstack_pop_lookup(container_type, field, stack)      \
     lookup_sanchor(simpstack_pop(stack), container_type, field) 

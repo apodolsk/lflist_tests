@@ -3,17 +3,6 @@
  * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
  * 
  * @brief  Some globally-useful macros.
- *
- * This is going to seem pretty crazy and/or silly. It's something that I
- * did for fun when I was most burnt out.
- *
- * I'm going to put scare quotes around "zero" everywhere. The reason is that
- * it becomes relevant that, in a C function call, '()' is a list of 0
- * expressions, but in a macro call, '()' is an arglist containing a single
- * trivially comma-separated empty argument. Even though a lot of these macros
- * have to do precisely with counting arguments, it's possible and convenient
- * for me to refer, in my comments, to 'MACRO()' as a macro given "zero"
- * arguments.
  */
 
 #ifndef __PEB_MACROS_H__
@@ -21,6 +10,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <assert.h>
 
 #define DUMMY_ARG 0
 
@@ -28,6 +18,11 @@
 #define CONCAT(x, y) CONCAT2(x, y)
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
+
+#define PUN(s, t) ({                                        \
+            _Static_assert(sizeof(s) == sizeof(t), "PUN:"#s" "#t);  \
+            ((union {__typeof__(s) str; t i;}) s).i;        \
+        })                                                  \
 
 /** 
  * @brief Given a pointer to a member of a struct, and given a description
@@ -44,6 +39,7 @@
  * @return A pointer to the struct which contains member_ptr. If member_ptr
  * is actually NULL, then return NULL.
  */
+#define cof container_of
 #define container_of(member_ptr, container_type, field_name)    \
     ((container_type *)                                         \
      subtract_if_not_null(member_ptr,                           \
@@ -69,17 +65,20 @@ static inline void *subtract_if_not_null(void *ptr, size_t subtrahend){
 #endif
 
 
+#define CASSERT COMPILE_ASSERT
 /** 
  * @brief Trigger a compile-time error if an expression e evaluates to 0.
  *
  * Only valid at file scope.
  */
+#define COMPILE_ASSERT(e) _Static_assert(e, "Failed static assert: "#e)
+
 /* #define COMPILE_ASSERT(e)                       \ */
 /*     ((void) sizeof(struct { int:-!(e); })) */
 
-#define COMPILE_ASSERT(e)                                               \
-    extern struct{ int:-!(e); } CONCAT(__cassert_tmp_var, __COUNTER__)  \
-    __attribute__ ((unused))   
+/* #define COMPILE_ASSERT(e)                                               \ */
+/*     extern struct{ int:-!(e); } CONCAT(__cassert_tmp_var, __COUNTER__)  \ */
+/*     __attribute__ ((unused)) */
 
 /* /\**  */
 /*  * Trigger a compile-time error if an expression e evaluates to 0. */

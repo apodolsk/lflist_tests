@@ -1,35 +1,39 @@
-#include <nalloc.h>
 
-typedef volatile struct flanchor{
+typedef struct heritage heritage;
+struct list;
+struct flanchor;
+typedef volatile struct flanchor flanchor;
+
+struct flanchor{
     struct pxchg{
-        union {
-            struct flanchor *p;
-            struct genptr { int ngen:31; int locked:1 };
-        }
+        union genptr {
+            flanchor *p;
+            struct { int64_t ngen:63; int locked:1; };
+        };
         int gen;
     };
     struct nxchg{
-        struct flanchor_t *n;
-        union{
-            struct flanchor *pat;
-            struct markptr { int patint:31; int read:1 };
-        }
+        flanchor *n;
+        union markptr {
+            flanchor *pat;
+            struct { int64_t patint:63; int read:1; };
+        };
     };
-    list *host;
-}flanchor;
+    struct list *host;
+};
+
+typedef struct list{
+    flanchor nil;
+} list;
 
 #define REMOVING ((void *) 0x1)
 #define ADDING ((void *) 0x2)
 
+typedef union markptr markptr;
+typedef union genptr genptr;
 typedef struct nxchg nxchg;
 typedef struct pxchg pxchg;
-typedef struct genptr genptr;
 
-int lflist_add_rear(flanchor_t *a, list_t *l);
-int lflist_remove(flanchor_t *a, list_t l, heritage_t *h);
-
-#define FOR_EACH_SLOPPY_FLOOKUP(cur, list, type, anc_field)             \
-    for(flanchor_t *i = (list)->peek();                                 \
-        i != (list)->nil && cur = cof(i, type, anc_field);              \
-        (i = i->next,                                                   \
-         i->host && i->host != (list) ? i = (list)->peek()))            \
+list *lflist_add_rear(flanchor *a, heritage *h, list *l);
+list *lflist_remove(flanchor *a, heritage *h, list *l);
+list *lflist_remove_any(flanchor *a, heritage *h);

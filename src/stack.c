@@ -11,12 +11,12 @@
 #define MODULE STACK
 
 #include <stack.h>
-#include <asm_util.h>
+#include <atomics.h>
 #include <global.h>
 
 #define MAX_FAILURES 5
 
-void stack_push(sanchor_t *anc, lfstack_t *stack){
+void stack_push(sanchor_t *anc, stack *stack){
     trace(anc, p);
 
     tagptr_t top;
@@ -45,7 +45,7 @@ void stack_push(sanchor_t *anc, lfstack_t *stack){
     /* xadd(1, &stack->size); */
 }
 
-sanchor_t *stack_pop(lfstack_t *stack){
+sanchor_t *stack_pop(stack *stack){
     trace(stack, p);
 
     tagptr_t old;
@@ -75,11 +75,11 @@ sanchor_t *stack_pop(lfstack_t *stack){
     return old.ptr;
 }
 
-int stack_size(lfstack_t *stack){
+int stack_size(stack *stack){
     return stack->top.size;
 }
 
-sanchor_t *stack_pop_all(lfstack_t *stack, int *size){
+sanchor_t *stack_pop_all(stack *stack, int *size){
     /* This would be simpler with xchg128b, but no such instruction
        exists. However, it turns out that xchg is worse than cmpxchg because
        it always assert #LOCK on the bus while cmpxchg is able to use the
@@ -106,7 +106,7 @@ sanchor_t *stack_pop_all(lfstack_t *stack, int *size){
 }
 
 
-void simpstack_push(sanchor_t *sanc, simpstack_t *stack){
+void simpstack_push(sanchor_t *sanc, simpstack *stack){
     trace(sanc, p, stack, p);
     
     assert(!sanc->next);
@@ -116,7 +116,7 @@ void simpstack_push(sanchor_t *sanc, simpstack_t *stack){
     stack->top = sanc;
     stack->size++;
 }
-sanchor_t *simpstack_pop(simpstack_t *stack){
+sanchor_t *simpstack_pop(simpstack *stack){
     sanchor_t *out = stack->top;
     if(!out)
         return NULL;
@@ -129,7 +129,7 @@ sanchor_t *simpstack_pop(simpstack_t *stack){
     return out;
 }
 
-void simpstack_replace(sanchor_t *new_head, simpstack_t *stack, int size){
+void simpstack_replace(sanchor_t *new_head, simpstack *stack, int size){
     trace(new_head, p, stack, p, size, d);
     
     assert(stack->top == NULL);
@@ -138,10 +138,12 @@ void simpstack_replace(sanchor_t *new_head, simpstack_t *stack, int size){
 }
 
 
-sanchor_t *simpstack_peek(simpstack_t *stack){
+sanchor_t *simpstack_peek(simpstack *stack){
     return stack->top;
 }
 
-
+int sanchor_unused(sanchor_t *s){
+    return !s->next;
+}
 
     
