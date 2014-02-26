@@ -128,7 +128,7 @@ void *cache_alloc(size_t bytes, simpstack *cache,
 
     enable_interrupts();
     
-    assert(b);
+    assert(b);   
     assert(slab_of(b)->block_size >= bytes);
     assert(aligned(b, MIN_ALIGNMENT));
     return b;
@@ -207,8 +207,11 @@ slab_t *slab_of(block_t *b){
 static
 slab_t *slab_new(size_t size){
     slab_t *s = cof(stack_pop(&hot_slabs), slab_t, sanc);
-    if(s)
+    if(s){
+        s->block_size = size;
+        s->nblocks_contig = slab_max_blocks(s);
         return s;
+    }
     
     s = mmap(NULL, MMAP_BATCH * SLAB_SIZE, PROT_WRITE,
              MAP_SHARED | MAP_ANONYMOUS | MAP_POPULATE, -1, 0);
@@ -248,7 +251,7 @@ static
 void slab_free(slab_t *s){
     s->wayward_blocks = (stack) FRESH_STACK;
     s->free_blocks = (simpstack) FRESH_SIMPSTACK;
-    s->nblocks_contig = slab_max_blocks(s);
+    /* s->nblocks_contig = slab_max_blocks(s); */
     /* TODO: need some protocol for clearing tid */
     stack_push(&s->sanc, &hot_slabs);
 }

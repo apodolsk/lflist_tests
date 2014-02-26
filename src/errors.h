@@ -54,7 +54,7 @@
    with per-module settings if you don't want to. */
 #define BRK 1
 #define PRNT 1
-#define DBG 0
+#define DBG 3
 
 #define E_NALLOC DBG, BRK, 2
 #define E_STACK 1, BRK, PRNT
