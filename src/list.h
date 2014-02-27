@@ -10,7 +10,7 @@ typedef struct{
     lanchor_t nil;
     unsigned int size;
 } list_t;
-#define FRESH_LIST {}
+#define FRESH_LIST(l) { .nil = {&(l).nil, &(l).nil} }
 
 #define LIST_FOR_EACH(cur, list)                                    \
     for(cur = list->nil.n; cur != &list->nil; cur = cur->n);

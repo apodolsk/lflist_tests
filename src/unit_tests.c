@@ -149,7 +149,7 @@ void mt_child_rand(int parent_tid){
 
     prand_init();
     for(int i = 0; i < NUM_LISTS; i++)
-        block_lists[i] = (list_t) FRESH_LIST;
+        block_lists[i] = (list_t) FRESH_LIST(block_lists[i]);
     
     while(rdy == FALSE)
         _yield(parent_tid);
@@ -223,7 +223,7 @@ void mt_sharing_child(struct child_args *shared){
 
     list_t priv_blocks[NUM_LISTS];
     for(int i = 0; i < NUM_LISTS; i++)
-        priv_blocks[i] = (list_t) FRESH_LIST;
+        priv_blocks[i] = (list_t) FRESH_LIST(priv_blocks[i]);
 
     int num_blocks = 0;
     for(int i = 0; i < NUM_OPS; i++){
@@ -433,36 +433,20 @@ void cas_update(void){
             LOGIC_ERROR("Failed to fork.");
 }
 
-int malloc_test_main(int argc, char **argv){
+int malloc_test_main(int program){
     unmute_log();
 
     PSTR("HI");
 
-    int program = 1;
+    extern int nthreads;
+    extern int nalloc;
+    extern int nwrites;
+    extern int niter;
 
-    int opt;
-    while( (opt = getopt(argc, argv, "t:a:o:p:w:l")) != -1 ){
-        switch (opt){
-        case 't':
-            num_threads = atoi(optarg);
-            break;
-        case 'a':
-            num_allocations = atoi(optarg);
-            break;
-        case 'o':
-            ops_mult = atoi(optarg);
-            break;
-        case 'p':
-            program = atoi(optarg);
-            break;
-        case 'w':
-            max_writes = atoi(optarg);
-            break;
-        case 'l':
-            print_profile = 1;
-            break;
-        }
-    }
+    num_threads = nthreads;
+    num_allocations = nalloc;
+    max_writes = nwrites;
+    ops_mult = niter;
 
     PINT(print_profile);
 

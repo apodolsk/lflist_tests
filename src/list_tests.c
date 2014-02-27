@@ -11,10 +11,11 @@
 #include <lflist.h>
 #include <global.h>
 
-static int nlists = 1;
-static int nthreads = 1000;
-static int niter = 10000;
-static int nalloc = 1;
+int nlists = 1;
+int nthreads = 2;
+int niter = 1000;
+int nalloc = 1000;
+int nwrites = 0;
 
 static sem_t parent_dead;
 
@@ -43,8 +44,8 @@ int randpcnt(int per_centum){
     return rand_r(&seed) % 100 <= umin(per_centum, 100);
 }
 
-void *reinsert_kid(list *lists){
-    list_t privs = FRESH_LIST;
+void *reinsert_kid(lflist *lists){
+    list_t privs = FRESH_LIST(privs);
     heritage block_heritage = (heritage)
         FRESH_HERITAGE(sizeof(block_key), &block_key);
 
@@ -61,7 +62,7 @@ void *reinsert_kid(list *lists){
             list_add_rear(&b->lanc, &privs);
         }
 
-        list *l = &lists[rand() % nlists];
+        lflist *l = &lists[rand() % nlists];
         if(randpcnt(50) && (b = cof(list_pop(&privs), block, lanc))){
             lflist_add_rear(&b->flanc, &block_heritage, l);
         }else{
@@ -86,9 +87,9 @@ void test_reinsert(){
     if(!sem_init(&parent_dead, 0, 0))
         LOGIC_ERROR();
     
-    list lists[nlists];
+    lflist lists[nlists];
     for(int i = 0; i < nlists; i++)
-        lists[i] = (list) FRESH_LIST;
+        lists[i] = (lflist) FRESH_LFLIST;
 
     pthread_t tids[nthreads];
     for(int i = 0; i < nthreads; i++)
@@ -117,8 +118,38 @@ void test_reinsert(){
     assert(!garbage);
 }
 
+int malloc_test_main(int program);
 
 int main(int argc, char **argv){
+    int program = 1, opt, do_malloc = 0;
+    while( (opt = getopt(argc, argv, "t:a:o:p:w:m")) != -1 ){
+        switch (opt){
+        case 't':
+            nthreads = atoi(optarg);
+            break;
+        case 'a':
+            nalloc = atoi(optarg);
+            break;
+        case 'i':
+            niter = atoi(optarg);
+            break;
+        case 'w':
+            nwrites = atoi(optarg);
+            break;
+        case 'p':
+            program = atoi(optarg);
+            break;
+        case 'm':
+            do_malloc = 1;
+            break;
+        }
+    }
+
+    if(do_malloc){
+        malloc_test_main(program);
+        return 0;
+    }
+    
     test_reinsert();
     return 0;
 }

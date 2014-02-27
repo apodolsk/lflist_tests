@@ -15,17 +15,15 @@
 #include <lflist.h>
 #include <nalloc.h>
 
-#ifdef LOCKFREE_LIST
-
 static flanchor *flinref_read(flanchor * volatile*from,
-                              flanchor *held, heritage *h, list *l);
-static flanchor *flinref_up(flanchor *a, heritage *h, list *l);
-static void flinref_down(flanchor *a, list *l);
-static flanchor *help_patron(flanchor *a, flanchor *n, heritage *h, list *l);
+                              flanchor *held, heritage *h, lflist *l);
+static flanchor *flinref_up(flanchor *a, heritage *h, lflist *l);
+static void flinref_down(flanchor *a, lflist *l);
+static flanchor *help_patron(flanchor *a, flanchor *n, heritage *h, lflist *l);
 
 static
 flanchor *flinref_read(flanchor * volatile*from, flanchor *held,
-                       heritage *h, list *l){
+                       heritage *h, lflist *l){
     markptr ma = *(markptr *) from;
     if(ma.read)
         /* This handles markptr and genptr. If genptr is locked, then
@@ -39,30 +37,30 @@ flanchor *flinref_read(flanchor * volatile*from, flanchor *held,
 }
 
 static
-flanchor *flinref_up(flanchor *a, heritage *h, list *l){
+flanchor *flinref_up(flanchor *a, heritage *h, lflist *l){
     if(a == &l->nil)
         return a;
     return linref_up((void *) a, h) ? NULL : a;
 }
 
 static
-void flinref_down(flanchor *a, list *l){
+void flinref_down(flanchor *a, lflist *l){
     if(a && a != &l->nil)
         linref_down(a);
 }
 
-list *lflist_remove_any(flanchor *a, heritage *h){
+lflist *lflist_remove_any(flanchor *a, heritage *h){
     while(1){
-        list *l = a->host;
+        lflist *l = a->host;
         if(l == ADDING || l == REMOVING || !l || l == lflist_remove(a, h, l))
             return l;
     }
 }
 
-list *lflist_remove(flanchor *a, heritage *h, list *l){
+lflist *lflist_remove(flanchor *a, heritage *h, lflist *l){
     assert(a != &l->nil);
 
-    list *bl = cas(REMOVING, &a->host, l);
+    lflist *bl = cas(REMOVING, &a->host, l);
     if(bl != l)
         return bl;
 
@@ -106,7 +104,7 @@ list *lflist_remove(flanchor *a, heritage *h, list *l){
 }
 
 static
-flanchor *help_patron(flanchor *a, flanchor *n, heritage *h, list *l)
+flanchor *help_patron(flanchor *a, flanchor *n, heritage *h, lflist *l)
 {
     flanchor *pat = NULL;
     while(1){
@@ -145,13 +143,13 @@ return_pat:
     return pat;
 }
 
-list *lflist_add_rear(flanchor *a, heritage *h, list *l){
+lflist *lflist_add_rear(flanchor *a, heritage *h, lflist *l){
     return lflist_add_before(a, &l->nil, h, l);
 }
 
-list *lflist_add_before(flanchor *a, flanchor *n, heritage *h, list *l){
+lflist *lflist_add_before(flanchor *a, flanchor *n, heritage *h, lflist *l){
     assert(a->host == l);
-    list *bl = cas(ADDING, &a->host, NULL);
+    lflist *bl = cas(ADDING, &a->host, NULL);
     if(bl)
         return bl;
     
@@ -183,9 +181,11 @@ list *lflist_add_before(flanchor *a, flanchor *n, heritage *h, list *l){
     return NULL;
 }
 
-list *lflist_add_after_priv(flanchor *p, flanchor *a, heritage *h, list *l){
+lflist *lflist_add_after_priv(flanchor *p, flanchor *a,
+                              heritage *h, lflist *l)
+{
     assert(p->host == l);
-    list *bl = cas(ADDING, &a->host, NULL);
+    lflist *bl = cas(ADDING, &a->host, NULL);
     if(bl)
         return bl;
 
@@ -206,11 +206,11 @@ list *lflist_add_after_priv(flanchor *p, flanchor *a, heritage *h, list *l){
     }
 }
 
-list *lflist_add_front_priv(flanchor *a, heritage *h, list *l){
+lflist *lflist_add_front_priv(flanchor *a, heritage *h, lflist *l){
     return lflist_add_after_priv(&l->nil, a, h, l);
 }
 
-flanchor *lflist_pop_front_priv(heritage *h, list *l){
+flanchor *lflist_pop_front_priv(heritage *h, lflist *l){
     for(flanchor *n = NULL;;){
         n = help_patron(&l->nil, n, h, l);
         if(n == &l->nil)
@@ -222,7 +222,7 @@ flanchor *lflist_pop_front_priv(heritage *h, list *l){
     }
 }
 
-flanchor *lflist_pop_rear(heritage *h, list *l){
+flanchor *lflist_pop_rear(heritage *h, lflist *l){
     for(flanchor *p; (p = l->nil.p);){
         if(flinref_up(p, h, l))
             continue;
@@ -232,6 +232,3 @@ flanchor *lflist_pop_rear(heritage *h, list *l){
     }
     return NULL;
 }
-
-#endif /* LOCKFREE_LIST */
-
