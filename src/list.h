@@ -1,14 +1,4 @@
-/**
- * @file   list.h
- * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
- * 
- * @brief  The interface to the list.
- * 
- */
-
-#ifndef __LIST_H__
-#define __LIST_H__
-
+#pragma once
 #include <peb_util.h>
 
 /** 
@@ -26,19 +16,8 @@ typedef struct {
     unsigned int size;
 } list_t;
 
-#define FRESH_LANCHOR                     \
-    {                                           \
-        .next = NULL,                           \
-            .prev = NULL,                       \
-            }
-
-
-#define FRESH_LIST                        \
-    {                                           \
-            .head = NULL,                       \
-            .tail = NULL,                       \
-            .size = 0,                          \
-            }
+#define FRESH_LANCHOR { }
+#define FRESH_LIST {}
 
 #define FOR_EACH_LANCHOR(cur_anchor, list)       \
     for(                                        \
@@ -127,5 +106,3 @@ int lanchor_valid(lanchor_t *anchor, list_t *list);
 void list_invalidate(list_t *list);
 int list_valid_quick(list_t *list);
 int list_valid_slow(list_t *list);
-
-#endif /* __LIST_H__ */

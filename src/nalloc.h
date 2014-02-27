@@ -1,11 +1,4 @@
-/**
- * @file   nalloc.h
- * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
- * @date   Sun Oct 28 16:19:37 2012
- */
-
-#ifndef NALLOC_H
-#define NALLOC_H
+#pragma once
 
 #include <list.h>
 #include <stack.h>
@@ -41,18 +34,20 @@ typedef block_t lineage_t;
 /* Takes up space so that its address may be a unique key. */
 typedef struct{
     char _;
-} type_key_t;
+} type_key;
 
 typedef struct{
     simpstack slabs;
     size_t size_of;
-    type_key_t *key;
-} heritage_t;
+    type_key *key;
+} heritage;
+#define FRESH_HERITAGE(s, k)                        \
+    {.slabs = FRESH_SIMPSTACK, .size_of = s, .key = k}
 
-lineage_t *linalloc(heritage_t *type);
+lineage_t *linalloc(heritage *type, void (*block_init)(void *));
 void linfree(lineage_t *l);
-int linref_up(lineage_t *l, heritage_t *wanted);
-void linref_down(lineage_t *l);
+int linref_up(volatile void *l, heritage *wanted);
+void linref_down(volatile void *l);
 
 /* TODO: delete */
 #define PAGE_SIZE 4096
@@ -73,7 +68,7 @@ typedef struct __attribute__((__aligned__(SLAB_SIZE))){
     union hxchg_t{
         struct{
             int linrefs;
-            heritage_t *type;
+            heritage *type;
         };
         int64_t hx;
     };
@@ -86,5 +81,3 @@ typedef struct __attribute__((__aligned__(SLAB_SIZE))){
 
 typedef union hxchg_t hxchg_t;
 #define FRESH_SLAB {.free_blocks = FRESH_SIMPSTACK}
-
-#endif

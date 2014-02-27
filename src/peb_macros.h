@@ -29,7 +29,9 @@
  * of what struct that is and which field in the struct that pointer
  * occupies, return a pointer to the actual struct containing the member. 
  *
- * Idea: we know the layout of structs at compile time, via offsetof. 
+ * Idea: we know the layout of structs at compile time, via offsetof.
+ *
+ * (void *) member_ptr explicitly discards volatile to avoid warnings.
  * 
  * @param member_ptr A pointer to some member of a struct instance.
  * @param container_type The type of the struct to which member_ptr belongs.
@@ -40,9 +42,9 @@
  * is actually NULL, then return NULL.
  */
 #define cof container_of
-#define container_of(member_ptr, container_type, field_name)    \
-    ((container_type *)                                         \
-     subtract_if_not_null(member_ptr,                           \
+#define container_of(member_ptr, container_type, field_name)        \
+    ((container_type *)                                             \
+     subtract_if_not_null((void *) member_ptr,                      \
                           offsetof(container_type, field_name)))
 
 /* Used to do a NULL check without expanding member_ptr twice.

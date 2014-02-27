@@ -3,6 +3,9 @@
  *
  * Lockfree doubly-linked list.
  *
+ * Trickiness with gen and extra ops. ngen means that a->pat == pat bc
+ * n->p == pat and if pat had disappeared than n->gen would change.
+ *
  */
 
 #include <stdlib.h>
@@ -10,9 +13,9 @@
 #include <atomics.h>
 #include <stdbool.h>
 #include <lflist.h>
+#include <nalloc.h>
 
-extern int linref_up(volatile void *, heritage *);
-extern void linref_down(volatile void *);
+#ifdef LOCKFREE_LIST
 
 static flanchor *flinref_read(flanchor * volatile*from,
                               flanchor *held, heritage *h, list *l);
@@ -39,7 +42,7 @@ static
 flanchor *flinref_up(flanchor *a, heritage *h, list *l){
     if(a == &l->nil)
         return a;
-    return linref_up(a, h) ? NULL : a;
+    return linref_up((void *) a, h) ? NULL : a;
 }
 
 static
@@ -48,47 +51,12 @@ void flinref_down(flanchor *a, list *l){
         linref_down(a);
 }
 
-flanchor *lflist_pop(heritage *h, list *l){
-    for(flanchor *n = NULL;;){
-        n = help_patron(&l->nil, n, h, l);
-        if(n == &l->nil)
-            return NULL;
-        if(lflist_remove(n, h, l) == l)
-            return n;
+list *lflist_remove_any(flanchor *a, heritage *h){
+    while(1){
+        list *l = a->host;
+        if(l == ADDING || l == REMOVING || !l || l == lflist_remove(a, h, l))
+            return l;
     }
-}
-
-list *lflist_add_rear(flanchor *a, heritage *h, list *l){
-    list *bl = cas(ADDING, &a->host, NULL);
-    if(bl)
-        return bl;
-    
-    a->n = &l->nil;
-    flanchor *p = NULL;
-    while(a->n == &l->nil && !a->pat && !a->gen){
-        p = flinref_read(&l->nil.p, p, h, l);
-        if(!p)
-            continue;
-        int gen = l->nil.gen;
-        
-        flanchor *client = cas(a, &p->n, &l->nil);
-        if(client == &l->nil)
-            client = a;
-        else if(flinref_up(client, h, l))
-            continue;
-
-        if(!cas2_ok(((pxchg){client, gen + 1}), &l->nil.p,
-                    ((pxchg){p, gen})))
-            continue;
-
-        if(client != a)
-            flinref_down(client, l);
-        else
-            break;
-    }
-
-    flinref_down(p, l);
-    return NULL;
 }
 
 list *lflist_remove(flanchor *a, heritage *h, list *l){
@@ -132,6 +100,7 @@ list *lflist_remove(flanchor *a, heritage *h, list *l){
     flinref_down(n, l);
     flinref_down(p, l);
 
+    a->gen++;
     a->host = NULL;
     return l;
 }
@@ -175,3 +144,94 @@ return_pat:
     flinref_down(n, l);
     return pat;
 }
+
+list *lflist_add_rear(flanchor *a, heritage *h, list *l){
+    return lflist_add_before(a, &l->nil, h, l);
+}
+
+list *lflist_add_before(flanchor *a, flanchor *n, heritage *h, list *l){
+    assert(a->host == l);
+    list *bl = cas(ADDING, &a->host, NULL);
+    if(bl)
+        return bl;
+    
+    a->n = n;
+    flanchor *p = NULL;
+    while(a->n == n && !a->pat && !a->gen){
+        p = flinref_read(&n->p, p, h, l);
+        if(!p)
+            continue;
+        int gen = l->nil.gen;
+        
+        flanchor *client = cas(a, &p->n, n);
+        if(client == n)
+            client = a;
+        else if(flinref_up(client, h, l))
+            continue;
+
+        if(!cas2_ok(((pxchg){client, gen + 1}), &n->p,
+                    ((pxchg){p, gen})))
+            continue;
+
+        if(client != a)
+            flinref_down(client, l);
+        else
+            break;
+    }
+
+    flinref_down(p, l);
+    return NULL;
+}
+
+list *lflist_add_after_priv(flanchor *p, flanchor *a, heritage *h, list *l){
+    assert(p->host == l);
+    list *bl = cas(ADDING, &a->host, NULL);
+    if(bl)
+        return bl;
+
+    a->p = p;
+    for(flanchor *n = NULL;;){
+        n = help_patron(p, n, h, l);
+        a->n = n;
+        if(cas_ok(a, &n->p, &p)){
+            p->pat = NULL;
+            /* n may rewrite p.pat once, but that's OK. */
+            p->n = a;
+
+            flinref_down(n, l);
+            
+            a->host = l;
+            return NULL;
+        }
+    }
+}
+
+list *lflist_add_front_priv(flanchor *a, heritage *h, list *l){
+    return lflist_add_after_priv(&l->nil, a, h, l);
+}
+
+flanchor *lflist_pop_front_priv(heritage *h, list *l){
+    for(flanchor *n = NULL;;){
+        n = help_patron(&l->nil, n, h, l);
+        if(n == &l->nil)
+            return NULL;
+        if(lflist_remove(n, h, l) == l){
+            flinref_down(n, l);
+            return n;
+        }
+    }
+}
+
+flanchor *lflist_pop_rear(heritage *h, list *l){
+    for(flanchor *p; (p = l->nil.p);){
+        if(flinref_up(p, h, l))
+            continue;
+        if(lflist_remove(p, h, l) == l)
+            flinref_down(p, l);
+            return p;
+    }
+    return NULL;
+}
+
+#endif /* LOCKFREE_LIST */
+

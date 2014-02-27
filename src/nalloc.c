@@ -46,13 +46,14 @@
 static int cacheidx_of(size_t size);
 static void *cache_alloc(size_t bytes, simpstack *cache,
                          void (*slab_init)(slab_t *s, void *arg), void *arg,
-                         void (*destructor)(slab_t *s));
+                         void (*destructor)(slab_t *s),
+                         void (*block_init)(void *s));
 static void cache_dealloc(block_t *b, slab_t *s, simpstack *cache,
                           void (*slab_release)(slab_t *s));
 static slab_t *slab_new(size_t size);
 static void slab_free(slab_t *s);
 static unsigned int slab_max_blocks(slab_t *s);
-static block_t *alloc_from_slab(slab_t *s);
+static block_t *alloc_from_slab(slab_t *s, void (*block_init)(void *s));
 static void dealloc_from_slab(block_t *b, slab_t *s);
 static bool slab_priv_full(slab_t *s);
 static bool slab_priv_empty(slab_t *s);
@@ -95,7 +96,8 @@ void *_malloc(size_t size){
         return NULL;
     int cidx = cacheidx_of(size);
     block_t *b =
-        cache_alloc(cache_sizes[cidx], &caches[cidx], no_op, NULL, &slab_free);
+        cache_alloc(cache_sizes[cidx], &caches[cidx], no_op, NULL,
+                    &slab_free, no_op);
     if(b)
         assert(block_magics_valid(b, cache_sizes[cidx]));
     return b;
@@ -103,8 +105,9 @@ void *_malloc(size_t size){
 
 static 
 void *cache_alloc(size_t bytes, simpstack *cache,
-                  void (*slab_init)(slab_t *s, void *arg), void *arg,
-                  void (*slab_release)(slab_t *s))
+                  void (*slab_init)(slab_t *, void *), void *arg,
+                  void (*slab_release)(slab_t *),
+                  void (*block_init)(void *))
 {
     /* TODO: Could reduce the scope of disable_interrupts() here. */
     disable_interrupts();
@@ -121,7 +124,7 @@ void *cache_alloc(size_t bytes, simpstack *cache,
         slab_release(s);
     }
 
-    block_t *b = alloc_from_slab(s);
+    block_t *b = alloc_from_slab(s, block_init);
     if(slab_priv_empty(s))
         if(cof(simpstack_pop(cache), slab_t, sanc) != s)
             LOGIC_ERROR();
@@ -135,10 +138,14 @@ void *cache_alloc(size_t bytes, simpstack *cache,
 }
 
 static
-block_t *alloc_from_slab(slab_t *s){
-    if(s->nblocks_contig)
-        return (block_t *) &s->blocks[s->block_size * --s->nblocks_contig];
-    block_t *b = cof(simpstack_pop(&s->free_blocks), block_t, sanc);
+block_t *alloc_from_slab(slab_t *s, void (*block_init)(void *)){
+    block_t *b;
+    if(s->nblocks_contig){
+        b = (block_t *) &s->blocks[s->block_size * --s->nblocks_contig];
+        block_init(b);
+        return b;
+    }
+    b = cof(simpstack_pop(&s->free_blocks), block_t, sanc);
     if(b)
         return b;
     int nwb;
@@ -261,7 +268,7 @@ slab_t *slab_of(block_t *b){
 }
 
 void linslab_ref_up(slab_t *s, void *t){
-    s->type = (heritage_t *) t;
+    s->type = (heritage *) t;
     xadd(1, &s->linrefs);
 }
 
@@ -272,11 +279,12 @@ void linslab_ref_down(slab_t *s){
     }
 }
 
-lineage_t *linalloc(heritage_t *t){
+lineage_t *linalloc(heritage *t, void (*block_init)(void *)){
     return
         cache_alloc(t->size_of, &t->slabs,
                     linslab_ref_up, t,
-                    linslab_ref_down);
+                    linslab_ref_down,
+                    block_init);
 }
 
 void linfree(lineage_t *l){
@@ -287,8 +295,8 @@ void linfree(lineage_t *l){
     cache_dealloc(b, s, &s->type->slabs, linslab_ref_down);
 }
 
-int linref_up(lineage_t *l, heritage_t *h){
-    slab_t *s = slab_of(l);
+int linref_up(volatile void *l, heritage *h){
+    slab_t *s = slab_of((void *) l);
     hxchg_t old, new;
     do{
         new.hx = old.hx = s->hx;
@@ -300,8 +308,8 @@ int linref_up(lineage_t *l, heritage_t *h){
     return 0;
 }
 
-void linref_down(lineage_t *l){
-    linslab_ref_down(slab_of(l));
+void linref_down(volatile void *l){
+    linslab_ref_down(slab_of((void *) l));
 }
 
 void *_smemalign(size_t alignment, size_t size){

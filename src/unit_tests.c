@@ -121,31 +121,8 @@ void profile_init(void){
     assert(ptr);
     free(ptr);
 }
-
-/* /\* Avoiding IFDEF catastrophe with the magic of weak symbols. *\/ */
-/* __attribute__ ((weak)) */
-/* nalloc_profile_t *get_profile(); */
         
-void profile_report(void){
-}
-/*     static pthread_mutex_t report_lock; */
-
-/*     if(!print_profile) */
-/*         return; */
-
-/*     pthread_mutex_lock(&report_lock); */
-        
-/*     PFLT(malloc_cavg); */
-/*     PFLT(free_cavg); */
-    
-/*     if(get_profile){ */
-/*         nalloc_profile_t *prof = get_profile(); */
-/*         PLUNT(prof->num_bytes_highwater); */
-/*         PLUNT(prof->num_slabs_highwater); */
-/*     } */
-
-/*     pthread_mutex_unlock(&report_lock); */
-/* } */
+void profile_report(void){}
 
 void mt_child_rand(int parent_tid);
 
@@ -456,7 +433,7 @@ void cas_update(void){
             LOGIC_ERROR("Failed to fork.");
 }
 
-int main(int argc, char **argv){
+int malloc_test_main(int argc, char **argv){
     unmute_log();
 
     PSTR("HI");
