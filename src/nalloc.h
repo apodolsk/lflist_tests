@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list.h>
+#include <pthread.h>
 #include <stack.h>
 #include <stdbool.h>
 

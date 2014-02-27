@@ -173,7 +173,7 @@ void mt_child_rand(int parent_tid){
             write_magics(cur_block, tid);
             list_add_rear(&cur_block->lanc, blocks);
         }else if(blocks->size){
-            cur_block = list_pop_lookup(struct tblock_t, lanc, blocks);
+            cur_block = cof(list_pop(blocks), struct tblock_t, lanc);
             if(!cur_block)
                 continue;
             check_magics(cur_block, tid);
@@ -183,7 +183,7 @@ void mt_child_rand(int parent_tid){
 
     for(int i = 0; i < NUM_LISTS; i++){
         list_t *blocks = &block_lists[i];
-        while((cur_block = list_pop_lookup(struct tblock_t, lanc, blocks)))
+        while((cur_block = cof(list_pop(blocks), struct tblock_t, lanc)))
             wsfree(cur_block, cur_block->size);
     }
 
@@ -259,8 +259,8 @@ void mt_sharing_child(struct child_args *shared){
         }
 
         if(rand_percent(2 * (100 - malloc_prob))){
-            cur_block = list_pop_lookup(struct tblock_t, lanc,
-                                        &priv_blocks[prand() % NUM_LISTS]);
+            cur_block = cof(list_pop(&priv_blocks[prand() % NUM_LISTS]),
+                            struct tblock_t, lanc);
             if(!cur_block)
                 continue;
             log2("Freeing priv: %p", cur_block);

@@ -3,7 +3,6 @@
 #include <nalloc.h>
 
 struct list;
-struct flanchor;
 typedef volatile struct flanchor flanchor;
 
 struct flanchor{
