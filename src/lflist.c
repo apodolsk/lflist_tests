@@ -49,21 +49,16 @@ void flinref_down(flanchor *a, lflist *l){
         linref_down(a);
 }
 
-lflist *lflist_remove_any(flanchor *a, heritage *h){
-    while(1){
-        lflist *l = a->host;
-        if(l == ADDING || l == REMOVING || !l || l == lflist_remove(a, h, l))
-            return l;
-    }
+int lflist_remove_any(flanchor *a, heritage *h){
+    return lflist_remove(a, h, a->host);
 }
 
-lflist *lflist_remove(flanchor *a, heritage *h, lflist *l){
+int lflist_remove(flanchor *a, heritage *h, lflist *l){
     assert(a != &l->nil);
 
-    lflist *bl = cas(REMOVING, &a->host, l);
-    if(bl != l)
-        return bl;
-
+    if(!cas_ok(REMOVING, &a->host, l))
+        return -1;
+        
     flanchor *p = NULL, *n = NULL;
     while(1){
         int ngen;
@@ -100,7 +95,7 @@ lflist *lflist_remove(flanchor *a, heritage *h, lflist *l){
 
     a->gen++;
     a->host = NULL;
-    return l;
+    return 0;
 }
 
 static
@@ -143,15 +138,14 @@ return_pat:
     return pat;
 }
 
-lflist *lflist_add_rear(flanchor *a, heritage *h, lflist *l){
+int lflist_add_rear(flanchor *a, heritage *h, lflist *l){
     return lflist_add_before(a, &l->nil, h, l);
 }
 
-lflist *lflist_add_before(flanchor *a, flanchor *n, heritage *h, lflist *l){
+int lflist_add_before(flanchor *a, flanchor *n, heritage *h, lflist *l){
     assert(a->host == l);
-    lflist *bl = cas(ADDING, &a->host, NULL);
-    if(bl)
-        return bl;
+    if(!cas_ok(ADDING, &a->host, NULL))
+        return -1;
     
     a->n = n;
     flanchor *p = NULL;
@@ -178,16 +172,16 @@ lflist *lflist_add_before(flanchor *a, flanchor *n, heritage *h, lflist *l){
     }
 
     flinref_down(p, l);
-    return NULL;
+    return 0;
 }
 
-lflist *lflist_add_after_priv(flanchor *p, flanchor *a,
-                              heritage *h, lflist *l)
+/* Doesn't return lflist * b/c: what happens if host == ADDING. */
+int lflist_add_after_priv(flanchor *a, flanchor *p,
+                          heritage *h, lflist *l)
 {
     assert(p->host == l);
-    lflist *bl = cas(ADDING, &a->host, NULL);
-    if(bl)
-        return bl;
+    if(!cas_ok(ADDING, &a->host, NULL))
+        return -1;
 
     a->p = p;
     for(flanchor *n = NULL;;){
@@ -201,12 +195,12 @@ lflist *lflist_add_after_priv(flanchor *p, flanchor *a,
             flinref_down(n, l);
             
             a->host = l;
-            return NULL;
+            return 0;
         }
     }
 }
 
-lflist *lflist_add_front_priv(flanchor *a, heritage *h, lflist *l){
+int lflist_add_front_priv(flanchor *a, heritage *h, lflist *l){
     return lflist_add_after_priv(&l->nil, a, h, l);
 }
 
