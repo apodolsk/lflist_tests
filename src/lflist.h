@@ -2,26 +2,22 @@
 
 #include <nalloc.h>
 
-struct lflist;
 typedef volatile struct flanchor flanchor;
+
+typedef union flgen { uint igen:62; uint locked:1; uint nil:1 };
 
 struct flanchor{
     struct pxchg{
-        union genptr {
-            flanchor *p;
-            struct { int64_t ngen:63; int locked:1; };
-        };
-        int gen;
+        flanchor *p;
+        flgen gen;
     };
     struct nxchg{
         flanchor *n;
-        union markptr {
-            flanchor *pat;
-            struct { int64_t patint:63; int read:1; };
-        };
+        flanchor *pat;
     };
-    struct lflist *host;
+    flanchor *realp;
 };
+
 
 #define FRESH_FLANCHOR {}
 

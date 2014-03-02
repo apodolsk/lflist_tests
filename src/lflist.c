@@ -1,3 +1,4 @@
+
 /**
  * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
  *
@@ -21,9 +22,15 @@ static flanchor *flinref_up(flanchor *a, heritage *h, lflist *l);
 static void flinref_down(flanchor *a, lflist *l);
 static flanchor *help_patron(flanchor *a, flanchor *n, heritage *h, lflist *l);
 
+static inline pxchg(flanchor *p, flgen gen){
+    return (pxchg) {p, .gen = gen, .is_nil = is_nil};
+}
+static inline nxchg(flanchor *n, flanchor *pat){
+    return (nxchg) {n, pat};
+}
+
 static
-flanchor *flinref_read(flanchor * volatile*from, flanchor *held,
-                       heritage *h, lflist *l){
+flanchor *flinref_read(flanchor * volatile*from, flanchor *held, heritage *h){
     markptr ma = *(markptr *) from;
     if(ma.read)
         /* This handles markptr and genptr. If genptr is locked, then
@@ -37,15 +44,15 @@ flanchor *flinref_read(flanchor * volatile*from, flanchor *held,
 }
 
 static
-flanchor *flinref_up(flanchor *a, heritage *h, lflist *l){
-    if(a == &l->nil)
+flanchor *flinref_up(flanchor *a, heritage *h){
+    if(is_nil(a))
         return a;
     return linref_up((void *) a, h) ? NULL : a;
 }
 
 static
 void flinref_down(flanchor *a, lflist *l){
-    if(a && a != &l->nil)
+    if(!is_nil(a))
         linref_down(a);
 }
 
@@ -53,45 +60,45 @@ int lflist_remove_any(flanchor *a, heritage *h){
     return lflist_remove(a, h, a->host);
 }
 
-int lflist_remove(flanchor *a, heritage *h, lflist *l){
-    assert(a != &l->nil);
+int lflist_remove(flanchor *a, heritage *h, uintptr_t gen){
+    assert(!is_nil(a));
 
-    if(!cas_ok(REMOVING, &a->host, l))
-        return -1;
-        
-    flanchor *p = NULL, *n = NULL;
-    while(1){
-        int ngen;
+    uintptr_t gen;
+
+    for(flanchor *p = NULL, *n = NULL;;){
         while(1){
-            n = help_patron(a, n, h, l);
-            ngen = n->gen;
+            n = help_patron(a, n, h);
+            flgen ngen = n->gen;
             if(n->p != a)
                 continue;
             
             while(1){
-                p = flinref_read(&a->p, p, h, l);
+                p = flinref_read(&a->p, p, h);
                 if(!p)
                     continue;
                 nxchg pnx = {p->n, p->pat};
-                if(pnx.n == a || pnx.patint == (uintptr_t) a)
-                    if(cas2_ok(((nxchg){n, .pat = a}), &p->n, pnx))
+                if(pnx.n == a || pnx.pat == a)
+                    if(cas2_ok(nxchg(n, a), &p->n, pnx))
                         break;
             }
+
+            if(cas2_ok(pxchg(n, (flgen){ngen, TRUE}), &a->p,
+                       pxchg(p, gen)))
+                
 
             if(cas_ok(((genptr){.ngen = ngen, .locked = true}), &a->p, p))
                 break;
         }
 
-        pxchg r = cas2(((pxchg){p, ngen}), &n->p, ((pxchg){a, ngen}));
+               pxchg r = cas2(pxchg(p, ngen), &n->p, pxchg(a, ngen));
         if(r.gen == ngen && (r.p == p || r.p == a))
             break;
         if(p->patint != (uintptr_t) a && a->locked)
             break;
-        cas(p, &a->p, ((genptr) {.ngen = ngen, .locked = true}));
     }
     
-    flinref_down(n, l);
-    flinref_down(p, l);
+    flinref_down(n);
+    flinref_down(p);
 
     a->gen++;
     a->host = NULL;
@@ -99,34 +106,34 @@ int lflist_remove(flanchor *a, heritage *h, lflist *l){
 }
 
 static
-flanchor *help_patron(flanchor *a, flanchor *n, heritage *h, lflist *l)
+flanchor *help_patron(flanchor *a, flanchor *n, heritage *h)
 {
     flanchor *pat = NULL;
     while(1){
-        n = flinref_read(&a->n, n, h, l);
+        n = flinref_read(&a->n, n, h);
         if(n && n->p == a)
             goto return_n;
 
-        pat = flinref_read(&a->pat, pat, h, l);
+        pat = flinref_read(&a->pat, pat, h);
         if(!pat)
             continue;
-        if(!cas_ok(((markptr) {.patint = (uintptr_t) pat, .read = true}),
-                   &a->pat, pat))
-            continue;
 
-        genptr patp = (genptr) pat->p;
-        if(patp.p == a)
+        pxchg patpx = atomic_read_128b(&pat->p);
+        if(patpx.p == a)
             goto return_pat;
-        if(a->n != n || !a->read)
-            continue;
-        if(!patp.locked)
+        if(pat->realp != a)
+            if(a->pat == pat && atomic_eq_128b(&pat->p, patpx))
+                return NULL;
+            else
+                continue;
+        if(patpx.p != n)
             continue;
 
-        int ngen = patp.ngen;
-        if(n && cas2_ok(((pxchg){a, ngen}), &n->p, ((pxchg){pat, ngen})))
+        flgen ngen = patpx.gen;
+        if(cas2_ok(pxchg(a, ngen), &n->p, pxchg(pat, ngen)))
             goto return_n;
-        
-        if(cas_ok(a, &pat->p, patp))
+
+        if(cas2_ok(pxchg(a, ngen), &pat->p, patpx))
             goto return_pat;
     }
 
@@ -142,15 +149,11 @@ int lflist_add_rear(flanchor *a, heritage *h, lflist *l){
     return lflist_add_before(a, &l->nil, h, l);
 }
 
-int lflist_add_before(flanchor *a, flanchor *n, heritage *h, lflist *l){
-    assert(a->host == l);
-    if(!cas_ok(ADDING, &a->host, NULL))
-        return -1;
-    
+int lflist_add_before(flanchor *a, flanchor *n, heritage *h){
     a->n = n;
     flanchor *p = NULL;
     while(a->n == n && !a->pat && !a->gen){
-        p = flinref_read(&n->p, p, h, l);
+        p = flinref_read(&n->p, p, h);
         if(!p)
             continue;
         int gen = l->nil.gen;
@@ -158,7 +161,7 @@ int lflist_add_before(flanchor *a, flanchor *n, heritage *h, lflist *l){
         flanchor *client = cas(a, &p->n, n);
         if(client == n)
             client = a;
-        else if(flinref_up(client, h, l))
+        else if(flinref_up(client, h))
             continue;
 
         if(!cas2_ok(((pxchg){client, gen + 1}), &n->p,
@@ -166,7 +169,7 @@ int lflist_add_before(flanchor *a, flanchor *n, heritage *h, lflist *l){
             continue;
 
         if(client != a)
-            flinref_down(client, l);
+            flinref_down(client);
         else
             break;
     }

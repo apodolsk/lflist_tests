@@ -48,28 +48,28 @@ __int128_t cmpxchg128b(__int128_t src, volatile __int128_t *dest,
                        __int128_t expected_dest);
 
 #define cas(n, addr, old)                                               \
-    (PUN(cmpxchg64b(PUN(n, int64_t),                                    \
-                    (int64_t *) addr,                                   \
-                    PUN(old, int64_t))                                  \
-         , typeof(old)))
+    (PUN(cmpxchg64b(PUN((n), int64_t),                                  \
+                    (int64_t *) (addr),                                 \
+                    PUN((old), int64_t))                                \
+         , typeof((old))))
 
 #define cas2(n, addr, old)                                              \
-    (PUN(cmpxchg128b(PUN(n, int128_t),                                  \
-                     (int128_t *) addr,                                 \
-                     PUN(old, int128_t))                                \
-         , typeof(old)))
+    (PUN(cmpxchg128b(PUN((n), int128_t),                                \
+                     (int128_t *) (addr),                               \
+                     PUN((old), int128_t))                              \
+         , typeof((old))))
 
 #define cas_ok(n, addr, old)                                            \
-    (cmpxchg64b(PUN(n, int64_t),                                        \
-                    (int64_t *) addr,                                   \
-                    PUN(old, int64_t))                                  \
-     == PUN(old, int64_t))
+    (cmpxchg64b(PUN((n), int64_t),                                      \
+                (int64_t *) (addr),                                     \
+                PUN((old), int64_t))                                    \
+     == PUN((old), int64_t))
 
 #define cas2_ok(n, addr, old)                                           \
-    (cmpxchg128b(PUN(n, int128_t),                                      \
-                 (int128_t *) addr,                                     \
-                 PUN(old, int128_t))                                    \
-     == PUN(old, int128_t))
+    (cmpxchg128b(PUN((n), int128_t),                                    \
+                 (int128_t *) (addr),                                   \
+                 PUN((old), int128_t))                                  \
+     == PUN((old), int128_t))
 
 
 #endif  /* __ATOMICS_H__ */
