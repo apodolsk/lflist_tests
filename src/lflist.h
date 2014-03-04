@@ -11,8 +11,10 @@ struct flanchor{
         flanchor *p;
         flgen gen;
     };
-    flanchor *n;
-    flanchor *realp;
+    struct nxchg{
+        flanchor *n;
+        uintptr_t gen;
+    }
 };
 
 

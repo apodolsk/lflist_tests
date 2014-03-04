@@ -33,8 +33,6 @@ static
 flanchor *flinref_read(flanchor * volatile*from, flanchor *held, heritage *h){
     markptr ma = *(markptr *) from;
     if(ma.read)
-        /* This handles markptr and genptr. If genptr is locked, then
-           p == held. */
         return held;
     flanchor *a = (flanchor *) ma.patint;
     if(held == a)
@@ -63,27 +61,25 @@ int lflist_remove_any(flanchor *a, heritage *h){
 int lflist_remove(flanchor *a, heritage *h, uintptr_t gen){
     assert(!is_nil(a));
 
-    uintptr_t gen;
-
-    pxchg px = {};
-    for(flanchor *p = NULL, *n = NULL;;){
+    for(flx nx = {}; px = {};;){
         while(1){
-            n = help_patron(a, n, h);
-            flgen ngen = n->gen;
-
             do{
-                px = atomic_read_128b(&a->p);
-            }while(!cas_ok(p, &a-realp, NULL);)
+                flx oldnx = atomic_read2(&a->nx);
+                nx = help_patron(a, n, h);
+            }while(!cas2_ok(nx, &a->nx, oldnx));
+            
+            do{
+                px = flinref_read(&a->px, p, h);
+                if(px.igen != px.gen.igen)
+                    return -1;
+            }while(!cas2_ok(flx(px.p, (flgen){px.igen, .locked = 1}),
+                            &a->px, px));
 
-            if(cas_ok(((genptr){.ngen = ngen, .locked = true}), &a->p, p))
-                break;
+            if(cas2_ok(flx(px.pr, nx.gen), &nx.p->px, flx(a, nx.gen))){
+                flx pnx = atomic_read2(&px.p->nx);
+                
+            }
         }
-
-        pxchg r = cas2(pxchg(p, ngen), &n->p, pxchg(a, ngen));
-        if(r.gen == ngen && (r.p == p || r.p == a))
-            break;
-        if(p->patint != (uintptr_t) a && a->locked)
-            break;
     }
     
     flinref_down(n);
@@ -97,28 +93,25 @@ static
 flanchor *help_patron(flanchor *a, flanchor *n, heritage *h)
 {
     while(1){
-        pat = flinref_read(&a->pat, n, h);
-        if(!pat)
-            continue;
+        pat = flinref_read(&a->n, n, h);
 
-        pxchg patpx = atomic_read_128b(&pat->p);
-        if(patpx.p == a)
+        n = atomic_read_128b(&pat.p->px);
+        if(n.p == a)
             return n;
-        if(pat->privpx.p != a && a->pat == pat &&
-           atomic_eq_128b(patpx, &pat->p))
-            return NULL;
 
-        flanchor *realn = npx.p;
-        if(!flinref_up(realn)){
-            if(cas2_ok(pxchg(a, npx.gen), &realn->p, pxchg(n, npx.gen))){
-                flinref_down(n);
-                return realn;
-            }
-            flinref_down(npx.p);
+        uintptr_t patgen = pat.p->gen;
+        if(flinref_up(n.p))
+            continue;
+        flx npx = cas2(flx(a, n.gen), &n.p->px, flx(pat.p, n.gen));
+        if(npx.p == a || npx.p == pat.p && npx.gen == n.gen){
+            flinref_down(pat.p);
+            return npx;
         }
         
-        if(cas2_ok(pxchg(a, ngen), &pat->p, patpx))
-            return n;
+        if(cas2_ok(flx(a, patgen), &nx.p->px, n)){
+            flinref_down(n.p);
+            return npx;
+        }
     }
 }
 
