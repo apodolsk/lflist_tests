@@ -11,10 +11,7 @@ struct flanchor{
         flanchor *p;
         flgen gen;
     };
-    struct nxchg{
-        flanchor *n;
-        flanchor *pat;
-    };
+    flanchor *n;
     flanchor *realp;
 };
 
