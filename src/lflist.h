@@ -4,35 +4,19 @@
 
 typedef volatile struct flanchor flanchor;
 
-typedef union flgen { uint igen:62; uint locked:1; uint nil:1 };
+typedef union { uintptr_t igen:62; uint locked:1; uint nil:1;} flgen;
+typedef volatile struct { flanchor *pt; flgen gen; } flx;
 
 struct flanchor{
-    struct pxchg{
-        flanchor *p;
-        flgen gen;
-    };
-    struct nxchg{
-        flanchor *n;
-        uintptr_t gen;
-    }
+    flx n;
+    flx p;
 };
-
-
 #define FRESH_FLANCHOR {}
 
 typedef struct lflist{
     flanchor nil;
 } lflist;
-
-/* #define FRESH_LFLIST {} */
-
-#define REMOVING ((void *) 0x1)
-#define ADDING ((void *) 0x2)
-
-typedef union markptr markptr;
-typedef union genptr genptr;
-typedef struct nxchg nxchg;
-typedef struct pxchg pxchg;
+#define FRESH_LFLIST(l) {.nil = {.n = {l->nil, 0}, .p = {l->nil, 0}}}
 
 int lflist_remove_any(flanchor *a, heritage *h);
 int lflist_remove(flanchor *a, heritage *h, lflist *l);
