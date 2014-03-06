@@ -111,7 +111,7 @@ int lflist_remove(flx a, heritage *h, lflist *l){
 
 static
 flx help_prev(flx a, flx p, heritage *h, lflist *l){
-    flx n;
+    flx n = {};
     do{
         p = flinref_read(&a.pt->p, (flx*[]){&p, &n, NULL}, h, l);
         if(!p.pt)
