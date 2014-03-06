@@ -4,6 +4,8 @@
  * Lockfree doubly-linked list. Good luck!
  */
 
+#define MODULE LFLIST
+
 #include <stdlib.h>
 #include <peb_macros.h>
 #include <atomics.h>
@@ -11,9 +13,11 @@
 #include <lflist.h>
 #include <nalloc.h>
 
+#include <global.h>
+
 #ifndef FAKELOCKFREE
 
-static flx flinref_read(flx *from, flx *held, heritage *h, lflist *l);
+static flx flinref_read(flx *from, flx **held, heritage *h, lflist *l);
 static int flinref_up(flx a, heritage *h, lflist *l);
 static void flinref_down(flx a, lflist *l);
 static flx help_next(flx a, flx n, heritage *h, lflist *l);
@@ -37,20 +41,21 @@ static inline flx casx(flx n, flx *a, flx e){
 }
 
 static
-flx flinref_read(flx *from, flx *held, heritage *h, lflist *l){
+flx flinref_read(flx *from, flx **held, heritage *h, lflist *l){
     while(1){
         flx a = atomic_readflx(from);
         
         flx *reused = NULL;
-        for(; held; held++)
-            if(a.pt == held->pt)
-                reused = held;
+        for(; *held; held++){
+            if(a.pt == (*held)->pt)
+                reused = *held;
             else
-                flinref_down(*held, l);
+                flinref_down(**held, l);
+        }
         if(reused)
             return *reused;
         
-        if(flinref_up(a, h, l))
+        if(!a.pt || !flinref_up(a, h, l))
             return a;
     }
 }
@@ -60,6 +65,8 @@ int flinref_up(flx a, heritage *h, lflist *l){
     assert(a.pt);
     if(a.pt == &l->nil)
         return 0;
+    if(!a.pt)
+        return -1;
     return linref_up((void *) a.pt, h);
 }
 
@@ -71,6 +78,8 @@ void flinref_down(flx a, lflist *l){
 
 int lflist_remove(flx a, heritage *h, lflist *l){
     assert(a.pt != &l->nil);
+    assert(aligned_pow2(l, 16));
+    assert(aligned_pow2(a.pt, 16));
 
     flx n = {}, p = {};
     do{
@@ -104,7 +113,7 @@ static
 flx help_prev(flx a, flx p, heritage *h, lflist *l){
     flx n;
     do{
-        p = flinref_read(&a.pt->p, (flx[]){p, n, NULL}, h, l);
+        p = flinref_read(&a.pt->p, (flx*[]){&p, &n, NULL}, h, l);
         if(!p.pt)
             return (flx){};
         n = atomic_readflx(&p.pt->n);
@@ -130,7 +139,7 @@ flx help_next(flx a, flx n, heritage *h, lflist *l)
 {
     flx pat = {}, patp = {};
     while(1){
-        pat = flinref_read(&a.pt->n, (flx[]){n, pat, patp, NULL}, h, l);
+        pat = flinref_read(&a.pt->n, (flx*[]){&n, &pat, &patp, NULL}, h, l);
 
         patp = atomic_readflx(&pat.pt->p);
         if(patp.pt != a.pt){
@@ -153,7 +162,7 @@ flx help_next(flx a, flx n, heritage *h, lflist *l)
             return pat;
 
         /* try helping pat finish its removal transaction */
-        n = flinref_read(&pat.pt->n, (flx[]){NULL}, h, l);
+        n = flinref_read(&pat.pt->n, (flx*[]){NULL}, h, l);
         flx np = casx((flx){a.pt, n.gen}, &n.pt->p, (flx){pat.pt, n.gen});
         if(np.pt == a.pt || (np.pt == pat.pt && geneq(np.gen, n.gen)))
             return flinref_down(pat, l), n;
@@ -168,6 +177,10 @@ flx help_next(flx a, flx n, heritage *h, lflist *l)
 }
 
 void lflist_add_before(flx a, flx n, heritage *h, lflist *l){
+    assert(a.pt != &l->nil);
+    assert(aligned_pow2(l, 16));
+    assert(aligned_pow2(a.pt, 16));
+    
     flx p = {};
     do{
         p = help_prev(n, p, h, l);

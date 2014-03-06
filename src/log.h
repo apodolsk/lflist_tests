@@ -67,6 +67,7 @@ unsigned int _get_ticks(void);
 #define LOG_PEBRAND 0
 
 #define LOG_LIST 0
+#define LOG_LFLIST 1
 #define LOG_STACK 0
 
 #define LOG_KMALLOC 0

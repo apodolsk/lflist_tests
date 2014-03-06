@@ -269,8 +269,9 @@ slab_t *slab_of(block_t *b){
 }
 
 void linslab_ref_up(slab_t *s, void *t){
+    assert(!s->linrefs && !s->type);
     s->type = (heritage *) t;
-    xadd(1, &s->linrefs);
+    s->linrefs = 1;
 }
 
 void linslab_ref_down(slab_t *s){

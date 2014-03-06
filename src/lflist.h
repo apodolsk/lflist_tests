@@ -1,19 +1,22 @@
 #pragma once
 
-#define FAKELOCKFREE
+/* #define FAKELOCKFREE */
 
 #ifndef FAKELOCKFREE
 
 #include <nalloc.h>
 
+typedef volatile struct flx flx;
 typedef volatile struct flanchor flanchor;
+typedef unsigned int uint;
 
 typedef struct { uintptr_t i:62; uint locked:1; uint unlocking:1 ;} flgen;
 
-typedef volatile struct {
+struct flx{
     flanchor *pt;
     flgen gen;
-} flx;
+} __attribute__((__aligned__ (2 * sizeof(void *))));
+
 
 struct flanchor{
     flx n;

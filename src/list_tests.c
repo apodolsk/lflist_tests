@@ -25,7 +25,7 @@ typedef union{
     struct{
         flanchor flanc;
         pthread_t magics[MAXWRITE];
-    }
+    };
 } block;
 
 type_key block_key;
@@ -148,10 +148,13 @@ int malloc_test_main(int program);
 
 int main(int argc, char **argv){
     int program = 1, opt, do_malloc = 0;
-    while( (opt = getopt(argc, argv, "t:a:o:p:w:m")) != -1 ){
+    while( (opt = getopt(argc, argv, "t:l:a:o:p:w:m")) != -1 ){
         switch (opt){
         case 't':
             nthreads = atoi(optarg);
+            break;
+        case 'l':
+            nlists = atoi(optarg);
             break;
         case 'a':
             nalloc = atoi(optarg);
