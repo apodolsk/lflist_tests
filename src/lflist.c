@@ -50,7 +50,7 @@ flx flinref_read(volatile flx *from, flx **held, type *h, lflist *l){
         for(; *held; held++){
             if(a.pt == (*held)->pt)
                 reused = *held;
-            else
+            else if((*held)->pt)
                 flinref_down(**held, l);
         }
         if(reused)
@@ -66,14 +66,12 @@ int flinref_up(flx a, type *h, lflist *l){
     assert(a.pt);
     if(a.pt == &l->nil)
         return 0;
-    if(!a.pt)
-        return -1;
-    return linref_up((void *) a.pt, h);
+    return linref_up(a.pt, h);
 }
 
 static
 void flinref_down(flx a, lflist *l){
-    if(a.pt && a.pt != &l->nil)
+    if(a.pt != &l->nil)
         linref_down(a.pt);
 }
 
@@ -213,7 +211,7 @@ flx lflist_pop_front(type *h, lflist *l){
         if(n.pt == &l->nil)
             return (flx){};
         if(!lflist_remove(n, h, l))
-            return n;
+            return flinref_down(n, l), n;
     }
 }
 

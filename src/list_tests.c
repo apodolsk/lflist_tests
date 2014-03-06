@@ -59,15 +59,15 @@ uint randpcnt(uint per_centum){
 }
 
 typedef struct {
-    int tid;
     lflist *lists;
-    heritage *heritages;
+    heritage *heritage;
 } reinsert_args;
 
 void *reinsert_kid(reinsert_args *a){
     lflist priv = FRESH_LFLIST(&priv);
     lflist *shared = a->lists;
-    heritage *h = &a->heritages[a->tid];
+    heritage *h = a->heritage;
+    PPNT(h);
 
     rand_init();
     sem_wait(&parent_done);
@@ -113,14 +113,17 @@ void test_reinsert(){
         lists[i] = (lflist) FRESH_LFLIST(&lists[i]);
 
     heritage hs[nthreads];
-    for(int i = 0; i < nlists; i++)
+    reinsert_args args[nthreads];
+    for(int i = 0; i < nlists; i++){
         hs[i] = (heritage) FRESH_HERITAGE(t_block);
+        args[i] = (reinsert_args){lists, &hs[i]};
+    }
 
     pthread_t tids[nthreads];
     for(int i = 0; i < nthreads; i++)
         if(pthread_create(&tids[i], NULL,
                           (void *(*)(void*)) reinsert_kid,
-                          &(reinsert_args){i, lists, hs}))
+                          &args[i]))
             LOGIC_ERROR();
     
     for(int i = 0; i < nthreads; i++)
