@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <peb_util.h>
+#include <whtypes.h>
 
 /** 
  * @brief Wrapper for the locked version of the x86 xadd instruction.
@@ -19,9 +20,8 @@
  * @return The value which dest contained immediately before the
  * increment. 
  */
-int xadd(int source, int *dest);
-
-int64_t xchg64b(int64_t src, int64_t *dest);
+uptr xadd(uptr src, uptr *dest);
+uptr xchg64b(uptr src, uptr *dest);
 
 /** 
  * @brief Wrapper for the x86 cmpxchg instruction.
@@ -42,35 +42,33 @@ int64_t xchg64b(int64_t src, int64_t *dest);
  */ 
 /* Volatile is here to appease the compiler, not because I think it's a
    magical keyword for "atomic". */
-int64_t cmpxchg64b(int64_t src, volatile int64_t *dest,
-                   int64_t expected_dest);
-__int128_t cmpxchg128b(__int128_t src, volatile __int128_t *dest,
-                       __int128_t expected_dest);
+uptr cmpxchg64b(uptr src, volatile uptr *dest, uptr expected_dest);
+dblptr cmpxchg128b(dblptr src, volatile dblptr *dest, dblptr expected_dest);
 
-#define cas(n, addr, old)                                              \
-    PUN(typeof(old),                                                   \
-        cmpxchg64b(PUN(int64_t, n),                                    \
-                   (int64_t *) (addr),                                 \
-                   PUN(int64_t, old)))
+#define cas(n, addr, old)                       \
+    PUN(typeof(old),                            \
+        cmpxchg64b(PUN(uptr, n),                \
+                   (uptr *) (addr),             \
+                   PUN(uptr, old)))
 
 
-#define cas2(n, addr, old)                                              \
-    PUN(typeof(old),                                                    \
-        cmpxchg128b(PUN(int128_t, n),                                   \
-                    (int128_t *) (addr),                                \
-                    PUN(int128_t, old)))
+#define cas2(n, addr, old)                      \
+    PUN(typeof(old),                            \
+        cmpxchg128b(PUN(dblptr, n),             \
+                    (dblptr *) (addr),          \
+                    PUN(dblptr, old)))
 
 #define cas_ok(n, addr, old)                    \
-    (cmpxchg64b(PUN(int64_t, n),                \
-                 (int64_t *) (addr),            \
-                 PUN(int64_t, old))             \
-     == PUN(int64_t, old))
+    (cmpxchg64b(PUN(uptr, n),                   \
+                (uptr *) (addr),                \
+                PUN(uptr, old))                 \
+     == PUN(uptr, old))
 
 #define cas2_ok(n, addr, old)                   \
-    (cmpxchg128b(PUN(int128_t, n),              \
-                 (int128_t *) (addr),           \
-                 PUN(int128_t, old))            \
-     == PUN(int128_t, old))
+    (cmpxchg128b(PUN(dblptr, n),                \
+                 (dblptr *) (addr),             \
+                 PUN(dblptr, old))              \
+     == PUN(dblptr, old))
 
 
 

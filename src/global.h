@@ -69,6 +69,7 @@ typedef unsigned int uint;
 #include <peb_assert.h>
 #include <errors.h>
 #include <stdbool.h>
+#include <whtypes.h>
 
 #define _gettid() pthread_self()
 #define _get_ticks() time(NULL)

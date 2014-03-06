@@ -304,9 +304,9 @@ int linref_up(volatile void *l, heritage *h){
         new.hx = old.hx = s->hx;
         if(old.type->key == h->key)
             return INPUT_ERROR("Wrong type.");
-        assert(old.linrefs);
+        assert(old.linrefs > 0);
         new.linrefs++;
-    }while(!cas_ok(new.hx, &s->hx, old.hx));
+    }while(!cas2_ok(new.hx, &s->hx, old.hx));
     return 0;
 }
 

@@ -404,7 +404,7 @@ void consumer_child(struct child_args *shared){
 #define NBYTES (64000 * PAGE_SIZE)
 /* #define NBYTES 128 */
 #define REPS 10000
-volatile int64_t update_mem[NBYTES];
+volatile uptr_t update_mem[NBYTES];
 
 void plain_update_kid(void){
     for(int r = 0; r < REPS; r++)

@@ -180,7 +180,8 @@ void lflist_add_before(flx a, flx n, heritage *h, lflist *l){
     assert(a.pt != &l->nil);
     assert(aligned_pow2(l, 16));
     assert(aligned_pow2(a.pt, 16));
-    
+
+    a.pt->n = n;
     flx p = {};
     do{
         p = help_prev(n, p, h, l);
@@ -190,8 +191,10 @@ void lflist_add_before(flx a, flx n, heritage *h, lflist *l){
         assert(geneq(p.gen, n.gen));
         assert(geneq(a.gen, a.pt->p.gen));
 
-    }while(!casx_ok((flx){a.pt, p.gen}, &n.pt->p, p) &&
-           casx_ok((flx){a.pt, p.gen}, &p.pt->n, n));
+    }while(!casx_ok((flx){a.pt, p.gen}, &n.pt->p, p));
+
+    casx_ok((flx){a.pt, p.gen}, &p.pt->n, n);
+    
     flinref_down(p, l);
 }
 

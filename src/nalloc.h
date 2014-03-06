@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <stack.h>
 #include <stdbool.h>
+#include <whtypes.h>
 
 typedef struct {
     sanchor_t sanc;
@@ -70,10 +71,10 @@ typedef struct __attribute__((__aligned__(SLAB_SIZE))){
     simpstack free_blocks;
     union hxchg_t{
         struct{
-            int linrefs;
+            uptr linrefs;
             heritage *type;
         };
-        int64_t hx;
+        dblptr hx;
     };
     int nblocks_contig;
     stack wayward_blocks;
