@@ -6,7 +6,7 @@
 
 #include <nalloc.h>
 
-typedef volatile struct flx flx;
+typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
 typedef unsigned int uint;
 
@@ -19,8 +19,8 @@ struct flx{
 
 
 struct flanchor{
-    flx n;
-    flx p;
+    volatile flx n;
+    volatile flx p;
 };
 #define FRESH_FLANCHOR {}
 

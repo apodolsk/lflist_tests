@@ -17,31 +17,32 @@
 
 #ifndef FAKELOCKFREE
 
-static flx flinref_read(flx *from, flx **held, heritage *h, lflist *l);
+static flx flinref_read(volatile flx *from, flx **held, heritage *h,
+                        lflist *l);
 static int flinref_up(flx a, heritage *h, lflist *l);
 static void flinref_down(flx a, lflist *l);
 static flx help_next(flx a, flx n, heritage *h, lflist *l);
 static flx help_prev(flx a, flx p, heritage *h, lflist *l);
 
-static inline flx atomic_readflx(flx *x){
+static inline flx atomic_readflx(volatile flx *x){
     return (flx) cas2((flx){}, x, (flx){});
 }
 static inline int geneq(flgen a, flgen b){
     return PUN(int64_t, a) == PUN(int64_t, b);
 }
-static inline int atomic_flxeq(flx *aptr, flx b){
+static inline int atomic_flxeq(volatile flx *aptr, flx b){
     flx a = atomic_readflx(aptr);
     return PUN(int128_t, a) == PUN(int128_t, b);
 }
-static inline int casx_ok(flx n, flx *a, flx e){
+static inline int casx_ok(flx n, volatile flx *a, flx e){
     return cas2_ok(n, a, e);
 }
-static inline flx casx(flx n, flx *a, flx e){
+static inline flx casx(flx n, volatile flx *a, flx e){
     return cas2(n, a, e);
 }
 
 static
-flx flinref_read(flx *from, flx **held, heritage *h, lflist *l){
+flx flinref_read(volatile flx *from, flx **held, heritage *h, lflist *l){
     while(1){
         flx a = atomic_readflx(from);
         

@@ -48,14 +48,14 @@ void init_block(block *b){
     assert(lwrite_magics(b));
 }
 
-static __thread unsigned int seed;
+static __thread uint seed;
 void rand_init(void){
     assert(read(open("/dev/urandom", O_RDONLY), &seed, sizeof(seed)) ==
            sizeof(seed));
 }
 
-int randpcnt(int per_centum){
-    return rand_r(&seed) % 100 <= umin(per_centum, 100);
+uint randpcnt(uint per_centum){
+    return (uint) rand_r(&seed) % 100 <= umin(per_centum, 100);
 }
 
 void *reinsert_kid(lflist *lists){

@@ -9,6 +9,7 @@
 
 #include <peb_macros.h>
 #include <string.h>
+#include <whtypes.h>
 
 const char *vip_list[] = {
     "alloc",
@@ -16,7 +17,7 @@ const char *vip_list[] = {
 };
 
 int fun_is_very_important(const char *fun_name){
-    for(int i = 0; i < ARR_LEN(vip_list); i++)
+    for(uint i = 0; i < ARR_LEN(vip_list); i++)
         if(strcmp(fun_name, vip_list[i]) == 0)
             return 1;
     return 0;

@@ -65,7 +65,7 @@ static int block_magics_valid(block_t *b, size_t bytes);
 void disable_interrupts(){}
 void enable_interrupts(){}
 
-static const int cache_sizes[] = {
+static const uint cache_sizes[] = {
     16, 32, 48, 64, 80, 96, 112, 128,
     192, 256,
     384, 512, 
@@ -78,7 +78,7 @@ static stack hot_slabs = FRESH_STACK;
 
 static
 int cacheidx_of(size_t size){
-    for(int i = 0; i < ARR_LEN(cache_sizes); i++)
+    for(uint i = 0; i < ARR_LEN(cache_sizes); i++)
         if(cache_sizes[i] >= size)
             return i;
     LOGIC_ERROR();
@@ -343,7 +343,7 @@ int write_block_magics(block_t *b, size_t bytes){
     if(!HEAP_DBG)
         return 1;
     int *magics = (int *) (b + 1);
-    for(int i = 0; i < (bytes - sizeof(*b))/sizeof(*magics); i++)
+    for(size i = 0; i < (bytes - sizeof(*b))/sizeof(*magics); i++)
         magics[i] = NALLOC_MAGIC_INT;
     return 1;
 }
@@ -353,7 +353,7 @@ int block_magics_valid(block_t *b, size_t bytes){
     if(!HEAP_DBG)
         return 1;
     int *magics = (int *) (b + 1);
-    for(int i = 0; i < (bytes - sizeof(*b))/sizeof(*magics); i++)
+    for(size i = 0; i < (bytes - sizeof(*b))/sizeof(*magics); i++)
         rassert(magics[i], ==, NALLOC_MAGIC_INT);
     return 1;
 }
