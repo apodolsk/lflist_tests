@@ -82,7 +82,7 @@ int lflist_remove(flx a, heritage *h, lflist *l){
     assert(aligned_pow2(l, 16));
     assert(aligned_pow2(a.pt, 16));
 
-    flx n = {}, p = {};
+    flx n = {}, p = {}, plocked;    
     do{
         p = help_prev(a, p, h, l);
         if(!p.pt || p.gen.i != a.gen.i)
@@ -94,11 +94,12 @@ int lflist_remove(flx a, heritage *h, lflist *l){
         }while(!casx_ok(n, &a.pt->n, oldn));
         if(!n.pt)
             break;
-    }while(!casx_ok((flx){p.pt, (flgen){p.gen.i, .locked = 1}}, &a.pt->p, p) ||
+        plocked = (flx){p.pt, (flgen){p.gen.i, .locked = 1}};
+    }while(!casx_ok(plocked, &a.pt->p, p) ||
            !casx_ok((flx){p.pt, n.gen}, &n.pt->p, (flx){a.pt, n.gen}));
 
     int ret = 0;
-    if(casx_ok((flx){NULL, a.gen}, &a.pt->p, p)){
+    if(casx_ok((flx){NULL, a.gen}, &a.pt->p, plocked)){
         casx(n, &p.pt->n, a);
         a.pt->n = (flx){};
     }
@@ -196,7 +197,7 @@ void lflist_add_before(flx a, flx n, heritage *h, lflist *l){
 
     }while(!casx_ok((flx){a.pt, p.gen}, &n.pt->p, p));
 
-    casx_ok((flx){a.pt, p.gen}, &p.pt->n, n);
+    casx((flx){a.pt, p.gen}, &p.pt->n, n);
     
     flinref_down(p, l);
 }

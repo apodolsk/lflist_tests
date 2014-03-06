@@ -268,7 +268,7 @@ slab_t *slab_of(block_t *b){
     return (slab_t *) align_down_pow2(b, SLAB_SIZE);
 }
 
-void linslab_ref_up(slab_t *s, void *t){
+void linslab_init(slab_t *s, void *t){
     assert(!s->linrefs && !s->type);
     s->type = (heritage *) t;
     s->linrefs = 1;
@@ -276,7 +276,7 @@ void linslab_ref_up(slab_t *s, void *t){
 
 void linslab_ref_down(slab_t *s){
     assert(s->linrefs);
-    if(xadd(-1, &s->linrefs)){
+    if(xadd(-1, &s->linrefs) == 1){
         s->type = NULL;
         stack_push(&s->sanc, &hot_slabs);
     }
@@ -285,7 +285,7 @@ void linslab_ref_down(slab_t *s){
 lineage_t *linalloc(heritage *t, void (*block_init)(void *)){
     return
         cache_alloc(t->size_of, &t->slabs,
-                    linslab_ref_up, t,
+                    linslab_init, t,
                     linslab_ref_down,
                     block_init);
 }
