@@ -58,16 +58,6 @@ int randpcnt(int per_centum){
     return rand_r(&seed) % 100 <= umin(per_centum, 100);
 }
 
-#define linalloc _linalloc
-void *_linalloc(heritage *h, void (*init_block)(void *)){
-    void *b = malloc(h->size_of);
-    if(!b)
-        return 0;
-    init_block(b);
-    return b;
-}
-#define linfree free
-
 void *reinsert_kid(lflist *lists){
     lflist privs = FRESH_LFLIST(&privs);
     heritage block_heritage = (heritage)

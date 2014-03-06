@@ -275,7 +275,8 @@ void linslab_ref_up(slab_t *s, void *t){
 }
 
 void linslab_ref_down(slab_t *s){
-    if(xadd(-1, &s->linrefs) == 1){
+    assert(s->linrefs);
+    if(xadd(-1, &s->linrefs)){
         s->type = NULL;
         stack_push(&s->sanc, &hot_slabs);
     }
