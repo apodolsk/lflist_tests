@@ -303,7 +303,7 @@ int linref_up(volatile void *l, heritage *h){
     hxchg_t old, new;
     do{
         new.hx = old.hx = s->hx;
-        if(old.type->key == h->key)
+        if(old.type->key != h->key)
             return INPUT_ERROR("Wrong type.");
         assert(old.linrefs > 0);
         new.linrefs++;
