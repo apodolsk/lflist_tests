@@ -19,7 +19,7 @@
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
-#define PUN(s, t) ({                                        \
+#define PUN(t, s) ({                                              \
             _Static_assert(sizeof(s) == sizeof(t), "PUN:"#s" "#t);  \
             ((union {__typeof__(s) str; t i;}) s).i;        \
         })                                                  \

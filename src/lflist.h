@@ -4,8 +4,12 @@
 
 typedef volatile struct flanchor flanchor;
 
-typedef union { uintptr_t igen:62; uint locked:1; uint nil:1;} flgen;
-typedef volatile struct { flanchor *pt; flgen gen; } flx;
+typedef struct { uintptr_t i:62; uint locked:1; uint unlocking:1 ;} flgen;
+
+typedef volatile struct {
+    flanchor *pt;
+    flgen gen;
+} flx;
 
 struct flanchor{
     flx n;
@@ -18,18 +22,11 @@ typedef struct lflist{
 } lflist;
 #define FRESH_LFLIST(l) {.nil = {.n = {l->nil, 0}, .p = {l->nil, 0}}}
 
-int lflist_remove_any(flanchor *a, heritage *h);
-int lflist_remove(flanchor *a, heritage *h, lflist *l);
+flx flx_of(flanchor *a);
+flanchor *ptr_of(flx a);
 
-int lflist_add_before(flanchor *a, flanchor *n, heritage *h, lflist *l);
-int lflist_add_rear(flanchor *a, heritage *h, lflist *l);
+void lflist_add_before(flx a, flx n, heritage *h, lflist *l);
+int lflist_remove(flx a, heritage *h, lflist *l);
 
-/* At any time, only one thread can be calling a priv function on a given
-   node in a list, where l->nil is the node in question for
-   pop_front_priv. */
-int lflist_add_after_priv(flanchor *a, flanchor *p,
-                          heritage *h, lflist *l);
-int lflist_add_front_priv(flanchor *a, heritage *h, lflist *l);
-
-flanchor *lflist_pop_front_priv(heritage *h, lflist *l);
-flanchor *lflist_pop_rear(heritage *h, lflist *l);
+flx lflist_pop_front(heritage *h, lflist *l);
+void lflist_add_rear(flx a, heritage *h, lflist *l);

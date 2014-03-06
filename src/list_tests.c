@@ -89,7 +89,7 @@ void test_reinsert(){
     
     lflist lists[nlists];
     for(int i = 0; i < nlists; i++)
-        lists[i] = (lflist) FRESH_LFLIST(lists[i]);
+        lists[i] = (lflist) FRESH_LFLIST(&lists[i]);
 
     pthread_t tids[nthreads];
     for(int i = 0; i < nthreads; i++)

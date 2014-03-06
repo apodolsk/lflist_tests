@@ -306,4 +306,3 @@ unlocked?
 Say x == a->n and x->p == a, then after read and write of p->n = x, x dies, is
 reinserted past x2, and x2 dies to set x as n and pat as x2, then p swings x.
 
-
