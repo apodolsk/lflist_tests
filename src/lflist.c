@@ -72,7 +72,7 @@ int flinref_up(flx a, heritage *h, lflist *l){
 
 static
 void flinref_down(flx a, lflist *l){
-    if(a.pt && a.pt == &l->nil)
+    if(a.pt && a.pt != &l->nil)
         linref_down(a.pt);
 }
 
