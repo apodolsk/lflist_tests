@@ -17,12 +17,12 @@
 
 #ifndef FAKELOCKFREE
 
-static flx flinref_read(volatile flx *from, flx **held, heritage *h,
+static flx flinref_read(volatile flx *from, flx **held, type *h,
                         lflist *l);
-static int flinref_up(flx a, heritage *h, lflist *l);
+static int flinref_up(flx a, type *h, lflist *l);
 static void flinref_down(flx a, lflist *l);
-static flx help_next(flx a, flx n, heritage *h, lflist *l);
-static flx help_prev(flx a, flx p, heritage *h, lflist *l);
+static flx help_next(flx a, flx n, type *h, lflist *l);
+static flx help_prev(flx a, flx p, type *h, lflist *l);
 
 static inline flx atomic_readflx(volatile flx *x){
     return (flx) cas2((flx){}, x, (flx){});
@@ -42,7 +42,7 @@ static inline flx casx(flx n, volatile flx *a, flx e){
 }
 
 static
-flx flinref_read(volatile flx *from, flx **held, heritage *h, lflist *l){
+flx flinref_read(volatile flx *from, flx **held, type *h, lflist *l){
     while(1){
         flx a = atomic_readflx(from);
         
@@ -62,7 +62,7 @@ flx flinref_read(volatile flx *from, flx **held, heritage *h, lflist *l){
 }
 
 static
-int flinref_up(flx a, heritage *h, lflist *l){
+int flinref_up(flx a, type *h, lflist *l){
     assert(a.pt);
     if(a.pt == &l->nil)
         return 0;
@@ -77,7 +77,7 @@ void flinref_down(flx a, lflist *l){
         linref_down(a.pt);
 }
 
-int lflist_remove(flx a, heritage *h, lflist *l){
+int lflist_remove(flx a, type *h, lflist *l){
     assert(a.pt != &l->nil);
     assert(aligned_pow2(l, 16));
     assert(aligned_pow2(a.pt, 16));
@@ -112,7 +112,7 @@ int lflist_remove(flx a, heritage *h, lflist *l){
 }
 
 static
-flx help_next(flx a, flx n, heritage *h, lflist *l)
+flx help_next(flx a, flx n, type *h, lflist *l)
 {
     flx pat = {}, patp = {};
     while(1){
@@ -154,7 +154,7 @@ flx help_next(flx a, flx n, heritage *h, lflist *l)
 }
 
 static
-flx help_prev(flx a, flx p, heritage *h, lflist *l){
+flx help_prev(flx a, flx p, type *h, lflist *l){
     flx n = {};
     do{
         p = flinref_read(&a.pt->p, (flx*[]){&p, &n, NULL}, h, l);
@@ -180,7 +180,7 @@ flx help_prev(flx a, flx p, heritage *h, lflist *l){
     return p;
 }
 
-void lflist_add_before(flx a, flx n, heritage *h, lflist *l){
+void lflist_add_before(flx a, flx n, type *h, lflist *l){
     assert(a.pt != &l->nil);
     assert(aligned_pow2(l, 16));
     assert(aligned_pow2(a.pt, 16));
@@ -202,11 +202,11 @@ void lflist_add_before(flx a, flx n, heritage *h, lflist *l){
     flinref_down(p, l);
 }
 
-void lflist_add_rear(flx a, heritage *h, lflist *l){
+void lflist_add_rear(flx a, type *h, lflist *l){
     lflist_add_before(a, (flx){&l->nil}, h, l);
 }
 
-flx lflist_pop_front(heritage *h, lflist *l){
+flx lflist_pop_front(type *h, lflist *l){
     for(flx n = {};;){
         n = help_next((flx){&l->nil}, n, h, l);
         assert(n.pt);

@@ -35,22 +35,19 @@ typedef block_t lineage_t;
 
 /* Takes up space so that its address may be a unique key. */
 typedef struct{
-    char _;
-} type_key;
+    size_t size_of;
+} type;
+#define FRESH_TYPE(s) {s}
 
 typedef struct{
     simpstack slabs;
-    size_t size_of;
-    type_key *key;
+    type *t;
 } heritage;
-#define FRESH_HERITAGE(s, k)                        \
-    {.slabs = FRESH_SIMPSTACK,                      \
-            .size_of = align_up_pow2(s, MIN_ALIGNMENT), \
-            .key = k}
+#define FRESH_HERITAGE(_t) {.slabs = FRESH_SIMPSTACK, .t = _t}
 
 lineage_t *linalloc(heritage *type, void (*block_init)(void *));
 void linfree(lineage_t *l);
-int linref_up(volatile void *l, heritage *wanted);
+int linref_up(volatile void *l, type *wanted);
 void linref_down(volatile void *l);
 
 /* TODO: delete */
@@ -72,7 +69,7 @@ typedef struct __attribute__((__aligned__(SLAB_SIZE))){
     union hxchg_t{
         struct{
             uptr linrefs;
-            heritage *type;
+            heritage *her;
         };
         dblptr hx;
     };

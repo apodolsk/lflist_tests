@@ -268,24 +268,24 @@ slab_t *slab_of(block_t *b){
     return (slab_t *) align_down_pow2(b, SLAB_SIZE);
 }
 
-void linslab_init(slab_t *s, void *t){
-    assert(!s->linrefs && !s->type);
-    s->type = (heritage *) t;
+void linslab_init(slab_t *s, void *h){
+    assert(!s->linrefs && !s->her);
+    s->her = (heritage *) h;
     s->linrefs = 1;
 }
 
 void linslab_ref_down(slab_t *s){
     assert(s->linrefs);
     if(xadd(-1, &s->linrefs) == 1){
-        s->type = NULL;
+        s->her = NULL;
         stack_push(&s->sanc, &hot_slabs);
     }
 }
 
-lineage_t *linalloc(heritage *t, void (*block_init)(void *)){
+lineage_t *linalloc(heritage *h, void (*block_init)(void *)){
     return
-        cache_alloc(t->size_of, &t->slabs,
-                    linslab_init, t,
+        cache_alloc(h->t->size_of, &h->slabs,
+                    linslab_init, h,
                     linslab_ref_down,
                     block_init);
 }
@@ -295,15 +295,15 @@ void linfree(lineage_t *l){
     slab_t *s = slab_of(b);
     /* TODO: should be deleted for non-reserved header case. */
     assert(sanchor_unused(&b->sanc));
-    cache_dealloc(b, s, &s->type->slabs, linslab_ref_down);
+    cache_dealloc(b, s, &s->her->slabs, linslab_ref_down);
 }
 
-int linref_up(volatile void *l, heritage *h){
+int linref_up(volatile void *l, type *t){
     slab_t *s = slab_of((void *) l);
     hxchg_t old, new;
     do{
         new.hx = old.hx = s->hx;
-        if(old.type->key != h->key)
+        if(old.her->t != t)
             return INPUT_ERROR("Wrong type.");
         assert(old.linrefs > 0);
         new.linrefs++;
