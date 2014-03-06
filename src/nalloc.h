@@ -43,7 +43,9 @@ typedef struct{
     type_key *key;
 } heritage;
 #define FRESH_HERITAGE(s, k)                        \
-    {.slabs = FRESH_SIMPSTACK, .size_of = s, .key = k}
+    {.slabs = FRESH_SIMPSTACK,                      \
+            .size_of = align_up_pow2(s, MIN_ALIGNMENT), \
+            .key = k}
 
 lineage_t *linalloc(heritage *type, void (*block_init)(void *));
 void linfree(lineage_t *l);

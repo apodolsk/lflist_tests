@@ -57,12 +57,12 @@ void *reinsert_kid(lflist *lists){
         }
 
         lflist *l = &lists[rand() % nlists];
-        if(randpcnt(50)){
-            flx bx = lflist_pop_front(&block_heritage, &privs);
+        flx bx;
+        if(randpcnt(50) && (bx = lflist_pop_front(&block_heritage, &privs))){
             /* block *b = cof(flptr(bx), block, flanc); */
             lflist_add_rear(bx, &block_heritage, l);
         }else{
-            flx bx = lflist_pop_front(&block_heritage, l);
+            bx = lflist_pop_front(&block_heritage, l);
             block *b = cof(flptr(bx), block, flanc);
             if(!b)
                 continue;
