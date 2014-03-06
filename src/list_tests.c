@@ -134,6 +134,10 @@ void test_reinsert(){
     assert(!garbage);
 }
 
+void test_basic(){
+
+}
+
 int malloc_test_main(int program);
 
 int main(int argc, char **argv){
