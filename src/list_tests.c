@@ -16,7 +16,7 @@ int niter = 1000;
 int nalloc = 1000;
 int nwrites = 0;
 
-static sem_t parent_dead;
+static sem_t parent_done;
 
 typedef union{
     lineage_t lin;
@@ -45,7 +45,7 @@ void *reinsert_kid(lflist *lists){
         FRESH_HERITAGE(sizeof(block_key), &block_key);
 
     rand_init();
-    sem_wait(&parent_dead);
+    sem_wait(&parent_done);
 
     int nb = 0;
     for(int i = 0; i < niter; i++){
@@ -78,7 +78,7 @@ void *reinsert_kid(lflist *lists){
 
 void test_reinsert(){
     sem_t parent_dead;
-    if(!sem_init(&parent_dead, 0, 0))
+    if(sem_init(&parent_dead, 0, 0))
         LOGIC_ERROR();
     
     lflist lists[nlists];
@@ -87,12 +87,12 @@ void test_reinsert(){
 
     pthread_t tids[nthreads];
     for(int i = 0; i < nthreads; i++)
-        if(!pthread_create(&tids[i], NULL,
-                           (void *(*)(void*)) reinsert_kid, lists))
+        if(pthread_create(&tids[i], NULL,
+                          (void *(*)(void*)) reinsert_kid, lists))
             LOGIC_ERROR();
     
     for(int i = 0; i < nthreads; i++)
-        sem_post(&parent_dead);
+        sem_post(&parent_done);
 
     int garbage = 0;
     for(int i = 0; i < nthreads; i++){

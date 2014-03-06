@@ -9,7 +9,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#define KERNEL
+#define FAKELOCKFREE
 
 /* This has to be uncommented. A lot of the asserts are really slow. For
    instance they'll cause mem_eat_test to take ages. */
