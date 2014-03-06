@@ -43,7 +43,7 @@ uptr xchg64b(uptr src, uptr *dest);
 /* Volatile is here to appease the compiler, not because I think it's a
    magical keyword for "atomic". */
 uptr cmpxchg64b(uptr src, volatile uptr *dest, uptr expected_dest);
-dblptr cmpxchg128b(dblptr src, volatile dblptr *dest, dblptr expected_dest);
+dptr cmpxchg128b(dptr src, volatile dptr *dest, dptr expected_dest);
 
 #define cas(n, addr, old)                       \
     PUN(typeof(old),                            \
@@ -54,9 +54,9 @@ dblptr cmpxchg128b(dblptr src, volatile dblptr *dest, dblptr expected_dest);
 
 #define cas2(n, addr, old)                      \
     PUN(typeof(old),                            \
-        cmpxchg128b(PUN(dblptr, n),             \
-                    (dblptr *) (addr),          \
-                    PUN(dblptr, old)))
+        cmpxchg128b(PUN(dptr, n),             \
+                    (dptr *) (addr),          \
+                    PUN(dptr, old)))
 
 #define cas_ok(n, addr, old)                    \
     (cmpxchg64b(PUN(uptr, n),                   \
@@ -65,10 +65,10 @@ dblptr cmpxchg128b(dblptr src, volatile dblptr *dest, dblptr expected_dest);
      == PUN(uptr, old))
 
 #define cas2_ok(n, addr, old)                   \
-    (cmpxchg128b(PUN(dblptr, n),                \
-                 (dblptr *) (addr),             \
-                 PUN(dblptr, old))              \
-     == PUN(dblptr, old))
+    (cmpxchg128b(PUN(dptr, n),                \
+                 (dptr *) (addr),             \
+                 PUN(dptr, old))              \
+     == PUN(dptr, old))
 
 
 

@@ -71,7 +71,7 @@ typedef struct __attribute__((__aligned__(SLAB_SIZE))){
             uptr linrefs;
             heritage *her;
         };
-        dblptr hx;
+        dptr hx;
     };
     int nblocks_contig;
     stack wayward_blocks;

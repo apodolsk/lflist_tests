@@ -11,6 +11,7 @@
 #define STACK_H
 
 #include <peb_macros.h>
+#include <whtypes.h>
 
 typedef struct sanchor_t{
     struct sanchor_t *next;
@@ -19,6 +20,7 @@ typedef struct sanchor_t{
 #define FRESH_SANCHOR { .next = NULL }
 
 typedef union{
+    __attribute__((__aligned__(sizeof(dptr))))
     struct{
         int32_t tag;
         int32_t size;

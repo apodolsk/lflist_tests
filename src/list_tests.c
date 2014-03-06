@@ -114,7 +114,7 @@ void test_reinsert(){
 
     heritage hs[nthreads];
     reinsert_args args[nthreads];
-    for(int i = 0; i < nlists; i++){
+    for(int i = 0; i < nthreads; i++){
         hs[i] = (heritage) FRESH_HERITAGE(t_block);
         args[i] = (reinsert_args){lists, &hs[i]};
     }
