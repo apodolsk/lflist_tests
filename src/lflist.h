@@ -20,10 +20,10 @@ struct flanchor{
 typedef struct lflist{
     flanchor nil;
 } lflist;
-#define FRESH_LFLIST(l) {.nil = {.n = {l->nil, 0}, .p = {l->nil, 0}}}
+#define FRESH_LFLIST(l) {{.n = {&(l)->nil}, .p = {&(l)->nil}}}
 
 flx flx_of(flanchor *a);
-flanchor *ptr_of(flx a);
+flanchor *flptr(flx a);
 
 void lflist_add_before(flx a, flx n, heritage *h, lflist *l);
 int lflist_remove(flx a, heritage *h, lflist *l);

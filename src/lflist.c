@@ -195,7 +195,7 @@ flx lflist_pop_front(heritage *h, lflist *l){
     }
 }
 
-flanchor *ptr_of(flx a){
+flanchor *flptr(flx a){
     return a.pt;
 }
 

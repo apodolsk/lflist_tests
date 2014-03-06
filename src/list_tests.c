@@ -7,7 +7,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <nalloc.h>
-#include <list.h>
 #include <lflist.h>
 #include <global.h>
 
@@ -21,16 +20,12 @@ static sem_t parent_dead;
 
 typedef union{
     lineage_t lin;
-    struct{
-        lanchor_t lanc;
-        flanchor flanc;
-    };
+    flanchor flanc;
 } block;
 
 type_key block_key;
 
 void init_block(block *b){
-    b->lanc = (lanchor_t) FRESH_LANCHOR;
     b->flanc = (flanchor) FRESH_FLANCHOR;
 }
 
@@ -45,7 +40,7 @@ int randpcnt(int per_centum){
 }
 
 void *reinsert_kid(lflist *lists){
-    list_t privs = FRESH_LIST(privs);
+    lflist privs = FRESH_LFLIST(&privs);
     heritage block_heritage = (heritage)
         FRESH_HERITAGE(sizeof(block_key), &block_key);
 
@@ -54,30 +49,29 @@ void *reinsert_kid(lflist *lists){
 
     int nb = 0;
     for(int i = 0; i < niter; i++){
-        block *b;
         if(nb < nalloc && randpcnt(10)){
             nb++;
-            b = (block *)
+            block *b = (block *)
                 linalloc(&block_heritage, (void (*)(void*)) init_block);
-            list_add_rear(&b->lanc, &privs);
+            lflist_add_rear(flx_of(&b->flanc), &block_heritage, &privs);
         }
 
         lflist *l = &lists[rand() % nlists];
-        if(randpcnt(50) && (b = cof(list_pop(&privs), block, lanc))){
-            lflist_add_rear(&b->flanc, &block_heritage, l);
+        if(randpcnt(50)){
+            flx bx = lflist_pop_front(&block_heritage, &privs);
+            /* block *b = cof(flptr(bx), block, flanc); */
+            lflist_add_rear(bx, &block_heritage, l);
         }else{
-            b = cof(lflist_pop_rear(&block_heritage, l), block, flanc);
+            flx bx = lflist_pop_front(&block_heritage, l);
+            block *b = cof(flptr(bx), block, flanc);
             if(!b)
                 continue;
-            if(randpcnt(50))
-                list_add_rear(&b->lanc, &privs);
-            else
-                list_add_front(&b->lanc, &privs);
+            lflist_add_rear(bx, &block_heritage, &privs);
         }
     }
 
-    for(block *b; (b = cof(list_pop(&privs), block, lanc));)
-        lflist_add_rear(&b->flanc, &block_heritage, &lists[0]);
+    for(flx bx; flptr(bx = lflist_pop_front(&block_heritage, &privs));)
+        lflist_add_rear(bx, &block_heritage, &lists[0]);
 
     return (void *) nb;
 }
@@ -110,10 +104,11 @@ void test_reinsert(){
     heritage block_heritage = (heritage)
         FRESH_HERITAGE(sizeof(block_key), &block_key);
     for(int i = 0; i < nlists; i++)
-        for(block *b; (b = cof(lflist_pop_rear(&block_heritage, &lists[i]),
-                               block, flanc));
-            garbage--)
-            linfree(&b->lin);
+        for(flx b; flptr(b = lflist_pop_front(&block_heritage, &lists[i]));
+            garbage--){
+            block *bp = cof(flptr(b), block, flanc);
+            linfree(&bp->lin);
+        }
 
     assert(!garbage);
 }

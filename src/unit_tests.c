@@ -149,7 +149,7 @@ void mt_child_rand(int parent_tid){
 
     prand_init();
     for(int i = 0; i < NUM_LISTS; i++)
-        block_lists[i] = (list_t) FRESH_LIST(block_lists[i]);
+        block_lists[i] = (list_t) FRESH_LIST(&block_lists[i]);
     
     while(rdy == FALSE)
         _yield(parent_tid);
@@ -223,7 +223,7 @@ void mt_sharing_child(struct child_args *shared){
 
     list_t priv_blocks[NUM_LISTS];
     for(int i = 0; i < NUM_LISTS; i++)
-        priv_blocks[i] = (list_t) FRESH_LIST(priv_blocks[i]);
+        priv_blocks[i] = (list_t) FRESH_LIST(&priv_blocks[i]);
 
     int num_blocks = 0;
     for(int i = 0; i < NUM_OPS; i++){
