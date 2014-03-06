@@ -16,17 +16,36 @@ int niter = 1000;
 int nalloc = 1000;
 int nwrites = 0;
 
+#define MAXWRITE 64
+
 static sem_t parent_done;
 
 typedef union{
     lineage_t lin;
-    flanchor flanc;
+    struct{
+        flanchor flanc;
+        pthread_t magics[MAXWRITE];
+    }
 } block;
 
 type_key block_key;
 
+int lwrite_magics(block *b){
+    assert(nwrites < MAXWRITE);
+    for(int i = 0; i < nwrites; i++)
+        b->magics[i] = pthread_self();
+    return 1;
+}
+
+int lmagics_valid(block *b){
+    for(int i = 0; i < nwrites; i++)
+        assert(b->magics[i] == pthread_self());
+    return 1;
+}
+
 void init_block(block *b){
     b->flanc = (flanchor) FRESH_FLANCHOR;
+    assert(lwrite_magics(b));
 }
 
 static __thread unsigned int seed;
@@ -39,10 +58,20 @@ int randpcnt(int per_centum){
     return rand_r(&seed) % 100 <= umin(per_centum, 100);
 }
 
+#define linalloc _linalloc
+void *_linalloc(heritage *h, void (*init_block)(void *)){
+    void *b = malloc(h->size_of);
+    if(!b)
+        return 0;
+    init_block(b);
+    return b;
+}
+#define linfree free
+
 void *reinsert_kid(lflist *lists){
     lflist privs = FRESH_LFLIST(&privs);
     heritage block_heritage = (heritage)
-        FRESH_HERITAGE(sizeof(block_key), &block_key);
+        FRESH_HERITAGE(sizeof(block), &block_key);
 
     rand_init();
     sem_wait(&parent_done);
@@ -53,19 +82,21 @@ void *reinsert_kid(lflist *lists){
             nb++;
             block *b = (block *)
                 linalloc(&block_heritage, (void (*)(void*)) init_block);
+            assert(lmagics_valid(b));
             lflist_add_rear(flx_of(&b->flanc), &block_heritage, &privs);
         }
 
         lflist *l = &lists[rand() % nlists];
         flx bx;
-        if(randpcnt(50) && (bx = lflist_pop_front(&block_heritage, &privs))){
-            /* block *b = cof(flptr(bx), block, flanc); */
+        if(randpcnt(50) && flptr(bx = lflist_pop_front(&block_heritage, &privs))){
+            assert(lmagics_valid(cof(flptr(bx), block, flanc)));
             lflist_add_rear(bx, &block_heritage, l);
         }else{
             bx = lflist_pop_front(&block_heritage, l);
             block *b = cof(flptr(bx), block, flanc);
             if(!b)
                 continue;
+            assert(lwrite_magics(b));
             lflist_add_rear(bx, &block_heritage, &privs);
         }
     }

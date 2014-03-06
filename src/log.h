@@ -60,7 +60,7 @@ unsigned int _get_ticks(void);
 /* Ranges from 0 to 4 in my code. 1 is usually for interface functions,
    and then 2 and below are for increasingly obscure helpers. */
 
-#define LOG_NALLOC 0
+#define LOG_NALLOC 1
 #define LOG_ERRORS 0
 
 #define LOG_MAIN 0
@@ -72,6 +72,7 @@ unsigned int _get_ticks(void);
 #define LOG_KMALLOC 0
 #define LOG_POOLS 0
 #define LOG_UNIT_TESTS 1
+#define LOG_LIST_TESTS 1
 
 /* Set up dynamic controls that might be touchable in a debugger. */
 #if DYNAMIC_LOG && defined MODULE

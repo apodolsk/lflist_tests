@@ -59,6 +59,7 @@
 #define E_NALLOC DBG, BRK, 2
 #define E_STACK 1, BRK, PRNT
 #define E_UNIT_TESTS 3, BRK, 3
+#define E_LIST_TESTS 3, BRK, 3
 
 /* #ifndef MODULE */
 /* #define MODULE MAIN */

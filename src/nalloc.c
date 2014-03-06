@@ -98,6 +98,7 @@ void *_malloc(size_t size){
     block_t *b =
         cache_alloc(cache_sizes[cidx], &caches[cidx], no_op, NULL,
                     &slab_free, no_op);
+    PPNT(b);
     if(b)
         assert(block_magics_valid(b, cache_sizes[cidx]));
     return b;
