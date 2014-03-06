@@ -38,22 +38,24 @@ void lflist_add_rear(flx a, heritage *h, lflist *l);
 #else  /* FAKELOCKFREE */
 
 #include <list.h>
-#include <pthreads.h>
+#include <pthread.h>
+#include <nalloc.h>
 
-typedef flanchor flx;
-typedef lanchor flanchor;
+typedef lanchor_t flanchor;
+typedef flanchor *flx;
 
 #define FRESH_FLANCHOR {}
 
 typedef struct lflist{
-    flanchor nil;
+    list_t l;
     pthread_mutex_t lock;
 } lflist;
 
 
-#define FRESH_LFLIST(l) ({                          \
-            pthread_mutex_init(&(l)->lock, NULL);   \
-            {.nil = {&(l)->nil, &(l)->nil} }        \
+#define FRESH_LFLIST(_l) ({                          \
+            lflist l = {.l = FRESH_LIST(&(_l)->l)};  \
+            pthread_mutex_init(&(_l)->lock, NULL);   \
+            l;                                       \
         })
 
 flx flx_of(flanchor *a);

@@ -11,6 +11,8 @@
 #include <lflist.h>
 #include <nalloc.h>
 
+#ifndef FAKELOCKFREE
+
 static flx flinref_read(flx *from, flx *held, heritage *h, lflist *l);
 static int flinref_up(flx a, heritage *h, lflist *l);
 static void flinref_down(flx a, lflist *l);
@@ -203,3 +205,4 @@ flx flx_of(flanchor *a){
     return (flx){a, a->p.gen};
 }
 
+#endif
