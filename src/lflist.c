@@ -205,7 +205,7 @@ void lflist_add_rear(flx a, heritage *h, lflist *l){
 }
 
 flx lflist_pop_front(heritage *h, lflist *l){
-    for(flx n;;){
+    for(flx n = {};;){
         n = help_next((flx){&l->nil}, n, h, l);
         assert(n.pt);
         if(n.pt == &l->nil)

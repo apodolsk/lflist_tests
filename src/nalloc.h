@@ -60,7 +60,7 @@ void linref_down(volatile void *l);
 #define HEAP_HIGH 0x01000000
 #define IDEAL_CACHED_SLABS 16
 #define MAX_BLOCK (SLAB_SIZE - offsetof(slab_t, blocks))
-#define MIN_ALIGNMENT 8
+#define MIN_ALIGNMENT 16
 #define SLAB_SIZE (PAGE_SIZE)
 #define NALLOC_MAGIC_INT 0x01FA110C
 #define MMAP_BATCH 16
@@ -79,7 +79,7 @@ typedef struct __attribute__((__aligned__(SLAB_SIZE))){
     int nblocks_contig;
     stack wayward_blocks;
     pid_t owner;
-    __attribute__((__aligned__(8)))
+    __attribute__((__aligned__(MIN_ALIGNMENT)))
     uint8_t blocks[];
 } slab_t;
 
