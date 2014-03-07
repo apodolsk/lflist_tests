@@ -51,8 +51,10 @@ flx flinref_read(volatile flx *from, flx **held, type *h){
         for(; *held; held++)
             if(pt(a) == pt(**held))
                 reused = *held;
-            else if(pt(**held))
+            else if(pt(**held)){
                 flinref_down(**held);
+                **held = (flx){};
+            }
         if(reused)
             return *reused;
         if(!pt(a) || !flinref_up(a, h))

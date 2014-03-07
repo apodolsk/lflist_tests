@@ -9,15 +9,18 @@
 
 typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
-typedef struct mptr mptr;
+typedef union mptr mptr;
 
 typedef struct { uptr i:62; uint locked:1; uint unlocking:1; } flgen;
 #define GEN_INTVL 4
 
 struct flx{
-    struct mptr {
-        uptr ptr:63;
-        uint is_nil:1;
+    union mptr {
+        struct{
+            uptr ptr:63;
+            uint is_nil:1;
+        };
+        flanchor *pt;
     } mp;
     flgen gen;
 } __attribute__((__aligned__ (2 * sizeof(void *))));

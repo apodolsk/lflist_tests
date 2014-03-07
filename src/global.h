@@ -15,8 +15,9 @@
 
 /* Used by assertions and errors instead of panic(). */
 extern void _halt(void);
-/* #define BREAK abort(); */
-#define BREAK do{while(1) continue;}while(0)
+#include <stdlib.h>
+#define BREAK abort();
+/* #define BREAK do{while(1) continue;}while(0) */
 #define lprintf printf_ln
 
 enum {FALSE = 0, TRUE};
