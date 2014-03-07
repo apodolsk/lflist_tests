@@ -40,8 +40,8 @@ typedef struct lflist{
 flx flx_of(flanchor *a);
 flanchor *flptr(flx a);
 
-void lflist_add_before(flx a, flx n, type *h, lflist *l);
-int lflist_remove(flx a, type *h, lflist *l);
+void lflist_add_before(flx a, flx n, type *h);
+int lflist_remove(flx a, type *h);
 
 flx lflist_pop_front(type *h, lflist *l);
 void lflist_add_rear(flx a, type *h, lflist *l);
