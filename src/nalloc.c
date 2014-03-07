@@ -169,15 +169,16 @@ slab_t *slab_new(size_t size){
              MAP_SHARED | MAP_ANONYMOUS | MAP_POPULATE, -1, 0);
     if(s == MAP_FAILED)
         return NULL;
-    for(int i = 1; i < MMAP_BATCH; i++){
+    for(int i = 0; i < MMAP_BATCH; i++){
         s[i] = (slab_t) FRESH_SLAB;
         s[i].block_size = size;
         s[i].nblocks_contig = slab_max_blocks(&s[i]);
-        s[i].owner = pthread_self();
-        for(int i = 0; i < s[i].nblocks_contig; i++)
-            assert(write_block_magics((block_t *) &s[i].blocks[i * size],
-                                      size));
-        stack_push(&s[i].sanc, &hot_slabs);
+        for(int j = 0; i < s[i].nblocks_contig; i++)
+            assert(write_block_magics((block_t *) &s[i].blocks[j * size], size));
+        if(!i)
+            stack_push(&s[i].sanc, &hot_slabs);
+        else
+            s[i].owner = pthread_self();
     }
     
     /* if(!s && lowest_cold_slab < (slab_t *) HEAP_HIGH){ */
@@ -188,13 +189,6 @@ slab_t *slab_new(size_t size){
     /*         return NULL; */
     /*     } */
     /* } */
-
-    *s = (slab_t) FRESH_SLAB;
-    s->block_size = size;
-    s->nblocks_contig = slab_max_blocks(s);
-    s->owner = pthread_self();
-    for(int i = 0; i < s->nblocks_contig; i++)
-        assert(write_block_magics((block_t *) &s->blocks[i * size], size));
     
     return s;
 }
@@ -275,6 +269,8 @@ void linslab_init(slab_t *s, void *h){
 }
 
 void linslab_ref_down(slab_t *s){
+    trace2(s, p);
+    
     assert(s->linrefs);
     if(xadd(-1, &s->linrefs) == 1){
         s->her = NULL;
@@ -299,6 +295,8 @@ void linfree(lineage_t *l){
 }
 
 int linref_up(volatile void *l, type *t){
+    trace2(l, p, t, p);
+    
     slab_t *s = slab_of((void *) l);
     hxchg_t old, new;
     do{

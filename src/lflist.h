@@ -5,18 +5,23 @@
 #ifndef FAKELOCKFREE
 
 #include <nalloc.h>
+#include <whtypes.h>
 
 typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
-typedef unsigned int uint;
+typedef struct mptr mptr;
 
-typedef struct { uintptr_t i:62; uint locked:1; uint unlocking:1 ;} flgen;
+typedef struct { uptr i:61; uint locked:1; uint unlocking:1; } flgen;
 
 struct flx{
-    flanchor *pt;
+    struct mptr {
+        uptr ptr:63;
+        uint is_nil:1;
+    } mp;
     flgen gen;
 } __attribute__((__aligned__ (2 * sizeof(void *))));
 
+#define mptr(p, n) ((mptr){(uptr) p, n})
 
 struct flanchor{
     volatile flx n;
@@ -27,7 +32,10 @@ struct flanchor{
 typedef struct lflist{
     flanchor nil;
 } lflist;
-#define FRESH_LFLIST(l) {{.n = {&(l)->nil}, .p = {&(l)->nil}}}
+#define FRESH_LFLIST(l) {{                      \
+                .n = {mptr(&(l)->nil, 1)},      \
+                .p = {mptr(&(l)->nil, 1)}       \
+        }}                                      \
 
 flx flx_of(flanchor *a);
 flanchor *flptr(flx a);

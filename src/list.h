@@ -13,7 +13,7 @@ typedef struct{
 #define FRESH_LIST(l) { .nil = {&(l)->nil, &(l)->nil} }
 
 #define LIST_FOR_EACH(cur, list)                                    \
-    for(cur = list->nil.n; cur != &list->nil; cur = cur->n);
+    for(cur = list->nil.n; cur != &list->nil; cur = cur->n)
 
 void list_add_front(lanchor_t *a, list_t *l);
 void list_add_rear(lanchor_t *a, list_t *l);
