@@ -1,13 +1,13 @@
 #define MODULE LIST_TESTS
 
 #include <stdlib.h>
-#include <unistd.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <nalloc.h>
 #include <lflist.h>
+#include <getopt.h>
+#include <prand.h>
 #include <global.h>
 
 int nlists = 1;
@@ -16,7 +16,7 @@ int niter = 1000;
 int nalloc = 1000;
 int nwrites = 0;
 
-#define MAXWRITE 64
+#define MAXWRITE 100
 
 static sem_t parent_done;
 
@@ -31,7 +31,7 @@ typedef union{
 type *t_block = &(type){sizeof(block)};
 
 int lwrite_magics(block *b){
-    assert(nwrites < MAXWRITE);
+    assert(nwrites <= MAXWRITE);
     for(int i = 0; i < nwrites; i++)
         b->magics[i] = pthread_self();
     return 1;
@@ -46,16 +46,6 @@ int lmagics_valid(block *b){
 void init_block(block *b){
     b->flanc = (flanchor) FRESH_FLANCHOR;
     assert(lwrite_magics(b));
-}
-
-static __thread uint seed;
-void rand_init(void){
-    assert(read(open("/dev/urandom", O_RDONLY), &seed, sizeof(seed)) ==
-           sizeof(seed));
-}
-
-uint randpcnt(uint per_centum){
-    return (uint) rand_r(&seed) % 100 <= umin(per_centum, 100);
 }
 
 typedef struct {
@@ -85,6 +75,7 @@ void *reinsert_kid(reinsert_args *a){
         lflist *l = &shared[rand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_pop_front(t_block, &priv))){
+            log("Pushing: %p", flptr(bx));
             assert(lmagics_valid(cof(flptr(bx), block, flanc)));
             lflist_add_rear(bx, t_block, l);
         }else{
@@ -92,9 +83,12 @@ void *reinsert_kid(reinsert_args *a){
             block *b = cof(flptr(bx), block, flanc);
             if(!b)
                 continue;
+            log("Popped: %p", flptr(bx));
             assert(lwrite_magics(b));
             lflist_add_rear(bx, t_block, &priv);
         }
+
+        PINT(i);
     }
 
     for(flx bx; flptr(bx = lflist_pop_front(t_block, &priv));)
@@ -154,7 +148,7 @@ int malloc_test_main(int program);
 
 int main(int argc, char **argv){
     int program = 1, opt, do_malloc = 0;
-    while( (opt = getopt(argc, argv, "t:l:a:o:p:w:m")) != -1 ){
+    while( (opt = getopt(argc, argv, "t:l:a:i:o:p:w:m")) != -1 ){
         switch (opt){
         case 't':
             nthreads = atoi(optarg);

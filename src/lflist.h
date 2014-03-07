@@ -11,7 +11,8 @@ typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
 typedef struct mptr mptr;
 
-typedef struct { uptr i:61; uint locked:1; uint unlocking:1; } flgen;
+typedef struct { uptr i:62; uint locked:1; uint unlocking:1; } flgen;
+#define GEN_INTVL 4
 
 struct flx{
     struct mptr {
