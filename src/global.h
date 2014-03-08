@@ -75,7 +75,8 @@ typedef unsigned int uint;
 #include <stdbool.h>
 #include <whtypes.h>
 
-#define _gettid() pthread_self()
+extern __thread long unsigned int tid_;
+#define _gettid() tid_
 #define _get_ticks() time(NULL)
 
 typedef __int128_t int128_t;

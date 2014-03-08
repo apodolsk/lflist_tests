@@ -8,13 +8,14 @@
 #include <lflist.h>
 #include <getopt.h>
 #include <prand.h>
+#include <atomics.h>
 #include <global.h>
 
-int nlists = 1;
-int nthreads = 2;
-int niter = 1000;
-int nalloc = 1000;
-int nwrites = 0;
+uint nlists = 1;
+uint nthreads = 2;
+uint niter = 1000;
+uint nalloc = 1000;
+uint nwrites = 0;
 
 #define MAXWRITE 100
 
@@ -32,15 +33,25 @@ type *t_block = &(type){sizeof(block)};
 
 int lwrite_magics(block *b){
     assert(nwrites <= MAXWRITE);
-    for(int i = 0; i < nwrites; i++)
+    for(uint i = 0; i < nwrites; i++)
         b->magics[i] = pthread_self();
     return 1;
 }
 
 int lmagics_valid(block *b){
-    for(int i = 0; i < nwrites; i++)
+    for(uint i = 0; i < nwrites; i++)
         assert(b->magics[i] == pthread_self());
     return 1;
+}
+
+uptr condxadd(uptr *d, uptr max){
+    uptr r;
+    do{
+        r = *d;
+        if(r >= max)
+            return r;
+    }while(!cas_ok(r + 1, d, r));
+    return r;
 }
 
 void init_block(block *b){
@@ -49,25 +60,28 @@ void init_block(block *b){
 }
 
 typedef struct {
+    int tid;
     lflist *lists;
     heritage *heritage;
 } reinsert_args;
+
+static uptr nb;
 
 void *reinsert_kid(reinsert_args *a){
     lflist priv = FRESH_LFLIST(&priv);
     lflist *shared = a->lists;
     heritage *h = a->heritage;
-    PPNT(h);
+
+    tid_ = a->tid;
 
     rand_init();
     sem_wait(&parent_done);
 
-    int nb = 0;
-    for(int i = 0; i < niter; i++){
-        if(nb < nalloc && randpcnt(10)){
-            nb++;
+    for(uint i = 0; i < niter; i++){
+        if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             block *b = (block *)
                 linalloc(h, (void (*)(void*)) init_block);
+            PPNT(b);
             assert(lmagics_valid(b));
             lflist_add_rear(flx_of(&b->flanc), t_block, &priv);
         }
@@ -103,41 +117,31 @@ void test_reinsert(){
         LOGIC_ERROR();
     
     lflist lists[nlists];
-    for(int i = 0; i < nlists; i++)
+    for(uint i = 0; i < nlists; i++)
         lists[i] = (lflist) FRESH_LFLIST(&lists[i]);
 
     heritage hs[nthreads];
     reinsert_args args[nthreads];
-    for(int i = 0; i < nthreads; i++){
+    for(uint i = 0; i < nthreads; i++){
         hs[i] = (heritage) FRESH_HERITAGE(t_block);
-        args[i] = (reinsert_args){lists, &hs[i]};
+        args[i] = (reinsert_args){i, lists, &hs[i]};
     }
 
     pthread_t tids[nthreads];
-    for(int i = 0; i < nthreads; i++)
+    for(uint i = 0; i < nthreads; i++)
         if(pthread_create(&tids[i], NULL,
-                          (void *(*)(void*)) reinsert_kid,
-                          &args[i]))
+                          (void *(*)(void*)) reinsert_kid, &args[i]))
             LOGIC_ERROR();
     
-    for(int i = 0; i < nthreads; i++)
+    for(uint i = 0; i < nthreads; i++)
         sem_post(&parent_done);
+    for(uint i = 0; i < nthreads; i++)
+        pthread_join(tids[i], NULL);
+    for(uint i = 0; i < nlists; i++)
+        for(flx b; flptr(b = lflist_pop_front(t_block, &lists[i])); nb--)
+            linfree(&cof(flptr(b), block, flanc)->lin);
 
-    int garbage = 0;
-    for(int i = 0; i < nthreads; i++){
-        void *nb;
-        pthread_join(tids[i], &nb);
-        garbage += (uintptr_t) nb;
-    }
-
-    for(int i = 0; i < nlists; i++)
-        for(flx b; flptr(b = lflist_pop_front(t_block, &lists[i]));
-            garbage--){
-            block *bp = cof(flptr(b), block, flanc);
-            linfree(&bp->lin);
-        }
-
-    assert(!garbage);
+    assert(!nb);
 }
 
 void test_basic(){

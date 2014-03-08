@@ -19,10 +19,10 @@
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
-#define PUN(t, s) ({                                              \
+#define PUN(t, s) ({                                                \
             _Static_assert(sizeof(s) == sizeof(t), "PUN:"#s" "#t);  \
-            ((union {__typeof__(s) str; t i;}) s).i;        \
-        })                                                  \
+            ((union {__typeof__(s) str; t i;}) (s)).i;              \
+        })                                                          \
 
 /** 
  * @brief Given a pointer to a member of a struct, and given a description

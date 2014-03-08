@@ -60,7 +60,7 @@ unsigned int _get_ticks(void);
 /* Ranges from 0 to 4 in my code. 1 is usually for interface functions,
    and then 2 and below are for increasingly obscure helpers. */
 
-#define LOG_NALLOC 0
+#define LOG_NALLOC 2
 #define LOG_ERRORS 0
 
 #define LOG_MAIN 0
