@@ -47,6 +47,7 @@ static
 flx flinref_read(volatile flx *from, flx **held, type *t){
     while(1){
         flx a = atomic_readflx(from);
+        PPNT(a.mp.pt);
         flx *reused = NULL;
         for(flx **h = held; *h; h++){
             if(pt(a) == pt(**h) && !reused)
@@ -56,8 +57,10 @@ flx flinref_read(volatile flx *from, flx **held, type *t){
             **h = (flx){};
         }
         if(reused)
-            return *reused;
-        if(!pt(a) || !flinref_up(a, t))
+            return a;
+        if(!pt(a))
+            return a;
+        if(!flinref_up(a, t))
             return a;
     }
 }
@@ -121,8 +124,10 @@ flx help_next(flx a, flx n, type *t)
     flx pat = {}, patp = {};
     while(1){
         pat = flinref_read(&pt(a)->n, (flx*[]){&n, &pat, &patp, NULL}, t);
-        if(!pt(pat))
-            return pat;
+        if(!pt(pat)){
+            assert(!a.mp.is_nil);
+            return (flx){};
+        }
 
         patp = atomic_readflx(&pt(pat)->p);
         if(!geneq(patp.gen, pat.gen)){
