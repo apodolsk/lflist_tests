@@ -85,30 +85,29 @@ int lflist_remove(flx a, type *t){
     assert(!a.mp.is_nil);
     assert(aligned_pow2(pt(a), 16));
 
+    int ret = -1;
     flx n = {}, p = {}, plocked;    
     do{
         p = help_prev(a, p, t);
         if(!pt(p) || p.gen.i != a.gen.i)
-            break;
+            goto cleanup;
         flx oldn;
         do{
             oldn = atomic_readflx(&pt(a)->n);
             n = help_next(a, n, t);
         }while(!casx_ok(n, &pt(a)->n, oldn));
         if(!pt(n))
-            break;
+            goto cleanup;
         plocked = (flx){p.mp, (flgen) {p.gen.i, .locked = 1 }};
     }while(!casx_ok(plocked, &pt(a)->p, p) ||
            !casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen}));
 
-    int ret = 0;
-    if(casx_ok((flx){(mptr){}, a.gen}, &pt(a)->p, plocked)){
-        casx(n, &pt(p)->n, a);
-        pt(a)->n = (flx){};
-    }
-    else
-        ret = -1;
-
+    casx(n, &pt(p)->n, a);
+    
+    pt(a)->p = (flx){.gen = a.gen};
+    ret = 0;
+    
+cleanup:
     if(pt(n))
         flinref_down(n);
     if(pt(p))
