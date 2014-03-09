@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <lflist.h>
 #include <nalloc.h>
+#include <inttypes.h>
 
 #include <global.h>
 
@@ -21,6 +22,7 @@ static int flinref_up(flx a, type *h);
 static void flinref_down(flx a);
 static flx help_next(flx a, flx n, type *h);
 static flx help_prev(flx a, flx p, type *h);
+static void trace_list(char *s, lflist *l);
 
 static inline flanchor *pt(flx a){
     return (flanchor *) a.mp.ptr;
@@ -89,20 +91,25 @@ int lflist_remove(flx a, type *t){
     flx n = {}, p = {}, plocked;    
     do{
         p = help_prev(a, p, t);
-        if(!pt(p) || p.gen.i != a.gen.i)
+        if(!pt(p) || p.gen.i != a.gen.i){
+            log("P abort");
             goto cleanup;
+        }
         flx oldn;
         do{
             oldn = atomic_readflx(&pt(a)->n);
             n = help_next(a, n, t);
         }while(!casx_ok(n, &pt(a)->n, oldn));
-        if(!pt(n))
+        if(!pt(n)){
+            log("n abort");
             goto cleanup;
+        }
         plocked = (flx){p.mp, (flgen) {p.gen.i, .locked = 1 }};
     }while(!casx_ok(plocked, &pt(a)->p, p) ||
            !casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen}));
 
-    casx(n, &pt(p)->n, a);
+    if(!casx_ok(n, &pt(p)->n, a))
+        log("Failed to swing p->n");
     
     pt(a)->p = (flx){.gen = a.gen};
     ret = 0;
@@ -193,7 +200,6 @@ flx help_prev(flx a, flx p, type *t){
 }
 
 void lflist_add_before(flx a, flx n, type *t){
-    trace(a.mp.pt, p, n.mp.pt, p);
     assert(aligned_pow2(pt(a), 16));
 
     a.gen.i += GEN_INTVL;
@@ -220,12 +226,15 @@ void lflist_add_before(flx a, flx n, type *t){
 void lflist_add_rear(flx a, type *t, lflist *l){
     assert(pt(a) != &l->nil);
     assert(aligned_pow2(l, 16));
+
+    trace(a.mp.pt, p);
+    trace_list("", l);
     
     lflist_add_before(a, (flx){mptr(&l->nil, 1)}, t);
 }
 
 flx lflist_pop_front(type *t, lflist *l){
-    trace(l,p);
+    trace_list("lflist_pop_front", l);
     assert(aligned_pow2(l, 16));
 
     for(flx n = {};;){
@@ -249,6 +258,14 @@ flanchor *flptr(flx a){
 
 flx flx_of(flanchor *a){
     return (flx){mptr(a, 0), a->p.gen};
+}
+
+static
+void trace_list(char *s, lflist *l){
+    flx n = atomic_readflx(&l->nil.n);
+    flx p = atomic_readflx(&l->nil.p);
+    log("%s n:%p:%"PRIuPTR" p:%p:%"PRIuPTR, s,
+        n.mp.pt, n.gen.i, p.mp.pt, p.gen.i);
 }
 
 #endif
