@@ -29,7 +29,7 @@ enum {FALSE = 0, TRUE};
 #define TICKS_PER_SEC 3000
 /* #define TICKS_PER_SEC 100 */
 
-#define CAS_SLEEP 10000000
+#define CAS_SLEEP 1000000
 #define CAS_SLEEP_PCNT 30
 #define RUN_UNIT_TESTS 1
 #define ENABLE_POOLS 0

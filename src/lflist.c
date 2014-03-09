@@ -47,7 +47,6 @@ static
 flx flinref_read(volatile flx *from, flx **held, type *t){
     while(1){
         flx a = atomic_readflx(from);
-        PPNT(a.mp.pt);
         flx *reused = NULL;
         for(flx **h = held; *h; h++){
             if(pt(a) == pt(**h) && !reused)
@@ -120,7 +119,6 @@ int lflist_remove(flx a, type *t){
 static
 flx help_next(flx a, flx n, type *t)
 {
-    trace(a.mp.pt, p, n.mp.pt, p); 
     flx pat = {}, patp = {};
     while(1){
         pat = flinref_read(&pt(a)->n, (flx*[]){&n, &pat, &patp, NULL}, t);
@@ -130,10 +128,6 @@ flx help_next(flx a, flx n, type *t)
         }
 
         patp = atomic_readflx(&pt(pat)->p);
-        if(!geneq(patp.gen, pat.gen)){
-            patp = (flx){};
-            continue;
-        }
         
         if(pt(patp) != pt(a)){
             if(flinref_up(patp, t))
@@ -206,17 +200,20 @@ void lflist_add_before(flx a, flx n, type *t){
     a.gen.i += GEN_INTVL;
     pt(a)->n = n;
     pt(a)->p.gen = a.gen;
+
+    flgen ngen;
     flx p = {};
     do{
         p = help_prev(n, p, t);
         assert(pt(p));
-        assert(geneq(p.gen, n.gen));
+        assert(!p.gen.locked && !p.gen.unlocking);
         assert(geneq(a.gen, pt(a)->p.gen));
 
+        pt(a)->n.gen = ngen = (flgen){p.gen.i + GEN_INTVL};
         pt(a)->p.mp = p.mp;
-    }while(!casx_ok((flx){a.mp, p.gen}, &pt(n)->p, p));
+    }while(!casx_ok((flx){a.mp, ngen}, &pt(n)->p, p));
 
-    casx(a, &pt(p)->n, n);
+    casx(a, &pt(p)->n, (flx){n.mp, p.gen});
     
     flinref_down(p);
 }
@@ -239,8 +236,10 @@ flx lflist_pop_front(type *t, lflist *l){
             assert(pt(n) == &l->nil);
             return (flx){};
         }
-        if(!lflist_remove(n, t))
+        if(!lflist_remove(n, t)){
+            PPNT(n.mp.pt);
             return flinref_down(n), n;
+        }
     }
 }
 
