@@ -49,6 +49,6 @@ int return_zero(){
 }
 
 int return_zero_rare_event(){
-    RARE_EVENT("I'm a surprising and rare callback.");
+    RARITY("I'm a surprising and rare callback.");
     return 0;
 }

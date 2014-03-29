@@ -20,7 +20,7 @@ static flx help_prev(flx a, flx p, type *t);
 static void trace_list(char *s, lflist *l);
 
 static inline flanchor *pt(flx a){
-    return (flanchor *) a.mp.ptr;
+    return (flanchor *) (a.mp.ptr << 1);
 }
 
 static inline flx atomic_readflx(volatile flx *x){
@@ -86,7 +86,7 @@ err lflist_remove(flx a, type *t){
     do{
         p = help_prev(a, p, t);
         if(!pt(p) || p.gen.i != a.gen.i){
-            log("P abort");
+            RARITY("P abort");
             goto cleanup;
         }
         flx oldn;
@@ -95,7 +95,7 @@ err lflist_remove(flx a, type *t){
             n = help_next(a, n, t);
         }while(!casx_ok(n, &pt(a)->n, oldn));
         if(!pt(n)){
-            log("n abort");
+            RARITY("n abort");
             goto cleanup;
         }
         plocked = (flx){p.mp, (flgen) {p.gen.i, .locked = 1 }};
@@ -103,7 +103,7 @@ err lflist_remove(flx a, type *t){
            !casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen}));
 
     if(!casx_ok(n, &pt(p)->n, a))
-        log("Failed to swing p->n");
+        RARITY("Failed to swing p->n");
     
     pt(a)->p = (flx){.gen = a.gen};
     ret = 0;
@@ -130,6 +130,7 @@ flx help_next(flx a, flx n, type *t)
         patp = atomic_readflx(&pt(pat)->p);
         
         if(pt(patp) != pt(a)){
+            RARITY("patp != a");
             if(flinref_up(patp, t))
                 continue;
             flx patpp = atomic_readflx(&pt(patp)->p);
@@ -159,12 +160,14 @@ flx help_next(flx a, flx n, type *t)
                 return flinref_down(pat, t), n;
         }
 
+        RARITY("unlocking n");
         /* unlock pat if it hasn't begun a new transaction */
         flx new = {a.mp, (flgen){patp.gen.i, .locked=1, .unlocking=1}};
         if(casx_ok(new, &pt(pat)->p, patp) &&
            atomic_flxeq(&pt(pat)->n, n) &&
            casx_ok((flx){a.mp, (flgen){patp.gen.i}}, &pt(pat)->n, new))
             return flinref_down(n, t), pat;
+        RARITY("failed to unlock");
     }
 }
 
@@ -255,8 +258,9 @@ static
 void trace_list(char *s, lflist *l){
     flx n = atomic_readflx(&l->nil.n);
     flx p = atomic_readflx(&l->nil.p);
-    log("%s n:%p:%"PRIuPTR" p:%p:%"PRIuPTR, s,
-        n.mp.pt, n.gen.i, p.mp.pt, p.gen.i);
+    log("%s l:%p n:%p:%"PRIuPTR" p:%p:%"PRIuPTR, s,
+        l, n.mp.pt, n.gen.i, p.mp.pt, p.gen.i);
 }
+
 
 #endif

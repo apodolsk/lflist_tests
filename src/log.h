@@ -38,7 +38,7 @@
 #include <vip_fun.h>
 
 /* 0 to disable non-VIP logging. */
-#define LOG_MASTER 0
+#define LOG_MASTER 1
 #define DYNAMIC_LOG 0
 
 /* 1 enables mute_log() and unmute_log(). */
@@ -83,7 +83,7 @@
 
 #define llprintf(need_lvl, s, ...) do{                                  \
         if(meets_log_criteria(LOG_LVL, need_lvl))                       \
-            lprintf("%THR:%d "s, _gettid(), ##__VA_ARGS__);             \
+            lprintf(s, ##__VA_ARGS__);                                  \
     } while(0)                                                          \
 
 #define meets_log_criteria(log_lvl, needed)             \

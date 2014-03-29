@@ -18,6 +18,9 @@ uint niter = 1000;
 uint nalloc = 1000;
 uint nwrites = 0;
 
+/* GDB starts counting child threads at 2. Urgh. */
+const uint firstborn = 2;
+
 #define MAXWRITE 100
 
 static sem_t parent_done;
@@ -68,7 +71,10 @@ static lflist *shared;
 
 void *reinsert_kid(uint t){
     lflist priv = LFLIST(&priv);
-    tid_ = t;
+    tid_ = t + firstborn;
+    PPNT(&priv.nil);
+    PPNT((void *)(priv.nil.n.mp.ptr << 2));
+    BREAK;
 
     rand_init();
     sem_wait(&parent_done);
@@ -115,13 +121,6 @@ void test_reinsert(){
     lflist lists[nlists];
     for(uint i = 0; i < nlists; i++)
         lists[i] = (lflist) LFLIST(&lists[i]);
-
-    /* heritage hs[nthreads]; */
-    /* reinsert_args args[nthreads]; */
-    /* for(uint i = 0; i < nthreads; i++){ */
-    /*     hs[i] = (heritage) HERITAGE(&node_t); */
-    /*     args[i] = (reinsert_args){i, lists, &hs[i]}; */
-    /* } */
 
     pthread_t tids[nthreads];
     for(uint i = 0; i < nthreads; i++)
@@ -178,9 +177,6 @@ int main(int argc, char **argv){
                 MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0)
            != MAP_FAILED);
         
-
-    log("hi");
-
     uptr a = 1;
     assert(cas_ok((uptr) 2, &a, (uptr) 1));
     assert(a == 2);

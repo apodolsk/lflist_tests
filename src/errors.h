@@ -49,7 +49,7 @@
 #define GCC_STACKTRACE 1
 
 /* Default break, print, and dbg levels. */
-#define BRK 1
+#define BRK 5
 #define PRNT 3
 #define DBG 1
 
@@ -66,13 +66,13 @@
 
 #define E_KMALLOC DBG, BRK, PRNT
 #define E_UNITESTS DBG, BRK, PRNT
-#define E_LISTESTS DBG, BRK, PRNT
+#define E_LIST_TESTS DBG, BRK, PRNT
 
 #define LOOKUP CONCAT(E_, MODULE)
 
 #if NUM_ARGS(LOOKUP) != 3
 #undef LOOKUP
-#define LOOKUP 0, 0, 0
+#define LOOKUP DBG, BRK, PRNT
 #endif
 
 #define DBG_LVL FIRST_ARG(LOOKUP)
@@ -143,9 +143,6 @@
         -1;                                         \
      })
 
-/** 
- * Kernel couldn't resolve an OOM or ZFOD page fault.
- */
 #define OVERCOMMIT_ERROR(...)                       \
     ({                                              \
         elog2("Overcommit error. %s:%s:%d. "        \
@@ -158,8 +155,7 @@
         -1;                                         \
     })
 
-/* Something legal but fascinating happened. */
-#define SUPER_RARE_EVENT(...)                               \
+#define SUPER_RARITY(...)                               \
     ({                                                      \
         elog2("Super rare event. %s:%s:%d. "                \
               FIRST_ARG(__VA_ARGS__)""                      \
@@ -171,7 +167,6 @@
         -1;                                                 \
     })                                                      \
 
-/* Kernel's out of resources. */
 #define ESYS(...)                                       \
     ({                                                          \
         elog2("System error. %s:%s:%d. " FIRST_ARG(__VA_ARGS__) \
@@ -183,9 +178,9 @@
         -1;                                                     \
     })                                                         
 
-#define RARE_EVENT(...)                                     \
+#define RARITY(...)                                         \
     ({                                                      \
-        elog3("Rare event. %s:%s:%d. "                      \
+        elog3("Rarity. %s:%s:%d. "                          \
               FIRST_ARG(__VA_ARGS__)                        \
               , __FILE__                                    \
               , __func__                                    \
@@ -222,12 +217,9 @@ static inline int meets_errlog_criteria(int min_verb_lvl){
 /* Same trick to emulate GCC ##__VA_ARGS__. None of the current error
    macros should ever pass an empty __VA_ARGS__, but we may as well handle
    that case anyway. */
-#define _elog(N, ...)                                       \
-    if(meets_errlog_criteria(N)){                           \
-        e_printf("%u - T:%ud - " FIRST_ARG(__VA_ARGS__)    \
-                 , e_get_ticks()                            \
-                 , e_gettid()                               \
-                 COMMA_AND_TAIL_ARGS(__VA_ARGS__));         \
+#define _elog(N, s, ...)                                     \
+    if(meets_errlog_criteria(N)){                            \
+        lprintf(s, ##__VA_ARGS__);                          \
     } else (void)0;                                         
 
 #include <global.h>

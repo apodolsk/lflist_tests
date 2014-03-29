@@ -16,9 +16,9 @@
 /* Used by assertions and errors instead of panic(). */
 extern void _halt(void);
 #include <stdlib.h>
-#define BREAK abort();
+#define BREAK asm("int3")
 /* #define BREAK do{while(1) continue;}while(0) */
-#define lprintf(s, ...) printf(s"\n", ##__VA_ARGS__)
+#define lprintf(s, ...) printf("T:%d " s "\n", _gettid(), ##__VA_ARGS__)
 
 
 /* Timer driver reads this. 9000 is still slow enough for the raw kernel code,
@@ -28,7 +28,7 @@ extern void _halt(void);
 #define TICKS_PER_SEC 3000
 /* #define TICKS_PER_SEC 100 */
 
-#define ATOMIC_FUZZ 1000000
+#define ATOMIC_FUZZ 1000
 #define ATOMIC_FUZZ_PCNT 30
 #define RUN_UNITESTS 1
 #define ENABLE_POOLS 0

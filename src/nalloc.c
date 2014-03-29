@@ -78,11 +78,13 @@ heritage *poly_heritage_of(size size){
         if(polytypes[i].size >= size)
             return &poly_heritages[i];
     EWTF();
+    /* TODO: rip out */
+    return NULL;
 }
 
 void *malloc(size size){
     if(size > MAX_BLOCK)
-        return RARE_EVENT(), NULL;
+        return RARITY(), NULL;
     block *b = linalloc(poly_heritage_of(size));
     if(b)
         assert(block_magics_valid(b, poly_heritage_of(size)->t->size));
