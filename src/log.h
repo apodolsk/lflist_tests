@@ -32,28 +32,23 @@
  * ignore all verbosity settings except VIP_VERBOSITY.
  */
 
-#ifndef PEB_LOG_H
-#define PEB_LOG_H
+#pragma once
 
 #include <stdio.h>
 #include <vip_fun.h>
 
-/* Set to 0 to disable all non-VIP logging. */
+/* 0 to disable non-VIP logging. */
 #define LOG_MASTER 1
 #define DYNAMIC_LOG 0
 
-/* Set to 1 to enable mute_log() and unmute_log(). Turning it off will lead
-   to spam during kern init. */
+/* 1 enables mute_log() and unmute_log(). */
 #define DYNAMIC_GLOBAL_MUTE 0
 
-/* Set to 1 to ignore all other verbosity settings inside functions on the
-   vip_list in vip_fun.h. */
+/* 1 supersedes all other log settings inside functions on vip_list. */
 #define VIP_MODE 1
 #define VIP_VERBOSITY 2
 
 /* -------- Per-module verbosity settings ---------- */
-/* Ranges from 0 to 4 in my code. 1 is usually for interface functions,
-   and then 2 and below are for increasingly obscure helpers. */
 
 #define LOG_NALLOC 0
 #define LOG_ERRORS 0
@@ -71,168 +66,97 @@
 #define LOG_UNITESTS 1
 #define LOG_LISTESTS 1
 
-/* Set up dynamic controls that might be touchable in a debugger. */
-#if DYNAMIC_LOG && defined MODULE
-static volatile int CONCAT(DYN_LOG_, MODULE) = CONCAT(LOG_, MODULE);
-#define LOG_LVL CONCAT(DYN_LOG_, MODULE)
-#else /*!(DYNAMIC_LOG && MODULE)*/
-#define LOG_LVL CONCAT(LOG_, MODULE)
-#endif
-
 #if !LOG_LVL
 #undef LOG_LVL
 #define LOG_LVL 0
 #endif
 
-
-/* --------- System interface ---------- */
-
-#define printf_ln(...)                                                  \
-    printf(FIRST_ARG(__VA_ARGS__) "\n" COMMA_AND_TAIL_ARGS(__VA_ARGS__))
-#define log_get_ticks() _get_ticks()
-#define log_gettid() _gettid()
-#define log_printf(...) lprintf(__VA_ARGS__)
-#define log_both(...)                           \
-    do{                                         \
-        printf_ln(__VA_ARGS__);                 \
-        log(__VA_ARGS__);                       \
-    } while(0);
-
-
-/* --------- Dynamic global control  ------------ */
-
 #if DYNAMIC_GLOBAL_MUTE > 0
-
-/* extern int mute_flag; */
-
-/* #define mute_log()                              \ */
-/*     mute_flag = TRUE */
-/* #define unmute_log()                            \ */
-/*     mute_flag = FALSE */
-
+/* deleted this junk */
 #else
-
 #define mute_flag 0
-
 #define mute_log()
 #define unmute_log()
-
 #endif  /* DYNAMIC_GLOBAL_MUTE > 0 */
 
 /* ---------- Main logger plumbing. ---------------*/
 
-/* #define wrapid(prnt, ...)                         \ */
-/*         prnt("%u THR:%d "FIRST_ARG(__VA_ARGS__),    \ */
-/*          log_get_ticks(),                           \ */
-/*          log_gettid()                               \ */
-/*          COMMA_AND_TAIL_ARGS(__VA_ARGS__))          \ */
+#define llprintf(need_lvl, s, ...) do{                                  \
+        if(LOG_LVL >= need_lvl)                                         \
+            lprintf("%THR:%d "s, _gettid(), ##__VA_ARGS__);              \
+    } while(0)                                                          \
 
-/* #define wrapid(prnt, ...)                         \ */
-/*         prnt("%u THR: "FIRST_ARG(__VA_ARGS__),    \ */
-/*              log_get_ticks()                       \ */
-/*              COMMA_AND_TAIL_ARGS(__VA_ARGS__))      \ */
+#define meets_log_criteria(log_lvl, needed)             \
+    ((LOG_MASTER && log_lvl >= needed && !mute_flag)    \
+     ||                                                 \
+     (VIP_MODE && VIP_VERBOSITY >= needed && fun_is_vip(__func__)))
 
-#define wrapid(prnt, ...)                     \
-    prnt("%ld THR:%lo "FIRST_ARG(__VA_ARGS__),   \
-         log_get_ticks(),                       \
-         log_gettid()                           \
-         COMMA_AND_TAIL_ARGS(__VA_ARGS__))      \
+#define log(...) llprintf(1, __VA_ARGS__)
+#define log2(...) llprintf(2, __VA_ARGS__)
+#define log3(...) llprintf(3, __VA_ARGS__)
+#define log4(...) llprintf(4, __VA_ARGS__)
 
+#define DECLARE_VAR(fmt, arg, i) typeof(arg) trace_arg##i = arg;                                       
+#define USE_VAR(fmt, arg, i) trace_arg##i ,
+#define USE_VAR_PRECOMMA(fmt, arg, i) , trace_arg##i
+#define GET_FMT(fmt, arg, i) #fmt", " 
 
-#if VIP_MODE > 0
-#define fun_is_vip(name) fun_is_very_important(name)
-#else
-#define fun_is_vip(name) 0
-#endif
-
-#define meets_log_criteria(log_lvl, needed)     \
-    ((LOG_MASTER > 0 &&                         \
-      log_lvl >= needed &&                      \
-      mute_flag == 0)                           \
-     ||                                         \
-     (VIP_VERBOSITY >= needed &&                \
-      fun_is_vip(__func__)))
-
-#define log(...) _log(1, __VA_ARGS__)
-#define log2(...) _log(2, __VA_ARGS__)
-#define log3(...) _log(3, __VA_ARGS__)
-#define log4(...) _log(4, __VA_ARGS__)
-
-#define trace(...) race(1, __VA_ARGS__)
-#define trace2(...) race(2, __VA_ARGS__)
-#define trace3(...) race(3, __VA_ARGS__)
-#define trace4(...) race(4, __VA_ARGS__)
-#define trace5(...) race(5, __VA_ARGS__)
-
-#define _log(needed, ...) __log(LOG_LVL, needed, __VA_ARGS__)
-#define race(needed, ...) _race(LOG_LVL, needed, __VA_ARGS__)
-
-/** 
- * @brief If the containing module's verbosity level is greater than lvl,
- * append some extra data to the provided printf-style arguments. Then, print
- * the resulting printf-style arguments. 
- *
- * FIRST_ARG and COMMA_AND_TAIL_ARGS replace GCC's ##__VA_ARGS__. See
- * peb_util.h.
- * 
- * @param lvl The min value that MODULE needs to be to prevent this
- * call from being compiled out.
- * @param __VA_ARGS__ Either nothing, or a plain string, or a printf format
- * string with helper args.
- */
-#define __log(lvl, needed, ...)                                 \
-    do{                                                         \
-        if(meets_log_criteria(lvl, needed)){                    \
-            wrapid(log_printf, __VA_ARGS__);                  \
-        }                                                       \
-    }while (0)                                                  \
-
-/* @brief Count the number of args passed to traceN(), and invoke the
-   appropriate helper macro to handle the given number of arguments.
+/*
+#define trace(need_lvl, f, msg, ...)                                    \
+    ({                                                                  \
+        MAP_PAIRS(DECLARE_VAR, TAIL(__VA_ARGS__))                       \
+            llprintf(                                                   \
+                __FUNC__                                                \
+                ":"HEAD_ARG(__VA_ARGS__)                                \
+                "("                                                     \
+                MAP_PAIRS(GET_FMT, TAIL(__VA_ARGS__))                   \
+                ")"                                                     \
+                MAP_PAIRS(USE_VAR, TAIL(__VA_ARGS__))                   \
+                );                                                      \
+        typeof(HEAD(__VA_ARGS__)(SECOND_HALF(TAIL_ARGS(__VA_ARGS__))))  \
+            ret = HEAD_ARG(__VA_ARGS__)(SECOND_HALF(TAIL_ARGS(__VA_ARGS__))); \
+                                                                        \
+    })                                                                  \
 */
-#define _race(lvl, needed,...)                                \
-    do{                                                         \
-        if(meets_log_criteria(lvl, needed)) {                   \
-            CONCAT(race, NUM_ARGS(__VA_ARGS__))(__VA_ARGS__); \
-        }                                                       \
-    }while(0)                                                   \
 
-#define race0()                               \
-    wrapid(log_printf, "Entered %s.",         \
-               __func__)
+#define trace(...)                                              \
+    CONCAT(trace, NUM_ARGS(__VA_ARGS__))(1, ##__VA_ARGS__)
+
+#define trace0(n)                               \
+    llprintf(n, "Entered %s.", __func__)
 
 /* Note that the number after race here is the number of args, NOT the
    verbosity level like in non-underscore-trace */
-#define race2(a,formata)                      \
-    wrapid(log_printf, "Entered %s - "        \
+#define trace2(n,a,formata)                    \
+    llprintf(n, "Entered %s - "                 \
              #a": %"#formata" ",                \
              __func__, a)                       
 
 
-#define race4(a, formata, b, formatb)         \
-    wrapid(log_printf, "Entered %s - "        \
+#define trace4(n, a, formata, b, formatb)   \
+    llprintf(n, "Entered %s - "           \
              #a": %"#formata" "                 \
              #b": %"#formatb" ",                \
              __func__, a, b)                    
 
-#define race6(a, formata, b, formatb, c, formatc) \
-    wrapid(log_printf, "Entered %s - "            \
+#define trace6(n, a, formata, b, formatb, c, formatc)    \
+    llprintf(n, "Entered %s - "            \
              #a": %"#formata" "                     \
              #b": %"#formatb" "                     \
              #c": %"#formatc" ",                    \
              __func__, a, b, c)                      
 
 
-#define race8(a, formata, b, formatb, c, formatc, d, formatd) \
-    wrapid(log_printf, "Entered %s - "                        \
+#define trace8(n, a, formata, b, formatb, c, formatc, d, formatd)    \
+    llprintf(n, "Entered %s - "                        \
              #a": %"#formata" "                                 \
              #b": %"#formatb" "                                 \
              #c": %"#formatc" "                                 \
              #d": %"#formatd" ",                                \
              __func__, a, b, c, d)
 
-#define race10(a, formata, b, formatb, c, formatc, d, formatd, e, formate) \
-        wrapid(log_printf, "Entered %s - "                             \
+#define trace10(n, a, formata, b, formatb, c, formatc, d, formatd, e, formate) \
+        llprintf(n, "Entered %s - "                             \
                  #a": %"#formata" "                                     \
                  #b": %"#formatb" "                                     \
                  #c": %"#formatc" "                                     \
@@ -242,42 +166,3 @@ static volatile int CONCAT(DYN_LOG_, MODULE) = CONCAT(LOG_, MODULE);
 
 /* ------------ Misc printing functions ---------------- */
 
-#define dump_ureg(ureg, prnt)                                   \
-    do{                                                         \
-        prnt("--------- Dumping ureg ----------");              \
-        prnt("%s:%s:%d", __FILE__, __func__, __LINE__);         \
-        prnt("eax: 0x%08X   eip   : 0x%08X   cs   : 0x%08X",    \
-             ureg->eax, ureg->eip, ureg->cs);                   \
-        prnt("ecx: 0x%08X   esp   : 0x%08X   ss   : 0x%08X",    \
-             ureg->ecx, ureg->esp, ureg->ss);                   \
-        prnt("edi: 0x%08X   cause : 0x%08X   ds   : 0x%08X",    \
-             ureg->edi, ureg->cause, ureg->ds);                 \
-        prnt("ebx: 0x%08X   cr2   : 0x%08X   es   : 0x%08X",    \
-             ureg->ebx, ureg->cr2, ureg->es);                   \
-        prnt("ebp: 0x%08X   ecode : 0x%08X   fs:  : 0x%08X ",   \
-             ureg->ebp, ureg->error_code, ureg->fs);            \
-        prnt("esi: 0x%08X   eflags: 0x%08X   gs   : 0x%08X",    \
-             ureg->esi, ureg->eflags, ureg->gs);                \
-        prnt("edi: 0x%08X   k_esp : 0x%08X",                    \
-             ureg->edi, ureg->zero);                            \
-    }while(0)
-
-#define dump_elf_header(elf)                                \
-    do{                                                     \
-        log("------- Dumping sELF -------");                \
-        log("e_fname:       %s",      (elf)->e_fname);      \
-        log("e_entry:       0x%lx",   (elf)->e_entry);      \
-        log("extoff:      %lu",     (elf)->extoff);     \
-        log("extlen:      %lu",     (elf)->extlen);     \
-        log("extstart:    0x%lx",   (elf)->extstart);   \
-        log("e_datoff:      %lu",     (elf)->e_datoff);     \
-        log("e_datlen:      %lu",     (elf)->e_datlen);     \
-        log("e_datstart:    0x%lx",   (elf)->e_datstart);   \
-        log("e_rodatoff:    %lu",     (elf)->e_rodatoff);   \
-        log("e_rodatlen:    %lu",     (elf)->e_rodatlen);   \
-        log("e_rodatstart:  0x%lx",   (elf)->e_rodatstart); \
-        log("e_bsslen:      %lu",     (elf)->e_bsslen);     \
-        log("e_bssstart:    0x%lx", (elf)->e_bssstart);     \
-    } while(0)                                              \
-
-#endif  /* PEB_LOG_H */

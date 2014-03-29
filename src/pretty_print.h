@@ -12,57 +12,16 @@
 #include <log.h>
 #include <peb_macros.h>
 
-/* #define APPEND_STRING(n, global_ignored)        \ */
-/*     #n": " FORMAT_SPECIFIER_OF((n)) */
-
-
-/* #define APPEND_STRING(n, global_ignored)        \ */
-/*     #n": " "%p" */
-
-/* TODO */
-
 #define PRINT(a, b) _PRINT(a,b)                 \
 
-/* #define _PRINT(a, b)                                              \ */
-/*     wrapid(lprintf, FORMAT_SPECIFIER_OF(a), 1) */
-
-/* #define _PRINT(a, b)                                              \ */
-/*     log(lprintf, FORMAT_SPECIFIER_OF(a), a) */
-
-/* #define _wrapid(prnt, ...)                         \ */
-/*     prnt("%u THR:%d "FIRST_ARG(__VA_ARGS__),         \ */
-/*          log_get_ticks(),                           \ */
-/*          log_gettid()                               \ */
-/*          COMMA_AND_TAIL_ARGS(__VA_ARGS__))          \ */
-
-#define _wrapid(prnt, ...)                         \
-    prnt("%u THR:%d "FIRST_ARG(__VA_ARGS__),         \
-         log_get_ticks(),                           \
-         log_gettid()                               \
-         NULL)                                      \
+#define _wrapid(prnt, ...)                      \
+    prnt("%u THR:%d "FIRST_ARG(__VA_ARGS__),    \
+         get_ticks(),                           \
+         gettid()                               \
+         NULL)                                  \
 
 #define _PRINT(a, b)                                              \
     lprintf("TEST" FORMAT_SPECIFIER_OF(a), a)
-
-/* #define _PRINT(a, b)                                              \ */
-/*     _wrapid(lprintf, FORMAT_SPECIFIER_OF(a), a) */
-
-/* OK. */
-/* #define _PRINT(a, b)                                              \ */
-/*     log("%d\n", NUM_ARGS(FORMAT_SPECIFIER_OF(a), 1)) */
-
-/* #define _PRINT(a, b)                            \ */
-/*     lprintf(FIRST_ARG("%s\n", FORMAT_SPECIFIER_OF(a)), "TEST"); */
-
-/* OK */
-/* #define _PRINT(a, b)                                            \ */
-/*     lprintf("%s\n"                                              \ */
-/*             COMMA_AND_TAIL_ARGS(dummy, FORMAT_SPECIFIER_OF(a))); */
-
-/* #define PRINT(a, b)                                              \ */
-/*     printf(APPEND_STRING((a), sda),                              \ */
-/*            a) */
-
 
 #define PINT(n)                                 \
     log(#n" = %d", n)

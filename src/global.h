@@ -18,9 +18,8 @@ extern void _halt(void);
 #include <stdlib.h>
 #define BREAK abort();
 /* #define BREAK do{while(1) continue;}while(0) */
-#define lprintf printf_ln
+#define lprintf(s, ...) printf(s"\n", ##__VA_ARGS__)
 
-enum {FALSE = 0, TRUE};
 
 /* Timer driver reads this. 9000 is still slow enough for the raw kernel code,
    and I ran it this way for most of development. But logging with interrupts

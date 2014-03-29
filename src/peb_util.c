@@ -23,31 +23,6 @@ char* peb_stpcpy(char *dest, const char *src){
     return dest;
 }
 
-
-char *itobs_8(int num, itobsbuf8 *bin){
-    trace2(num, d, bin, p);
-    for(int i = 7; i >= 0; i--, num /= 2)
-        (*bin)[i] = (num & 1) ? '1' : '0';
-    (*bin)[8] = '\0';                 
-    return *bin;
-}    
-
-char *itobs_16(int num, itobsbuf16 *bin){
-    trace2(num, d, bin, p);
-    for(int i = 15; i >= 0; i--, num /= 2)
-        (*bin)[i] = (num & 1) ? '1' : '0';
-    (*bin)[16] = '\0';                 
-    return *bin;
-}    
-
-char *itobs_32(int num, itobsbuf32 *bin){
-    trace2(num, d, bin, p);
-    for(int i = 31; i >= 0; i--, num /= 2)
-        (*bin)[i] = (num & 1) ? '1' : '0';
-    (*bin)[32] = '\0';                 
-    return *bin;
-}    
-
 /* I use the following functions when I need to fill in a function pointer
    with something generic. */
 

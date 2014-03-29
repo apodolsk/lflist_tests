@@ -15,9 +15,10 @@ const char *vip_list[] = {
     
 };
 
-int fun_is_very_important(const char *fun_name){
+bool fun_is_vip(const char *fun_name){
     for(uint i = 0; i < ARR_LEN(vip_list); i++)
         if(strcmp(fun_name, vip_list[i]) == 0)
             return 1;
     return 0;
 }
+

@@ -135,14 +135,14 @@ void mallocest_randsize(){
         assert(!kfork((entrypoint *) mt_child_rand,
                       (void *) _gettid(), KERN_ONLY));
     
-    rdy = TRUE;
+    rdy = true;
 
     for(uint i = 0; i < numhreads; i++)
         assert(!pthread_join(kids[i], (void *[]){NULL}));
 }
 
 void mt_child_rand(int parentid){
-    trace2(parentid, d);
+    trace(parentid, d);
 
     struct tblock *cur_block;
     list block_lists[NUM_LISTS];
@@ -152,7 +152,7 @@ void mt_child_rand(int parentid){
     for(uint i = 0; i < NUM_LISTS; i++)
         block_lists[i] = (list) LIST(&block_lists[i]);
     
-    while(rdy == FALSE)
+    while(rdy == false)
         _yield(parentid);
 
     for(uint i = 0; i < NUM_OPS; i++){
@@ -207,7 +207,7 @@ void mallocest_sharing(){
         if(kfork((entrypoint *) mt_sharing_child, &shared, KERN_ONLY) < 0)
             EWTF("Failed to fork.");
 
-    rdy = TRUE;
+    rdy = true;
 
     for(uint i = 0; i < numhreads; i++)
         assert(!pthread_join(kids[i], (void *[]){NULL}));
@@ -219,7 +219,7 @@ void mt_sharing_child(struct child_args *shared){
     struct tblock *cur_block;
     prand_init();
 
-    while(rdy == FALSE)
+    while(rdy == false)
         _yield(parentid);
 
     list priv_blocks[NUM_LISTS];
@@ -290,7 +290,7 @@ void producerest(void){
         if(kfork((entrypoint *) mt_sharing_child, &shared, KERN_ONLY) < 0)
             EWTF("Failed to fork.");
 
-    rdy = TRUE;
+    rdy = true;
 
     produce(&shared);
 
@@ -363,7 +363,7 @@ void consumer_child(struct child_args *shared){
     struct tblock *cur_block;
     prand_init();
 
-    while(rdy == FALSE)
+    while(rdy == false)
         _yield(parentid);
 
     stack priv_blocks = STACK;
