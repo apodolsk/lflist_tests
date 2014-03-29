@@ -38,7 +38,7 @@
 #include <vip_fun.h>
 
 /* 0 to disable non-VIP logging. */
-#define LOG_MASTER 1
+#define LOG_MASTER 0
 #define DYNAMIC_LOG 0
 
 /* 1 enables mute_log() and unmute_log(). */
@@ -66,24 +66,24 @@
 #define LOG_UNITESTS 1
 #define LOG_LIST_TESTSM 1
 
-#if !LOG_LVL
-#undef LOG_LVL
-#define LOG_LVL 0
-#endif
+#define LOG_LVL CONCAT(LOG_, MODULE)
 
-#if DYNAMIC_GLOBAL_MUTE > 0
-/* deleted this junk */
-#else
+/* #if !LOG_LVL */
+/* #undef LOG_LVL */
+/* #define LOG_LVL 0 */
+/* #endif */
+
+#if !DYNAMIC_GLOBAL_MUTE
 #define mute_flag 0
 #define mute_log()
 #define unmute_log()
-#endif  /* DYNAMIC_GLOBAL_MUTE > 0 */
+#endif 
 
 /* ---------- Main logger plumbing. ---------------*/
 
 #define llprintf(need_lvl, s, ...) do{                                  \
-        if(LOG_LVL >= need_lvl)                                         \
-            lprintf("%THR:%d "s, _gettid(), ##__VA_ARGS__);              \
+        if(meets_log_criteria(LOG_LVL, need_lvl))                       \
+            lprintf("%THR:%d "s, _gettid(), ##__VA_ARGS__);             \
     } while(0)                                                          \
 
 #define meets_log_criteria(log_lvl, needed)             \

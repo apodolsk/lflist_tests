@@ -20,8 +20,10 @@ sanchor *lfstack_pop(lfstack *s){
         lfstack x = *s;
         if(!x.top)
             return NULL;
-        if(cas2_ok(((lfstack){x.top->n, x.gen+1, x.size-1}), s, x))
+        if(cas2_ok(((lfstack){x.top->n, x.gen+1, x.size-1}), s, x)){
+            x.top->n = NULL;
             return x.top;
+        }
     }
 }
 
