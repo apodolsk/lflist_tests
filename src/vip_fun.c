@@ -12,8 +12,7 @@
 #include <whtypes.h>
 
 const char *vip_list[] = {
-    "alloc",
-    "shave",
+    
 };
 
 int fun_is_very_important(const char *fun_name){
