@@ -11,21 +11,20 @@ typedef volatile struct flanchor flanchor;
 typedef union mptr mptr;
 
 typedef struct { uptr i:62; uint locked:1; uint unlocking:1; } flgen;
-#define GEN_INTVL 4
 
 struct flx{
     union mptr {
         struct{
             uint is_nil:1;
-            uptr ptr:63;
+            uptr ptr:WORDBITS-1;
         };
         /* For debugging. */
         flanchor *pt;
     } mp;
     flgen gen;
-} __attribute__((__aligned__ (2 * sizeof(void *))));
+} __attribute__((__aligned__(sizeof(dptr))));
 
-#define mptr(p, n) ((mptr){(uptr) p, n})
+#define mptr(p, nil) ((mptr){.is_nil=nil, .ptr=(uptr) p})
 
 struct flanchor{
     volatile flx n;

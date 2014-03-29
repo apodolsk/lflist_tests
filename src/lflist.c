@@ -1,4 +1,4 @@
-#define MODULE LFLIST
+#define MODULE LFLISTM
 
 #include <stdlib.h>
 #include <peb_macros.h>

@@ -174,6 +174,8 @@ int main(int argc, char **argv){
         }
     }
 
+    lflist test = (lflist) LFLIST(&test);
+
     lflist lists[nlists];
     for(uint i = 0; i < nlists; i++)
         lists[i] = (lflist) LFLIST(&lists[i]);
