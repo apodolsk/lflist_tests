@@ -424,7 +424,7 @@ void plain_update(void){
 void cas_update_kid(void){
     for(int r = 0; r < REPS; r++)
         for(uint i = 0; i < NBYTES/sizeof(*update_mem); i++)
-            cas(1, &update_mem[i], 0);
+            cas((uptr) 1, &update_mem[i], (uptr) 0);
 }
 
 void cas_update(void){

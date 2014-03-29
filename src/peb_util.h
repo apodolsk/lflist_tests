@@ -10,18 +10,9 @@
 
 #include <peb_macros.h>
 
-#define eq(a, b) ({                                 \
-            CASSERT(sizeof(a) == sizeof(b));        \
-            bool __eqr = false;                     \
-            if(sizeof(a) == sizeof(uptr))           \
-                __eqr = PUN(uptr, a) == PUN(uptr, b); \
-            else if(sizeof(a) == sizeof(dptr))        \
-                __eqr = PUN(dptr, a) == PUN(dptr, b);   \
-            else                                    \
-                assert(0);                          \
-            __eqr;                                  \
-        })
+#define eq(a, b) (PUN(uptr, a) == PUN(uptr, b))
 
+#define eq2(a, b) (PUN(dptr, a) == PUN(dptr, b))
 
 /* Aladdin system doesn't have librt installed. I'm sick of wrangling with the
    loader. */

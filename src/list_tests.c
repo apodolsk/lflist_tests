@@ -182,7 +182,7 @@ int main(int argc, char **argv){
     log("hi");
 
     uptr a = 1;
-    assert(cas_ok(2, &a, 1));
+    assert(cas_ok((uptr) 2, &a, (uptr) 1));
     assert(a == 2);
     assert(condxadd(&a, 3) == 2);
     assert(a == 3);

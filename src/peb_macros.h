@@ -9,10 +9,12 @@
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
+/* Type pun through a union equal in size to s, but use integer conversion
+   to zero out extra bits of output if s is smaller than t. */
 #define PUN(t, s) ({                                                \
-            assert(sizeof(s) == sizeof(t));                         \
-            ((union {__typeof__(s) str; t i;}) (s)).i;              \
-        })                                                          \
+        CASSERT(sizeof(s) == sizeof(t));                            \
+        ((union {__typeof__(s) str; t i;}) (s)).i;                  \
+        })                                                      
 
 /** 
  * Return the address of the struct s containing member_ptr, assuming s
@@ -30,19 +32,6 @@
 static inline void *subtract_if_not_null(void *ptr, size subtrahend){
     return ptr == NULL ? ptr : (void *)((u8 *)ptr - subtrahend);
 }
-
-/** 
- * @brief Store the value of the given expression inside a volatile variable
- * with the given name. I used this to make certain values readable from
- * simics.
- */
-#ifndef NDEBUG
-#define DBG_VOLATIZE(name, expression)                             \
-    volatile __typeof__ (expression) name = expression;            \
-    (void) name
-#else
-#define DBG_VOLATIZE(...) ERROR_SOMEONE_FORGOT_TO_REMOVE_DBG_CODE
-#endif
 
 
 #define CASSERT(e) _Static_assert(e, #e)
@@ -321,7 +310,3 @@ static inline void *subtract_if_not_null(void *ptr, size subtrahend){
     FUNC(l - 1, __VA_ARGS__) NITR_0(FUNC, l, __VA_ARGS__)
 #define NITR_0(FUNC, l, ...)                    \
     FUNC(0, __VA_ARGS__)
-
-#define CONSTRUCT_LIST_ELEM(itr, elem) elem , 
-#define REPEATING_LIST(elem, repetitions)                           \
-    ITERATE_FUNC_OVER_NUMS(CONSTRUCT_LIST_ELEM, repetitions, elem)

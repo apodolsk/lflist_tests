@@ -167,7 +167,7 @@ void dealloc_from_slab(block *b, slab *s){
 static
 void (slab_ref_down)(slab *s){
     assert(s->tx.linrefs);
-    if(xadd(-1, &s->tx.linrefs) == 1){
+    if(xadd((uptr) -1, &s->tx.linrefs) == 1){
         s->tx.her = NULL;
         lfstack_push(&s->sanc, s->tx.her->hot_slabs);
     }
@@ -180,7 +180,7 @@ err (linref_up)(volatile void *l, type *t){
         if(tx.her->t != t)
             return EARG("Wrong type.");
         assert(tx.linrefs);
-        if(cas_ok(((tyx){tx.her, tx.linrefs + 1}), &s->tx, tx))
+        if(cas2_ok(((tyx){tx.her, tx.linrefs + 1}), &s->tx, tx))
             return 0;
     }
 }
@@ -222,9 +222,9 @@ void sfree(void *b, size size){
 
 static
 int write_block_magics(block *b, size bytes){
-    ETODO("Gotta rethink this now that it's lineage by default.");
     if(!HEAP_DBG)
         return 1;
+    ETODO("Gotta rethink this now that it's lineage by default.");
     int *magics = (int *) (b + 1);
     for(size i = 0; i < (bytes - sizeof(*b))/sizeof(*magics); i++)
         magics[i] = NALLOC_MAGIC_INT;

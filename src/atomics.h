@@ -9,8 +9,6 @@ uptr _xchg2(dptr s, dptr *p);
 uptr _cmpxchg(uptr n, volatile uptr *p, uptr old);
 dptr _cmpxchg2(dptr n, volatile dptr *p, dptr old);
 
-/* TODO: Bring in C wrappers. Check alignment. */
-
 #define xadd(s, d)                              \
     PUN(typeof(*d),                             \
         _xadd(PUN(uptr, s), (uptr *) d))
@@ -39,5 +37,5 @@ dptr _cmpxchg2(dptr n, volatile dptr *p, dptr old);
     eq(old, cas(n, addr, old))                  \
 
 #define cas2_ok(n, addr, old)                   \
-    eq(old, cas2(n, addr, old))                 \
+    eq2(old, cas2(n, addr, old))                 \
 

@@ -204,7 +204,7 @@ err lflist_add_before(flx a, flx n, type *t){
     do{
         p = help_prev(n, p, t);
         assert(pt(p));
-        assert(geneq(a.gen, p.gen));
+        assert(geneq(n.gen, p.gen));
         
         pt(a)->p.mp = p.mp;
     }while(!casx_ok((flx){a.mp, n.gen}, &pt(n)->p, p));
