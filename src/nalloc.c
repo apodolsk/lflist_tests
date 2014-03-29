@@ -58,9 +58,9 @@ CASSERT(ARR_LEN(polytypes) == 14);
 
 #include <sys/mman.h>
 slab *mmap_slabs(cnt nslabs){
-    slab *s = mmap(NULL, SLAB_SIZE * nslabs,
-                   PROT_WRITE, MAP_POPULATE | MAP_ANONYMOUS, -1, 0);
-    return s == MAP_FAILED ? NULL : s;
+    slab *s = mmap(NULL, SLAB_SIZE * nslabs, PROT_WRITE | PROT_WRITE,
+                   MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0);
+    return s == MAP_FAILED ? EWTF(), NULL : s;
 }
 
 /* extern void *edata; */

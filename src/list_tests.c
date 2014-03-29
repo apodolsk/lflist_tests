@@ -1,4 +1,4 @@
-#define MODULE LIST_TESTS
+#define MODULE LIST_TESTSM
 
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -173,6 +173,11 @@ int main(int argc, char **argv){
             break;
         }
     }
+
+    assert(mmap(NULL, SLAB_SIZE * 8, PROT_WRITE | PROT_WRITE,
+                MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0)
+           != MAP_FAILED);
+        
 
     log("hi");
 

@@ -64,7 +64,7 @@
 #define LOG_KMALLOC 0
 #define LOG_POOLS 0
 #define LOG_UNITESTS 1
-#define LOG_LISTESTS 1
+#define LOG_LIST_TESTSM 1
 
 #if !LOG_LVL
 #undef LOG_LVL
