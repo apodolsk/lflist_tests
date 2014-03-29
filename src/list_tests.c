@@ -10,6 +10,7 @@
 #include <prand.h>
 #include <atomics.h>
 #include <global.h>
+#include <sys/mman.h>
 
 uint nlists = 1;
 uint nthreads = 2;
@@ -22,23 +23,21 @@ uint nwrites = 0;
 static sem_t parent_done;
 
 typedef union{
-    lineage_t lin;
+    lineage lin;
     struct{
         flanchor flanc;
         pthread_t magics[MAXWRITE];
     };
-} block;
+} node;
 
-type *t_block = &(type){sizeof(block)};
-
-int lwrite_magics(block *b){
+int lwrite_magics(node *b){
     assert(nwrites <= MAXWRITE);
     for(uint i = 0; i < nwrites; i++)
         b->magics[i] = pthread_self();
     return 1;
 }
 
-int lmagics_valid(block *b){
+int lmagics_valid(node *b){
     for(uint i = 0; i < nwrites; i++)
         assert(b->magics[i] == pthread_self());
     return 1;
@@ -54,59 +53,62 @@ uptr condxadd(uptr *d, uptr max){
     return r;
 }
 
-void init_block(block *b){
-    b->flanc = (flanchor) FRESH_FLANCHOR;
+slab *mmap_slabs(cnt nslabs){
+    slab *s = mmap(NULL, SLAB_SIZE * nslabs,
+                   PROT_WRITE, MAP_POPULATE | MAP_ANONYMOUS, -1, 0);
+    return s == MAP_FAILED ? NULL : s;
+}
+
+void node_init(node *b){
+    b->flanc = (flanchor) FLANCHOR;
     assert(lwrite_magics(b));
 }
 
-typedef struct {
-    int tid;
-    lflist *lists;
-    heritage *heritage;
-} reinsert_args;
+lfstack hot_slabs = LFSTACK;
+type node_t = {sizeof(node), linref_up, linref_down};
+__thread heritage node_h = HERITAGE(&node_t, &hot_slabs,
+                                    (void (*)(void *))node_init, mmap_slabs);
 
 static uptr nb;
+static lflist *shared;
 
-void *reinsert_kid(reinsert_args *a){
-    lflist priv = FRESH_LFLIST(&priv);
-    lflist *shared = a->lists;
-    heritage *h = a->heritage;
-
-    tid_ = a->tid;
+void *reinsert_kid(uint t){
+    lflist priv = LFLIST(&priv);
+    tid_ = t;
 
     rand_init();
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
-            block *b = (block *)
-                linalloc(h, (void (*)(void*)) init_block);
+            node *b = (node *)
+                linalloc(&node_h);
             PPNT(b);
             assert(lmagics_valid(b));
-            lflist_add_rear(flx_of(&b->flanc), t_block, &priv);
+            lflist_add_rear(flx_of(&b->flanc), &node_t, &priv);
         }
 
         lflist *l = &shared[rand() % nlists];
         flx bx;
-        if(randpcnt(50) && flptr(bx = lflist_pop_front(t_block, &priv))){
+        if(randpcnt(50) && flptr(bx = lflist_pop_front(&node_t, &priv))){
             log("Pushing: %p", flptr(bx));
-            assert(lmagics_valid(cof(flptr(bx), block, flanc)));
-            lflist_add_rear(bx, t_block, l);
+            assert(lmagics_valid(cof(flptr(bx), node, flanc)));
+            lflist_add_rear(bx, &node_t, l);
         }else{
-            bx = lflist_pop_front(t_block, l);
-            block *b = cof(flptr(bx), block, flanc);
+            bx = lflist_pop_front(&node_t, l);
+            node *b = cof(flptr(bx), node, flanc);
             if(!b)
                 continue;
             log("Popped: %p", flptr(bx));
             assert(lwrite_magics(b));
-            lflist_add_rear(bx, t_block, &priv);
+            lflist_add_rear(bx, &node_t, &priv);
         }
 
         PINT(i);
     }
 
-    for(flx bx; flptr(bx = lflist_pop_front(t_block, &priv));)
-        lflist_add_rear(bx, t_block, &shared[0]);
+    for(flx bx; flptr(bx = lflist_pop_front(&node_t, &priv));)
+        lflist_add_rear(bx, &node_t, &shared[0]);
 
     return (void *) nb;
 }
@@ -114,32 +116,32 @@ void *reinsert_kid(reinsert_args *a){
 void test_reinsert(){
     sem_t parent_dead;
     if(sem_init(&parent_dead, 0, 0))
-        LOGIC_ERROR();
+        EWTF();
     
     lflist lists[nlists];
     for(uint i = 0; i < nlists; i++)
-        lists[i] = (lflist) FRESH_LFLIST(&lists[i]);
+        lists[i] = (lflist) LFLIST(&lists[i]);
 
-    heritage hs[nthreads];
-    reinsert_args args[nthreads];
-    for(uint i = 0; i < nthreads; i++){
-        hs[i] = (heritage) FRESH_HERITAGE(t_block);
-        args[i] = (reinsert_args){i, lists, &hs[i]};
-    }
+    /* heritage hs[nthreads]; */
+    /* reinsert_args args[nthreads]; */
+    /* for(uint i = 0; i < nthreads; i++){ */
+    /*     hs[i] = (heritage) HERITAGE(&node_t); */
+    /*     args[i] = (reinsert_args){i, lists, &hs[i]}; */
+    /* } */
 
     pthread_t tids[nthreads];
     for(uint i = 0; i < nthreads; i++)
         if(pthread_create(&tids[i], NULL,
-                          (void *(*)(void*)) reinsert_kid, &args[i]))
-            LOGIC_ERROR();
+                          (void *(*)(void*)) reinsert_kid, (void *) i))
+            EWTF();
     
     for(uint i = 0; i < nthreads; i++)
         sem_post(&parent_done);
     for(uint i = 0; i < nthreads; i++)
         pthread_join(tids[i], NULL);
     for(uint i = 0; i < nlists; i++)
-        for(flx b; flptr(b = lflist_pop_front(t_block, &lists[i])); nb--)
-            linfree(&cof(flptr(b), block, flanc)->lin);
+        for(flx b; flptr(b = lflist_pop_front(&node_t, &lists[i])); nb--)
+            linfree(&cof(flptr(b), node, flanc)->lin);
 
     assert(!nb);
 }
@@ -177,6 +179,11 @@ int main(int argc, char **argv){
             break;
         }
     }
+
+    lflist lists[nlists];
+    for(uint i = 0; i < nlists; i++)
+        lists[i] = (lflist) LFLIST(&lists[i]);
+    shared = lists;
 
     if(do_malloc){
         malloc_test_main(program);

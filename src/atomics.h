@@ -1,78 +1,43 @@
-#ifndef __ATOMICS_H__
-#define __ATOMICS_H__
+#pragma once
 
-#include <stdint.h>
 #include <peb_util.h>
-#include <whtypes.h>
 
-/** 
- * @brief Wrapper for the locked version of the x86 xadd instruction.
- *
- * atomically:
- * int ret = *dest;
- * *dest += source;
- * return ret;
- *
- * 
- * @param source The amount by which to increment the contents of dest.
- * @param dest The address of an int which we will increment.
- * 
- * @return The value which dest contained immediately before the
- * increment. 
- */
-uptr xadd(uptr src, uptr *dest);
-uptr xchg64b(uptr src, uptr *dest);
+uptr _xadd(uptr s, uptr *p);
+uptr _xchg(uptr s, uptr *p);
+uptr _xchg2(dptr s, dptr *p);
 
-/** 
- * @brief Wrapper for the x86 cmpxchg instruction.
- *
- * atomically:
- * if(*dest == expected_dest){
- *  *dest = source;
- *  return expected_dest;
- * } else {
- *  return *dest;
- * }
- * @param source The value to save into dest.
- * @param dest The address of an int which we will atomically compare
- * against expected_dest, and then replace with source.
- * @param expected_dest The value which we shall compare with *dest.
- * 
- * @return The initial value of *dest
- */ 
-/* Volatile is here to appease the compiler, not because I think it's a
-   magical keyword for "atomic". */
-uptr _cmpxchg64b(uptr src, volatile uptr *dest, uptr expected_dest);
-dptr _cmpxchg128b(dptr src, volatile dptr *dest, dptr expected_dest);
+uptr _cmpxchg(uptr n, volatile uptr *p, uptr old);
+dptr _cmpxchg2(dptr n, volatile dptr *p, dptr old);
 
-uptr cmpxchg64b(uptr src, volatile uptr *dest, uptr expected_dest);
-dptr cmpxchg128b(dptr src, volatile dptr *dest, dptr expected_dest);
+/* TODO: Bring in C wrappers. Check alignment. */
 
-#define cas(n, addr, old)                       \
-    PUN(typeof(old),                            \
-        _cmpxchg64b(PUN(uptr, n),               \
-                    (uptr *) (addr),            \
-                    PUN(uptr, old)))
+#define xadd(s, d)                              \
+    PUN(typeof(*d),                             \
+        _xadd(PUN(uptr, s), (uptr *) d))
 
+#define xchg2(s, d)                             \
+    PUN(typeof(*d),                             \
+        _xchg2(PUN(dptr, s), (dptr *) d))       \
 
-#define cas2(n, addr, old)                      \
-    PUN(typeof(old),                            \
-        _cmpxchg128b(PUN(dptr, n),              \
-                     (dptr *) (addr),           \
-                     PUN(dptr, old)))
+#define atomic_read2(addr)                      \
+    PUN(typeof(*addr),                          \
+        _cmpxchg2(0, *addr, 0))               \
+
+#define cas(n, addr, old)                           \
+    PUN(typeof(old),                                \
+          _cmpxchg(PUN(uptr, n),                    \
+                   (uptr *) (addr),                 \
+                   PUN(uptr, old)))
+
+#define cas2(n, addr, old)                          \
+    PUN(typeof(old),                                \
+         _cmpxchg2(PUN(dptr, n),                    \
+                   (dptr *) (addr),                 \
+                   PUN(dptr, old)))
 
 #define cas_ok(n, addr, old)                    \
-    (_cmpxchg64b(PUN(uptr, n),                  \
-                 (uptr *) (addr),               \
-                 PUN(uptr, old))                \
-     == PUN(uptr, old))
+    eq(old, cas(n, addr, old))                  \
 
 #define cas2_ok(n, addr, old)                   \
-    (_cmpxchg128b(PUN(dptr, n),                 \
-                  (dptr *) (addr),              \
-                  PUN(dptr, old))               \
-     == PUN(dptr, old))
+    eq(old, cas2(n, addr, old))                 \
 
-
-
-#endif  /* __ATOMICS_H__ */

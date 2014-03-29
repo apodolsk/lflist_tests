@@ -1,84 +1,48 @@
 #pragma once
 
 #include <list.h>
-#include <pthread.h>
 #include <stack.h>
-#include <stdbool.h>
-#include <whtypes.h>
+#include <pthread.h>
+
+void *smalloc(size size);
+void sfree(void *b, size size);
+void *malloc(size size);
+void free(void *b);
 
 typedef struct {
-    sanchor_t sanc;
-} block_t;
-#define FRESH_BLOCK {}
-
-block_t *block_of(void *addr);
-
-#ifdef HIDE_NALLOC
-#define smalloc _smalloc
-#define sfree _sfree
-#define malloc _malloc
-#define free _free
-#endif
-
-void *_smalloc(size_t size);
-void _sfree(void *b, size_t size);
-void *_malloc(size_t size);
-void _free(void *b);
-
-void *_smemalign(size_t alignment, size_t size);
-
-/* linref_up takes a lineage_t because it means all of the lineage will
+    sanchor sanc;
+} block;
+/* linref_up takes a lineage because it means all of the lineage will
    keep its type EXCEPT FOR the block header, which is undefined when the
    block is on a free list. I just set aside a header even when I have
    guarantees that the block isn't free, but that can be avoided. */
-typedef block_t lineage_t;
+typedef block lineage;
 
 /* Takes up space so that its address may be a unique key. */
-typedef struct{
-    size_t size_of;
+typedef struct type{
+    size size;
+    err (*linref_up)(volatile void *l, struct type *t);
+    void (*linref_down)(volatile void *l);
 } type;
-#define FRESH_TYPE(s) {s}
+
+typedef struct slab slab;
 
 typedef struct{
-    simpstack slabs;
+    lfstack slabs;
+    lfstack *hot_slabs;
     type *t;
+    void (*block_init)(void *b);
+    slab *(*new_slabs)(cnt nslabs);
 } heritage;
-#define FRESH_HERITAGE(_t) {.slabs = FRESH_SIMPSTACK, .t = _t}
+#define HERITAGE(t, hs, bi, ns) {LFSTACK, &hot_slabs, t, bi, ns}
+#define KERN_HERITAGE(...) {}
+/* #define KERN_HERITAGE(, bi) HERITAGE(, &hot_kern_slabs, bi, new_kern_slabs) */
 
-lineage_t *linalloc(heritage *type, void (*block_init)(void *));
-void linfree(lineage_t *l);
-int linref_up(volatile void *l, type *wanted);
+typedef void (*linit)(void *);
+void *linalloc(heritage *type);
+void linfree(lineage *l);
+err linref_up(volatile void *l, type *t);
 void linref_down(volatile void *l);
 
-/* TODO: delete */
-#define PAGE_SIZE 4096
-
-#define HEAP_LOW 0x00300000
-#define HEAP_HIGH 0x01000000
-#define IDEAL_CACHED_SLABS 16
-#define MAX_BLOCK (SLAB_SIZE - offsetof(slab_t, blocks))
-#define MIN_ALIGNMENT 16
-#define SLAB_SIZE (PAGE_SIZE)
-#define NALLOC_MAGIC_INT 0x01FA110C
-#define MMAP_BATCH 16
-
-typedef struct __attribute__((__aligned__(SLAB_SIZE))){
-    sanchor_t sanc;
-    size_t block_size;
-    simpstack free_blocks;
-    union hxchg_t{
-        struct{
-            uptr linrefs;
-            heritage *her;
-        };
-        dptr hx;
-    };
-    int nblocks_contig;
-    stack wayward_blocks;
-    pthread_t owner;
-    __attribute__((__aligned__(MIN_ALIGNMENT)))
-    uint8_t blocks[];
-} slab_t;
-
-typedef union hxchg_t hxchg_t;
-#define FRESH_SLAB {.free_blocks = FRESH_SIMPSTACK}
+#define SLAB_SIZE PAGE_SIZE
+#define MAX_BLOCK (SLAB_SIZE - offsetof(slab, blocks))

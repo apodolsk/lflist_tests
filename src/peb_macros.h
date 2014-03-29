@@ -1,45 +1,23 @@
-/**
- * @file   peb_macros.h
- * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
- * 
- * @brief  Some globally-useful macros.
- */
-
-#ifndef __PEB_MACROS_H__
-#define __PEB_MACROS_H__
+#pragma once
 
 #include <stddef.h>
 #include <stdint.h>
-#include <assert.h>
 
 #define DUMMY_ARG 0
-
 #define CONCAT2(x, y) x##y
 #define CONCAT(x, y) CONCAT2(x, y)
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
 #define PUN(t, s) ({                                                \
-            _Static_assert(sizeof(s) == sizeof(t), "PUN:"#s" "#t);  \
+            assert(sizeof(s) == sizeof(t));                         \
             ((union {__typeof__(s) str; t i;}) (s)).i;              \
         })                                                          \
 
 /** 
- * @brief Given a pointer to a member of a struct, and given a description
- * of what struct that is and which field in the struct that pointer
- * occupies, return a pointer to the actual struct containing the member. 
- *
- * Idea: we know the layout of structs at compile time, via offsetof.
- *
- * (void *) member_ptr explicitly discards volatile to avoid warnings.
- * 
- * @param member_ptr A pointer to some member of a struct instance.
- * @param container_type The type of the struct to which member_ptr belongs.
- * @param field_name The name of the field which member_ptr occupies inside
- * of its containing struct.
- * 
- * @return A pointer to the struct which contains member_ptr. If member_ptr
- * is actually NULL, then return NULL.
+ * Return the address of the struct s containing member_ptr, assuming s
+ * has type container_type and member_ptr points to its field_name
+ * field. If member_ptr is NULL, return NULL.
  */
 #define cof container_of
 #define container_of(member_ptr, container_type, field_name)        \
@@ -49,8 +27,8 @@
 
 /* Used to do a NULL check without expanding member_ptr twice.
    At first, I thought "subtrahend" would sound cool. I was wrong.*/
-static inline void *subtract_if_not_null(void *ptr, size_t subtrahend){
-    return ptr == NULL ? ptr : (void *)((uint8_t *)ptr - subtrahend);
+static inline void *subtract_if_not_null(void *ptr, size subtrahend){
+    return ptr == NULL ? ptr : (void *)((u8 *)ptr - subtrahend);
 }
 
 /** 
@@ -67,13 +45,7 @@ static inline void *subtract_if_not_null(void *ptr, size_t subtrahend){
 #endif
 
 
-#define CASSERT COMPILE_ASSERT
-/** 
- * @brief Trigger a compile-time error if an expression e evaluates to 0.
- *
- * Only valid at file scope.
- */
-#define COMPILE_ASSERT(e) _Static_assert(e, "Failed static assert: "#e)
+#define CASSERT(e) _Static_assert(e, #e)
 
 /* #define COMPILE_ASSERT(e)                       \ */
 /*     ((void) sizeof(struct { int:-!(e); })) */
@@ -152,19 +124,6 @@ static inline void *subtract_if_not_null(void *ptr, size_t subtrahend){
                              1,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
                              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)  \
 
-/*
-  ----------------------------------------------------------------------
-  
-   The next two macros, FIRST_ARG and COMMA_AND_TAIL_ARGS, are a pure C99
-   way to isolate parts of a variadic arg list without assuming that it's of
-   form "(first, ...)" and without using GCC's ##__VA_ARGS__ to handle
-   commas.
-
-   Used in _log and the *_ERROR macros.
-
-   ----------------------------------------------------------------------
-*/
-
 /** 
  * @brief Expand to the first arg which we are passed. If given "0
  * args", expand to nothing.
@@ -191,10 +150,6 @@ static inline void *subtract_if_not_null(void *ptr, size_t subtrahend){
  *
  * Together, the two helpers cover the two incompatible arg-list forms
  * between which we need to discriminate: "(first)" and "(first, ...)".
- *
- * I think this general technique is pretty cool. If you can express some
- * information in terms of a number of arguments, then you can do whatever
- * you want with it.
  */
 #define COMMA_AND_TAIL_ARGS(...)                        \
     CONCAT( TAIL_HELPER,                                \
@@ -224,7 +179,7 @@ static inline void *subtract_if_not_null(void *ptr, size_t subtrahend){
     , __VA_ARGS__ ,
 
 /** 
- * @brief Macro-expand the given arg(s) and return the second element of the
+ * Macro-expand the given arg(s) and return the second element of the
  * comma-separated list that should result.
  *
  * You can can't pass less than two arguments.
@@ -237,16 +192,14 @@ static inline void *subtract_if_not_null(void *ptr, size_t subtrahend){
 
 
 /** 
- * @brief Apply the given macro function once to each of the args in our
- * argument list, up to 20 args, one by one. Each invocation is also passed
- * the provided global arg, which is intended to let you reuse functions like
- * you would if you could curry them.
+ * Apply the given macro function to each of the args. Each invocation is
+ * also passed the global arg.
  *
  * Idea: hardcode an iterative nested macro expansion, and use NUM_ARGS +
  * CONCAT to decide what depth of this iteration to jump into for a given
  * invocation.
  */
-#define ITERATE_FUNC_OVER_ARGS(FUNC, global, ...)                \
+#define APPLY_FUNC_TO_ARGS(FUNC, global, ...)                    \
     CONCAT( ITR_ ,                                               \
             NUM_ARGS(__VA_ARGS__) ) (FUNC, global, __VA_ARGS__)  \
 
@@ -274,7 +227,7 @@ static inline void *subtract_if_not_null(void *ptr, size_t subtrahend){
 
 /* Variation on the above. This time we pair the arguments off. 40
    arguments suddenly doesn't seem like that much. */
-#define ITERATE_FUNC_OVER_ARGPAIRS(FUNC, global, ...)               \
+#define APPLY_FUNC_TO_ARGPAIRS(FUNC, global, ...)                   \
     CONCAT( PITR_ ,                                                 \
             NUM_ARGS(__VA_ARGS__) ) (FUNC, global, __VA_ARGS__)     \
 
@@ -322,59 +275,53 @@ static inline void *subtract_if_not_null(void *ptr, size_t subtrahend){
 #define PITR_0(f, g, empty)
 
 
-/* This one didn't quite work out. It works, but it iterates from limit to
-   0, when you typically (and I definitely, in the place that I wanted to
-   use it) want to iterate from 0 to limit. That's not hard to do, but my
-   intended application is so trivial that I'm going to stop here. */
-#define ITERATE_FUNC_OVER_NUMS(FUNC, limit, ...)        \
+#define ITERATE_FUNC_UP_TO(FUNC, limit, ...)            \
     CONCAT( NITR_ ,                                     \
-            limit ) (FUNC, __VA_ARGS__)                 \
+            limit ) (FUNC, limit, __VA_ARGS__)          \
 
-#define NITR_20(FUNC, ...)                              \
-    FUNC(20, __VA_ARGS__) NITR_19(FUNC, __VA_ARGS__)
-#define NITR_19(FUNC, ...)                              \
-    FUNC(19, __VA_ARGS__) NITR_18(FUNC, __VA_ARGS__)
-#define NITR_18(FUNC, ...)                              \
-    FUNC(18, __VA_ARGS__) NITR_17(FUNC, __VA_ARGS__)
-#define NITR_17(FUNC, ...)                              \
-    FUNC(17, __VA_ARGS__) NITR_16(FUNC, __VA_ARGS__)
-#define NITR_16(FUNC, ...)                              \
-    FUNC(16, __VA_ARGS__) NITR_15(FUNC, __VA_ARGS__)
-#define NITR_15(FUNC, ...)                              \
-    FUNC(15, __VA_ARGS__) NITR_14(FUNC, __VA_ARGS__)
-#define NITR_14(FUNC, ...)                              \
-    FUNC(14, __VA_ARGS__) NITR_13(FUNC, __VA_ARGS__)
-#define NITR_13(FUNC, ...)                              \
-    FUNC(13, __VA_ARGS__) NITR_12(FUNC, __VA_ARGS__)
-#define NITR_12(FUNC, ...)                              \
-    FUNC(12, __VA_ARGS__) NITR_11(FUNC, __VA_ARGS__)
-#define NITR_11(FUNC, ...)                              \
-    FUNC(11, __VA_ARGS__) NITR_10(FUNC, __VA_ARGS__)
-#define NITR_10(FUNC, ...)                              \
-    FUNC(10, __VA_ARGS__) NITR_9(FUNC, __VA_ARGS__)
-#define NITR_9(FUNC, ...)                           \
-    FUNC(9, __VA_ARGS__) NITR_8(FUNC, __VA_ARGS__)
-#define NITR_8(FUNC, ...)                           \
-    FUNC(8, __VA_ARGS__) NITR_7(FUNC, __VA_ARGS__)
-#define NITR_7(FUNC, ...)                           \
-    FUNC(7, __VA_ARGS__) NITR_6(FUNC, __VA_ARGS__)
-#define NITR_6(FUNC, ...)                           \
-    FUNC(6, __VA_ARGS__) NITR_5(FUNC, __VA_ARGS__)
-#define NITR_5(FUNC, ...)                           \
-    FUNC(5, __VA_ARGS__) NITR_4(FUNC, __VA_ARGS__)
-#define NITR_4(FUNC, ...)                           \
-    FUNC(4, __VA_ARGS__) NITR_3(FUNC, __VA_ARGS__)
-#define NITR_3(FUNC, ...)                           \
-    FUNC(3, __VA_ARGS__) NITR_2(FUNC, __VA_ARGS__)
-#define NITR_2(FUNC, ...)                           \
-    FUNC(2, __VA_ARGS__) NITR_1(FUNC, __VA_ARGS__)
-#define NITR_1(FUNC, ...)                           \
-    FUNC(1, __VA_ARGS__) NITR_0(FUNC, __VA_ARGS__)
-#define NITR_0(FUNC, ...)                       \
+#define NITR_20(FUNC, l, ...)                           \
+    FUNC(l - 20, __VA_ARGS__) NITR_19(FUNC, l, __VA_ARGS__)
+#define NITR_19(FUNC, l, ...)                           \
+    FUNC(l - 19, __VA_ARGS__) NITR_18(FUNC, l, __VA_ARGS__)
+#define NITR_18(FUNC, l, ...)                           \
+    FUNC(l - 18, __VA_ARGS__) NITR_17(FUNC, l, __VA_ARGS__)
+#define NITR_17(FUNC, l, ...)                           \
+    FUNC(l - 17, __VA_ARGS__) NITR_16(FUNC, l, __VA_ARGS__)
+#define NITR_16(FUNC, l, ...)                           \
+    FUNC(l - 16, __VA_ARGS__) NITR_15(FUNC, l, __VA_ARGS__)
+#define NITR_15(FUNC, l, ...)                           \
+    FUNC(l - 15, __VA_ARGS__) NITR_14(FUNC, l, __VA_ARGS__)
+#define NITR_14(FUNC, l, ...)                           \
+    FUNC(l - 14, __VA_ARGS__) NITR_13(FUNC, l, __VA_ARGS__)
+#define NITR_13(FUNC, l, ...)                           \
+    FUNC(l - 13, __VA_ARGS__) NITR_12(FUNC, l, __VA_ARGS__)
+#define NITR_12(FUNC, l, ...)                           \
+    FUNC(l - 12, __VA_ARGS__) NITR_11(FUNC, l, __VA_ARGS__)
+#define NITR_11(FUNC, l, ...)                           \
+    FUNC(l - 11, __VA_ARGS__) NITR_10(FUNC, l, __VA_ARGS__)
+#define NITR_10(FUNC, l, ...)                       \
+    FUNC(l - 10, __VA_ARGS__) NITR_9(FUNC, l, __VA_ARGS__)
+#define NITR_9(FUNC, l, ...)                        \
+    FUNC(l - 9, __VA_ARGS__) NITR_8(FUNC, l, __VA_ARGS__)
+#define NITR_8(FUNC, l, ...)                        \
+    FUNC(l - 8, __VA_ARGS__) NITR_7(FUNC, l, __VA_ARGS__)
+#define NITR_7(FUNC, l, ...)                        \
+    FUNC(l - 7, __VA_ARGS__) NITR_6(FUNC, l, __VA_ARGS__)
+#define NITR_6(FUNC, l, ...)                        \
+    FUNC(l - 6, __VA_ARGS__) NITR_5(FUNC, l, __VA_ARGS__)
+#define NITR_5(FUNC, l, ...)                        \
+    FUNC(l - 5, __VA_ARGS__) NITR_4(FUNC, l, __VA_ARGS__)
+#define NITR_4(FUNC, l, ...)                        \
+    FUNC(l - 4, __VA_ARGS__) NITR_3(FUNC, l, __VA_ARGS__)
+#define NITR_3(FUNC, l, ...)                        \
+    FUNC(l - 3, __VA_ARGS__) NITR_2(FUNC, l, __VA_ARGS__)
+#define NITR_2(FUNC, l, ...)                        \
+    FUNC(l - 2, __VA_ARGS__) NITR_1(FUNC, l, __VA_ARGS__)
+#define NITR_1(FUNC, l, ...)                        \
+    FUNC(l - 1, __VA_ARGS__) NITR_0(FUNC, l, __VA_ARGS__)
+#define NITR_0(FUNC, l, ...)                    \
     FUNC(0, __VA_ARGS__)
 
 #define CONSTRUCT_LIST_ELEM(itr, elem) elem , 
 #define REPEATING_LIST(elem, repetitions)                           \
     ITERATE_FUNC_OVER_NUMS(CONSTRUCT_LIST_ELEM, repetitions, elem)
-
-#endif /* __PEB_MACROS_H__ */

@@ -5,7 +5,6 @@
 #ifndef FAKELOCKFREE
 
 #include <nalloc.h>
-#include <whtypes.h>
 
 typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
@@ -17,9 +16,10 @@ typedef struct { uptr i:62; uint locked:1; uint unlocking:1; } flgen;
 struct flx{
     union mptr {
         struct{
-            uptr ptr:63;
             uint is_nil:1;
+            uptr ptr:63;
         };
+        /* For debugging. */
         flanchor *pt;
     } mp;
     flgen gen;
@@ -31,12 +31,12 @@ struct flanchor{
     volatile flx n;
     volatile flx p;
 };
-#define FRESH_FLANCHOR {}
+#define FLANCHOR {}
 
 typedef struct lflist{
     flanchor nil;
 } lflist;
-#define FRESH_LFLIST(l) {{                      \
+#define LFLIST(l) {{                            \
                 .n = {mptr(&(l)->nil, 1)},      \
                 .p = {mptr(&(l)->nil, 1)}       \
         }}                                      \
@@ -44,42 +44,49 @@ typedef struct lflist{
 flx flx_of(flanchor *a);
 flanchor *flptr(flx a);
 
-void lflist_add_before(flx a, flx n, type *h);
-int lflist_remove(flx a, type *h);
+err lflist_add_before(flx a, flx n, type *h);
+err lflist_remove(flx a, type *h);
 
 flx lflist_pop_front(type *h, lflist *l);
-void lflist_add_rear(flx a, type *h, lflist *l);
+err lflist_add_rear(flx a, type *h, lflist *l);
+
+
+
+
+
+
+
+
 
 #else  /* FAKELOCKFREE */
 
 #include <list.h>
-#include <pthread.h>
 #include <nalloc.h>
 
-typedef lanchor_t flanchor;
-typedef flanchor *flx;
+typedef struct{
+    lanchor lanc;
+    int gen;
+} flanchor;
+#define FLANCHOR {LANCHOR}
 
-#define FRESH_FLANCHOR {}
+typedef struct {
+    flanchor *a;
+    int gen;
+}flx;
 
 typedef struct lflist{
-    list_t l;
-    pthread_mutex_t lock;
+    list l;
 } lflist;
 
-
-#define FRESH_LFLIST(_l) ({                          \
-            lflist l = {.l = FRESH_LIST(&(_l)->l)};  \
-            pthread_mutex_init(&(_l)->lock, NULL);   \
-            l;                                       \
-        })
+#define LFLIST(self) {LIST}
 
 flx flx_of(flanchor *a);
 flanchor *flptr(flx a);
 
-void lflist_add_before(flx a, flx n, type *h, lflist *l);
-int lflist_remove(flx a, type *h, lflist *l);
+err lflist_add_before(flx a, flx n, type *h, lflist *l);
+err lflist_remove(flx a, type *h, lflist *l);
 
 flx lflist_pop_front(type *h, lflist *l);
-void lflist_add_rear(flx a, type *h, lflist *l);
+err lflist_add_rear(flx a, type *h, lflist *l);
 
 #endif

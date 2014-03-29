@@ -24,18 +24,18 @@
 #define PRINT(a, b) _PRINT(a,b)                 \
 
 /* #define _PRINT(a, b)                                              \ */
-/*     wrap_tid(lprintf, FORMAT_SPECIFIER_OF(a), 1) */
+/*     wrapid(lprintf, FORMAT_SPECIFIER_OF(a), 1) */
 
 /* #define _PRINT(a, b)                                              \ */
 /*     log(lprintf, FORMAT_SPECIFIER_OF(a), a) */
 
-/* #define _wrap_tid(prnt, ...)                         \ */
+/* #define _wrapid(prnt, ...)                         \ */
 /*     prnt("%u THR:%d "FIRST_ARG(__VA_ARGS__),         \ */
 /*          log_get_ticks(),                           \ */
 /*          log_gettid()                               \ */
 /*          COMMA_AND_TAIL_ARGS(__VA_ARGS__))          \ */
 
-#define _wrap_tid(prnt, ...)                         \
+#define _wrapid(prnt, ...)                         \
     prnt("%u THR:%d "FIRST_ARG(__VA_ARGS__),         \
          log_get_ticks(),                           \
          log_gettid()                               \
@@ -45,7 +45,7 @@
     lprintf("TEST" FORMAT_SPECIFIER_OF(a), a)
 
 /* #define _PRINT(a, b)                                              \ */
-/*     _wrap_tid(lprintf, FORMAT_SPECIFIER_OF(a), a) */
+/*     _wrapid(lprintf, FORMAT_SPECIFIER_OF(a), a) */
 
 /* OK. */
 /* #define _PRINT(a, b)                                              \ */
@@ -123,20 +123,20 @@
  * Danger: You have to pass at least one field name, and you can't pass more
  * than 20.
  *
- * The function will be named "pretty_print_[struct_type_t]", where
- * [struct_type_t] is the declared type of the struct. eg: "print_thread_t".
+ * The function will be named "pretty_print_[structype]", where
+ * [structype] is the declared type of the struct. eg: "printhread".
  *
  * The point is that PSTRUCT() will be able to find this function later on,
  * and so you'll be able to call PSTRUCT() on your struct to print it out.
  *
  */
-#define DECLARE_SIMPLE_STRUCT_PRINTER(struct_type_t, ...)               \
+#define DECLARE_SIMPLE_STRUCT_PRINTER(structype, ...)               \
     static inline void                                                  \
-    CONCAT( pretty_print_ , struct_type_t )(struct_type_t *struct_ptr)  \
+    CONCAT( pretty_print_ , structype )(structype *struct_ptr)  \
     {                                                                   \
         log("{");                                                       \
         ITERATE_FUNC_OVER_ARGS( PRINT_SIMPLE_FIELD, DUMMY, __VA_ARGS__); \
-        log("} (size = %d)", sizeof(struct_type_t));                    \
+        log("} (size = %d)", sizeof(structype));                    \
     }
 
 #define PRINT_SIMPLE_FIELD(field, DUMMY)                        \
@@ -144,17 +144,17 @@
         (unsigned int) struct_ptr->field );
 
 
-#define DECLARE_STRUCT_PRINTER(struct_type_t, ...)                      \
+#define DECLARE_STRUCT_PRINTER(structype, ...)                      \
     static inline void                                                  \
-    CONCAT( pretty_print_ , struct_type_t )(struct_type_t *struct_ptr)  \
+    CONCAT( pretty_print_ , structype )(structype *struct_ptr)  \
     {                                                                   \
         log("{");                                                       \
         ITERATE_FUNC_OVER_ARGPAIRS( PRINT_FIELD, DUMMY, __VA_ARGS__);   \
-        log("} (size = %d)", sizeof(struct_type_t));                    \
+        log("} (size = %d)", sizeof(structype));                    \
     }
 
-#define PRINT_FIELD(field, field_type, DUMMY)                   \
-    log("    "#field" = %"#field_type"",                        \
+#define PRINT_FIELD(field, fieldype, DUMMY)                   \
+    log("    "#field" = %"#fieldype"",                        \
         struct_ptr->field );
 
 

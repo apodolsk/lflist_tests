@@ -8,7 +8,7 @@ static __thread uint seed;
 void rand_init(void){
     if(read(open("/dev/urandom", O_RDONLY), &seed, sizeof(seed)) !=
        sizeof(seed))
-        LOGIC_ERROR();
+        EWTF();
 }
 
 uint randpcnt(uint per_centum){

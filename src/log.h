@@ -38,11 +38,6 @@
 #include <stdio.h>
 #include <vip_fun.h>
 
-/* The logger might be used for static inline functions in header
-   files. (In particular, for DECLARE_STRUCT_PRINTER).*/
-int _gettid(void);
-unsigned int _get_ticks(void);
-
 /* Set to 0 to disable all non-VIP logging. */
 #define LOG_MASTER 1
 #define DYNAMIC_LOG 0
@@ -67,14 +62,14 @@ unsigned int _get_ticks(void);
 #define LOG_PEBRAND 0
 
 #define LOG_ATOMICS 0
-#define LOG_LIST 0
-#define LOG_LFLIST 1
-#define LOG_STACK 0
+#define LOG_LISTM 0
+#define LOG_LFLISTM 1
+#define LOG_STACKM 0
 
 #define LOG_KMALLOC 0
 #define LOG_POOLS 0
-#define LOG_UNIT_TESTS 1
-#define LOG_LIST_TESTS 1
+#define LOG_UNITESTS 1
+#define LOG_LISTESTS 1
 
 /* Set up dynamic controls that might be touchable in a debugger. */
 #if DYNAMIC_LOG && defined MODULE
@@ -126,18 +121,18 @@ static volatile int CONCAT(DYN_LOG_, MODULE) = CONCAT(LOG_, MODULE);
 
 /* ---------- Main logger plumbing. ---------------*/
 
-/* #define wrap_tid(prnt, ...)                         \ */
+/* #define wrapid(prnt, ...)                         \ */
 /*         prnt("%u THR:%d "FIRST_ARG(__VA_ARGS__),    \ */
 /*          log_get_ticks(),                           \ */
 /*          log_gettid()                               \ */
 /*          COMMA_AND_TAIL_ARGS(__VA_ARGS__))          \ */
 
-/* #define wrap_tid(prnt, ...)                         \ */
+/* #define wrapid(prnt, ...)                         \ */
 /*         prnt("%u THR: "FIRST_ARG(__VA_ARGS__),    \ */
 /*              log_get_ticks()                       \ */
 /*              COMMA_AND_TAIL_ARGS(__VA_ARGS__))      \ */
 
-#define wrap_tid(prnt, ...)                     \
+#define wrapid(prnt, ...)                     \
     prnt("%ld THR:%lo "FIRST_ARG(__VA_ARGS__),   \
          log_get_ticks(),                       \
          log_gettid()                           \
@@ -163,14 +158,14 @@ static volatile int CONCAT(DYN_LOG_, MODULE) = CONCAT(LOG_, MODULE);
 #define log3(...) _log(3, __VA_ARGS__)
 #define log4(...) _log(4, __VA_ARGS__)
 
-#define trace(...) _trace(1, __VA_ARGS__)
-#define trace2(...) _trace(2, __VA_ARGS__)
-#define trace3(...) _trace(3, __VA_ARGS__)
-#define trace4(...) _trace(4, __VA_ARGS__)
-#define trace5(...) _trace(5, __VA_ARGS__)
+#define trace(...) race(1, __VA_ARGS__)
+#define trace2(...) race(2, __VA_ARGS__)
+#define trace3(...) race(3, __VA_ARGS__)
+#define trace4(...) race(4, __VA_ARGS__)
+#define trace5(...) race(5, __VA_ARGS__)
 
 #define _log(needed, ...) __log(LOG_LVL, needed, __VA_ARGS__)
-#define _trace(needed, ...) __trace(LOG_LVL, needed, __VA_ARGS__)
+#define race(needed, ...) _race(LOG_LVL, needed, __VA_ARGS__)
 
 /** 
  * @brief If the containing module's verbosity level is greater than lvl,
@@ -188,56 +183,56 @@ static volatile int CONCAT(DYN_LOG_, MODULE) = CONCAT(LOG_, MODULE);
 #define __log(lvl, needed, ...)                                 \
     do{                                                         \
         if(meets_log_criteria(lvl, needed)){                    \
-            wrap_tid(log_printf, __VA_ARGS__);                  \
+            wrapid(log_printf, __VA_ARGS__);                  \
         }                                                       \
     }while (0)                                                  \
 
 /* @brief Count the number of args passed to traceN(), and invoke the
    appropriate helper macro to handle the given number of arguments.
 */
-#define __trace(lvl, needed,...)                                \
+#define _race(lvl, needed,...)                                \
     do{                                                         \
         if(meets_log_criteria(lvl, needed)) {                   \
-            CONCAT(_trace, NUM_ARGS(__VA_ARGS__))(__VA_ARGS__); \
+            CONCAT(race, NUM_ARGS(__VA_ARGS__))(__VA_ARGS__); \
         }                                                       \
     }while(0)                                                   \
 
-#define _trace0()                               \
-    wrap_tid(log_printf, "Entered %s.",         \
+#define race0()                               \
+    wrapid(log_printf, "Entered %s.",         \
                __func__)
 
-/* Note that the number after _trace here is the number of args, NOT the
+/* Note that the number after race here is the number of args, NOT the
    verbosity level like in non-underscore-trace */
-#define _trace2(a,formata)                      \
-    wrap_tid(log_printf, "Entered %s - "        \
+#define race2(a,formata)                      \
+    wrapid(log_printf, "Entered %s - "        \
              #a": %"#formata" ",                \
              __func__, a)                       
 
 
-#define _trace4(a, formata, b, formatb)         \
-    wrap_tid(log_printf, "Entered %s - "        \
+#define race4(a, formata, b, formatb)         \
+    wrapid(log_printf, "Entered %s - "        \
              #a": %"#formata" "                 \
              #b": %"#formatb" ",                \
              __func__, a, b)                    
 
-#define _trace6(a, formata, b, formatb, c, formatc) \
-    wrap_tid(log_printf, "Entered %s - "            \
+#define race6(a, formata, b, formatb, c, formatc) \
+    wrapid(log_printf, "Entered %s - "            \
              #a": %"#formata" "                     \
              #b": %"#formatb" "                     \
              #c": %"#formatc" ",                    \
              __func__, a, b, c)                      
 
 
-#define _trace8(a, formata, b, formatb, c, formatc, d, formatd) \
-    wrap_tid(log_printf, "Entered %s - "                        \
+#define race8(a, formata, b, formatb, c, formatc, d, formatd) \
+    wrapid(log_printf, "Entered %s - "                        \
              #a": %"#formata" "                                 \
              #b": %"#formatb" "                                 \
              #c": %"#formatc" "                                 \
              #d": %"#formatd" ",                                \
              __func__, a, b, c, d)
 
-#define _trace10(a, formata, b, formatb, c, formatc, d, formatd, e, formate) \
-        wrap_tid(log_printf, "Entered %s - "                             \
+#define race10(a, formata, b, formatb, c, formatc, d, formatd, e, formate) \
+        wrapid(log_printf, "Entered %s - "                             \
                  #a": %"#formata" "                                     \
                  #b": %"#formatb" "                                     \
                  #c": %"#formatc" "                                     \
@@ -272,9 +267,9 @@ static volatile int CONCAT(DYN_LOG_, MODULE) = CONCAT(LOG_, MODULE);
         log("------- Dumping sELF -------");                \
         log("e_fname:       %s",      (elf)->e_fname);      \
         log("e_entry:       0x%lx",   (elf)->e_entry);      \
-        log("e_txtoff:      %lu",     (elf)->e_txtoff);     \
-        log("e_txtlen:      %lu",     (elf)->e_txtlen);     \
-        log("e_txtstart:    0x%lx",   (elf)->e_txtstart);   \
+        log("extoff:      %lu",     (elf)->extoff);     \
+        log("extlen:      %lu",     (elf)->extlen);     \
+        log("extstart:    0x%lx",   (elf)->extstart);   \
         log("e_datoff:      %lu",     (elf)->e_datoff);     \
         log("e_datlen:      %lu",     (elf)->e_datlen);     \
         log("e_datstart:    0x%lx",   (elf)->e_datstart);   \

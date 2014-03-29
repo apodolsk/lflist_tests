@@ -2,10 +2,10 @@
  * @file   errors.h
  * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
  * 
- * @brief Print error info and report it to users. Maybe BREAK along the
+ * Print error info and report it to users. Maybe BREAK along the
  * way.
  *
- * A thread_t's err_info_t saves info about the last kernel error that it
+ * A thread's err_info saves info about the last kernel error that it
  * encountered. Users have read-only access to it through the last_errinfo
  * syscall. It consists of a vague error code and, in dbg mode, a stack
  * trace. Hypothetically, it would also have a copy of the strings that get
@@ -27,19 +27,17 @@
  * vague error code?
  * 
  * Likewise, no one needs the string, so I haven't implemented it. The naive
- * way would require a buffer as big as a thread_t itself. But NUM_ARGS makes
+ * way would require a buffer as big as a thread itself. But NUM_ARGS makes
  * it easy to marshal printf args. The only issue is that you'd probably still
  * have to read format strings in order to identify pointers.
  *
  * @todo It's time to give each error type its own verbosity setting.
  */
 
-#ifndef __PEB_ERRORS_H__
-#define __PEB_ERRORS_H__
-
+#pragma once
 #include <peb_macros.h>
-#include <log.h>
 #include <vip_fun.h>
+#include <log.h>
 
 /* System interface settings. */
 
@@ -50,22 +48,25 @@
 /* Set to 1 to have ERROR macros use GCC's builtin stacktracing. */
 #define GCC_STACKTRACE 1
 
-/* Default break, print, and dbg levels, so that you don't have to bother
-   with per-module settings if you don't want to. */
+/* Default break, print, and dbg levels. */
 #define BRK 1
-#define PRNT 1
-#define DBG 3
+#define PRNT 3
+#define DBG 1
 
-#define E_NALLOC DBG, BRK, 2
-#define E_LFLIST DBG, BRK, 2
-#define E_LIST DBG, BRK, 2
-#define E_STACK 1, BRK, PRNT
-#define E_UNIT_TESTS 3, BRK, 3
-#define E_LIST_TESTS 3, BRK, 3
+#define E_NALLOC DBG, BRK, PRNT
+#define E_ERRORS DBG, BRK, PRNT
 
-/* #ifndef MODULE */
-/* #define MODULE MAIN */
-/* #endif */
+#define E_MAIN DBG, BRK, PRNT
+#define E_PEBRAND DBG, BRK, PRNT
+
+#define E_ATOMICS DBG, BRK, PRNT
+#define E_LISTM DBG, BRK, PRNT
+#define E_LFLISTM DBG, BRK, PRNT
+#define E_STACKM DBG, BRK, PRNT
+
+#define E_KMALLOC DBG, BRK, PRNT
+#define E_UNITESTS DBG, BRK, PRNT
+#define E_LISTESTS DBG, BRK, PRNT
 
 #define LOOKUP CONCAT(E_, MODULE)
 
@@ -94,18 +95,7 @@
 
 /* --- Fatal Errors (for the kernel) --- */
 
-/** 
- * @brief Append the given optional printf-style arguments to a generic
- * error message. Then BREAK.
- *
- * FIRST_ARG might expand to nothing, to a plain string, or to a format
- * string.
- *
- * COMMA_AND_TAIL_ARGS might expand to nothing, or to a comma followed by the
- * "helper" arguments of a format string.
- */
-
-#define INIT_ERROR(...)                                                 \
+#define EBOOT(...)                                                 \
     ({                                                                  \
         elog("Failed to load kernel. %s:%s:%d. " FIRST_ARG(__VA_ARGS__) \
              , __FILE__                                                 \
@@ -116,7 +106,7 @@
         -1;                                                             \
     })
 
-#define LOGIC_ERROR(...)                                        \
+#define EWTF(...)                                        \
     ({                                                          \
         elog("Logic error. %s:%s:%d. " FIRST_ARG(__VA_ARGS__)   \
              , __FILE__                                         \
@@ -127,7 +117,7 @@
         -1;                                                     \
     })
 
-#define UNIMPLEMENTED(...)                                              \
+#define ETODO(...)                                              \
     ({                                                                  \
         elog("My creator has abandoned me. %s:%s:%d. " FIRST_ARG(__VA_ARGS__) \
              , __FILE__                                                 \
@@ -140,10 +130,9 @@
 
 /* --- Recoverable Errors (for the kernel) --- */
 
-/* Sequel to INPUT_ERROR on the NES. */
-#define SUPER_INPUT_ERROR(...)                      \
+/* Sequel to EARG on the NES. */
+#define SUPER_EARG(...)                      \
     ({                                              \
-        set_errinfo(EINPUT);                        \
         elog("Really bad input error. %s:%s:%d. "   \
              FIRST_ARG(__VA_ARGS__)""               \
              , __FILE__                             \
@@ -183,7 +172,7 @@
     })                                                      \
 
 /* Kernel's out of resources. */
-#define SYSTEM_ERROR(...)                                       \
+#define ESYS(...)                                       \
     ({                                                          \
         elog2("System error. %s:%s:%d. " FIRST_ARG(__VA_ARGS__) \
               , __FILE__                                        \
@@ -205,7 +194,7 @@
         _break(5);                                          \
     })                                                      \
         
-#define INPUT_ERROR(...)                                        \
+#define EARG(...)                                        \
     ({                                                          \
         elog4("Input error. %s:%s:%d. " FIRST_ARG(__VA_ARGS__)  \
               , __FILE__                                        \
@@ -235,7 +224,7 @@ static inline int meets_errlog_criteria(int min_verb_lvl){
    that case anyway. */
 #define _elog(N, ...)                                       \
     if(meets_errlog_criteria(N)){                           \
-        e_printf("%ld - THR:%lo - " FIRST_ARG(__VA_ARGS__)    \
+        e_printf("%u - T:%ud - " FIRST_ARG(__VA_ARGS__)    \
                  , e_get_ticks()                            \
                  , e_gettid()                               \
                  COMMA_AND_TAIL_ARGS(__VA_ARGS__));         \
@@ -246,7 +235,3 @@ static inline void _break(int min_break_lvl){
     if(ERR_BREAK_LVL >= min_break_lvl)
         BREAK;
 }
-
-#endif
-
-

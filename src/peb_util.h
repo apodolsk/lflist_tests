@@ -10,20 +10,31 @@
 
 #include <peb_macros.h>
 
-typedef __int128_t int128_t;
+#define eq(a, b) ({                                 \
+            CASSERT(sizeof(a) == sizeof(b));        \
+            bool r = false;                                            \
+            if(sizeof(a) == sizeof(uptr))                              \
+                r = PUN(uptr, a) == PUN(uptr, b);                      \
+            else if(sizeof(a) == sizeof(dptr))                         \
+                r = PUN(dptr, a) == PUN(dptr, b);                      \
+            else                                                       \
+                assert(0);                                             \
+            r;                                                         \
+        })
+
 
 /* Aladdin system doesn't have librt installed. I'm sick of wrangling with the
    loader. */
 #include <time.h>
 #define CLOCK_GETTIME(expr)                                             \
     ({                                                                  \
-        struct timespec __tstart;                                       \
-        clock_gettime(CLOCK_MONOTONIC, &__tstart);                      \
+        struct timespec _start;                                       \
+        clock_gettime(CLOCK_MONOTONIC, &_start);                      \
         (expr);                                                         \
-        struct timespec __tend;                                         \
-        clock_gettime(CLOCK_MONOTONIC, &__tend);                        \
-        1000 * (__tend.tv_sec - __tstart.tv_sec) +                      \
-            (double) (__tend.tv_nsec - __tstart.tv_nsec) / 1000000.0;   \
+        struct timespec _end;                                         \
+        clock_gettime(CLOCK_MONOTONIC, &_end);                        \
+        1000 * (_end.tv_sec - _start.tv_sec) +                      \
+            (double) (_end.tv_nsec - _start.tv_nsec) / 1000000.0;   \
     })                                                                  \
 
 #include <time.h>
@@ -32,24 +43,24 @@ typedef __int128_t int128_t;
     ({                                                                  \
        struct rusage r;                                                 \
        getrusage(RUSAGE_SELF, &r);                                      \
-       struct timeval __tstart = r.ru_utime;                            \
+       struct timeval _start = r.ru_utime;                            \
        expr;                                                            \
        getrusage(RUSAGE_SELF, &r);                                      \
-       struct timeval __tend = r.ru_utime;                              \
-       1000 * (__tend.tv_sec - __tstart.tv_sec) +                       \
-           (double) (__tend.tv_usec - __tstart.tv_usec) / 1000.0;    \
+       struct timeval _end = r.ru_utime;                              \
+       1000 * (_end.tv_sec - _start.tv_sec) +                       \
+           (double) (_end.tv_usec - _start.tv_usec) / 1000.0;    \
     })                                                                  \
 
 #include <sys/time.h>
 #define TOD_GETTIME(expr)                                               \
     ({                                                                  \
-       struct timeval __tstart;                                         \
-       gettimeofday(&__tstart, NULL);                                   \
+       struct timeval _start;                                         \
+       gettimeofday(&_start, NULL);                                   \
        expr;                                                            \
-       struct timeval __tend;                                           \
-       gettimeofday(&__tend, NULL);                                     \
-       1000 * (__tend.tv_sec - __tstart.tv_sec) +                       \
-           (double) (__tend.tv_usec - __tstart.tv_usec) / 1000.0;       \
+       struct timeval _end;                                           \
+       gettimeofday(&_end, NULL);                                     \
+       1000 * (_end.tv_sec - _start.tv_sec) +                       \
+           (double) (_end.tv_usec - _start.tv_usec) / 1000.0;       \
        })
 
 
@@ -72,28 +83,28 @@ static inline int max(int a, int b){
 static inline int min(int a, int b){
     return a < b ? a : b;
 }
-#define umax(a, b) _umax((uintptr_t) (a),(uintptr_t) (b))
-static inline uintptr_t _umax(uintptr_t (a), uintptr_t (b)){
+#define umax(a, b) _umax((uptr) (a),(uptr) (b))
+static inline uptr _umax(uptr (a), uptr (b)){
     return a >= b ? a : b;
 }
-#define umin(a, b) _umin((uintptr_t) (a),(uintptr_t) (b))
-static inline uintptr_t _umin(uintptr_t a, uintptr_t b){
+#define umin(a, b) _umin((uptr) (a),(uptr) (b))
+static inline uptr _umin(uptr a, uptr b){
     return a < b ? a : b;
 }
 
 #define aligned(addr, size)                     \
-    (((uintptr_t)(addr) % (size)) == 0)
+    (((uptr)(addr) % (size)) == 0)
 
 #define align_down(addr, size)                              \
-    ualign_down((uintptr_t) (addr), (size))
-static inline uintptr_t ualign_down(uintptr_t addr, size_t size){
+    ualign_down((uptr) (addr), (size))
+static inline uptr ualign_down(uptr addr, size size){
     return addr - addr % size;
 }
 
 #define align_up(addr, size)                    \
-    (void *) ualign_up((uintptr_t) (addr), (size))
+    (void *) ualign_up((uptr) (addr), (size))
 
-static inline uintptr_t ualign_up(uintptr_t addr, size_t size){
+static inline uptr ualign_up(uptr addr, size size){
     return ualign_down(addr + size - 1, size);
 }
 
@@ -109,28 +120,26 @@ static inline uintptr_t ualign_up(uintptr_t addr, size_t size){
 
 #define align_down_pow2(n, size)       \
     (({assert(is_power_of_2(size));}), \
-     (uptr_t) (n) & ~((size) - 1))
+     (uptr) (n) & ~((size) - 1))
 
 #define align_up_pow2(n, size)                  \
     (({assert(is_power_of_2(size));}),          \
-     align_down_pow2((uptr_t) (n) + (size) - 1, size))      
+     align_down_pow2((uptr) (n) + (size) - 1, size))      
 
 #define mod_pow2(n, mod)                        \
-    ((uintptr_t) (n) & ((mod) - 1))
+    ((uptr) (n) & ((mod) - 1))
 
 #define aligned_pow2(n, size)                   \
     (mod_pow2(n, size) == 0)
 
-extern ptrdiff_t ptrdiff(void *a, void *b);
-
 char *peb_stpcpy(char *dest, const char *src);
 
-typedef char itobsbuf8_t[8 + 1];
-char *itobs_8(int num, itobsbuf8_t *bin);
-typedef char itobsbuf16_t[16 + 1];
-char *itobs_16(int num, itobsbuf16_t *bin);
-typedef char itobsbuf32_t[32 + 1];
-char *itobs_32(int num, itobsbuf32_t *bin);
+typedef char itobsbuf8[8 + 1];
+char *itobs_8(int num, itobsbuf8 *bin);
+typedef char itobsbuf16[16 + 1];
+char *itobs_16(int num, itobsbuf16 *bin);
+typedef char itobsbuf32[32 + 1];
+char *itobs_32(int num, itobsbuf32 *bin);
 
 void report_err();
 void no_op();

@@ -1,37 +1,3 @@
-/**
- * @file   nalloc.c
- * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
- * @date   Sun Jun 30 23:56:44 2013
- *
- * This is a simplified version of my 418 thread-caching allocator. The way I
- * use malloc makes it very unlikely for blocks to be thread-local, and I
- * think this will be true of most of the allocations that a kernel will have
- * to make. So, unlike my 418 allocator, this is CPU-local. Since I have just
- * one CPU now, I stripped out the bits related to inter-CPU/thread block
- * migrations.
- *
- * Going from per-thread to per-cpu requires some changes: mainly, you need to
- * protect per-CPU slabs from conflicting allocations on the same CPU. One
- * option is to remove a slab from the slab cache while allocating from it, in
- * order to guarantee that it contains a free block of a given size (it gets
- * complicated if you try to be fully lockfree within a CPU without this
- * guarantee). But then you may wind up with underutilization proportional to
- * NTHREADS. Another option is to keep per-CPU sets of blocks of a size class,
- * rather than sets of slabs of a size class. This should cause fragmentation,
- * since you're no longer exhausting slabs one by one, and my 418 experience
- * makes me worry about resulting poor locality. But I think that tcmalloc
- * does exactly this and gets away with it.
- *
- * I disable interrupts now, as the easiest option. To make a more defensible
- * decision, I'll have to see whether my understanding of tcmalloc is right,
- * whether interrupt latency is an issue, and how the cost of disabling
- * interrupts compares to the cost of cache line locking.
- *
- * Slabs might not be appropriate for string = malloc(rare_size)
- * allocations. You might want to coalesce those. I've done that lockfree too,
- * and I'm sure that it can work per-CPU and in the kernel.
- */
-
 #define MODULE NALLOC
 
 #include <stack.h>
@@ -40,304 +6,221 @@
 #include <atomics.h>
 #include <global.h>
 
-#include <sys/mman.h>
-#include <pthread.h>
+#define IDEAL_CACHED_SLABS 16
+#define MIN_ALIGNMENT (2 * sizeof(uptr))
+#define NALLOC_MAGIC_INT 0x01FA110C
+#define ALLOC_SLAB_BATCH 16
 
-static int cacheidx_of(size_t size);
-static void *cache_alloc(size_t bytes, simpstack *cache,
-                         void (*slab_init)(slab_t *s, void *arg), void *arg,
-                         void (*destructor)(slab_t *s),
-                         void (*block_init)(void *s));
-static void cache_dealloc(block_t *b, slab_t *s, simpstack *cache,
-                          void (*slab_release)(slab_t *s));
-static slab_t *slab_new(size_t size);
-static void slab_free(slab_t *s);
-static unsigned int slab_max_blocks(slab_t *s);
-static block_t *alloc_from_slab(slab_t *s, void (*block_init)(void *s));
-static void dealloc_from_slab(block_t *b, slab_t *s);
-static bool slab_priv_full(slab_t *s);
-static bool slab_priv_empty(slab_t *s);
-static slab_t *slab_of(block_t *b);
-static int write_block_magics(block_t *b, size_t bytes);
-static int block_magics_valid(block_t *b, size_t bytes);
+typedef struct tyx tyx;
 
-/* TODO */
-void disable_interrupts(){}
-void enable_interrupts(){}
+struct __attribute__((__aligned__(SLAB_SIZE))) slab{
+    sanchor sanc;
+    stack free_blocks;
+    struct tyx {
+        heritage *her;
+        uptr linrefs;
+    } tx __attribute__((__aligned__(sizeof(struct tyx))));
+    cnt cold_blocks;
+    pthread_t owner;
+    __attribute__((__aligned__(CACHE_SIZE)))
+    lfstack wayward_blocks;
+    __attribute__((__aligned__(MIN_ALIGNMENT)))
+    u8 blocks[];
+};
+#define SLAB {.free_blocks = STACK}
+CASSERT(sizeof(slab) == SLAB_SIZE);
 
-static const uint cache_sizes[] = {
-    16, 32, 48, 64, 80, 96, 112, 128,
-    192, 256,
-    384, 512, 
-    1024, 2048,
-    4096, MAX_BLOCK
+static slab *slab_new(heritage *h);
+static block *alloc_from_slab(slab *s, heritage *h);
+static void dealloc_from_slab(block *b, slab *s);
+static unsigned int slab_max_blocks(slab *s);
+static cnt slab_num_priv_blocks(slab *s);
+static slab *slab_of(block *b);
+static err write_block_magics(block *b, size bytes);         
+static err block_magics_valid(block *b, size bytes);
+
+static void (slab_ref_down)(slab *s);
+
+#define PTYPE(s, _) {.size=s} ,
+static const type polytypes[] = { APPLY_FUNC_TO_ARGS(
+        PTYPE, _,
+        16, 32, 48, 64, 80, 96, 112, 128,
+        192, 256, 384, 512, 1024, MAX_BLOCK)
 };
 
-static __thread simpstack caches[ARR_LEN(cache_sizes)];
-static stack hot_slabs = FRESH_STACK;
+#define PHERITAGE(i, ...) KERN_HERITAGE(&polyypes[i], no_op) , 
+static __thread heritage poly_heritages[] = {
+    ITERATE_FUNC_UP_TO(PHERITAGE, 14)
+};
+CASSERT(ARR_LEN(polytypes) == 14);
+    
+lfstack hot_kslabs = LFSTACK;
+
+/* extern void *edata; */
+/* static slab* next_cold = (slab *) const_align_up_pow2(edata, PAGE_SIZE); */
+/* static const slab* max_cold = USER_MEM_START; */
+
+/* static slab* alloc_kslabs(int nslabs){ */
+/*     slab *s = condxadd(next_cold, nslabs * PAGE_SIZE, less, max_cold); */
+/*     return s == max_cold ? NULL : s */
+/* } */
 
 static
-int cacheidx_of(size_t size){
-    for(uint i = 0; i < ARR_LEN(cache_sizes); i++)
-        if(cache_sizes[i] >= size)
-            return i;
-    LOGIC_ERROR();
-    return -1;
+heritage *poly_heritage_of(size size){
+    for(uint i = 0; i < ARR_LEN(polytypes); i++)
+        if(polytypes[i].size >= size)
+            return &poly_heritages[i];
+    EWTF();
 }
 
-block_t *block_of(void *addr){
-    slab_t *s = (slab_t *) align_down_pow2(addr, SLAB_SIZE);
-    ptrdiff_t offset = (uint8_t *) addr - s->blocks;
-    return (block_t *) s->blocks + align_down(offset, s->block_size);
-}
-
-void *_malloc(size_t size){
+void *malloc(size size){
     if(size > MAX_BLOCK)
-        return NULL;
-    int cidx = cacheidx_of(size);
-    block_t *b =
-        cache_alloc(cache_sizes[cidx], &caches[cidx], no_op, NULL,
-                    &slab_free, no_op);
-    PPNT(b);
+        return RARE_EVENT(), NULL;
+    block *b = linalloc(poly_heritage_of(size));
     if(b)
-        assert(block_magics_valid(b, cache_sizes[cidx]));
+        assert(block_magics_valid(b, poly_heritage_of(size)->t->size));
     return b;
 }
 
-static 
-void *cache_alloc(size_t bytes, simpstack *cache,
-                  void (*slab_init)(slab_t *, void *), void *arg,
-                  void (*slab_release)(slab_t *),
-                  void (*block_init)(void *))
-{
-    /* TODO: Could reduce the scope of disable_interrupts() here. */
-    disable_interrupts();
-    slab_t *s = cof(simpstack_peek(cache), slab_t, sanc);
-    if(!s){
-        s = slab_new(bytes);
-        if(!s)
-            return NULL;
-        slab_init(s, arg);
-        simpstack_push(&s->sanc, cache);
-    } else if(slab_priv_full(s) && cache->size > IDEAL_CACHED_SLABS){
-        if(cof(simpstack_pop(cache), slab_t, sanc) != s)
-            LOGIC_ERROR();
-        slab_release(s);
-    }
-
-    block_t *b = alloc_from_slab(s, block_init);
-    if(slab_priv_empty(s))
-        if(cof(simpstack_pop(cache), slab_t, sanc) != s)
-            LOGIC_ERROR();
-
-    enable_interrupts();
+void *linalloc(heritage *h){
+    slab *s = cof(lfstack_pop(&h->slabs), slab, sanc);
+    if(!s && !(s = slab_new(h)))
+        return NULL;
+    
+    block *b = alloc_from_slab(s, h);
+    if(slab_num_priv_blocks(s))
+        lfstack_push(&s->sanc, &h->slabs);
+    else
+        s->owner = C;
     
     assert(b);   
-    assert(slab_of(b)->block_size >= bytes);
     assert(aligned(b, MIN_ALIGNMENT));
     return b;
 }
 
 static
-block_t *alloc_from_slab(slab_t *s, void (*block_init)(void *)){
-    block_t *b;
-    if(s->nblocks_contig){
-        b = (block_t *) &s->blocks[s->block_size * --s->nblocks_contig];
-        block_init(b);
+block *alloc_from_slab(slab *s, heritage *h){
+    block *b;
+    if(s->cold_blocks){
+        b = (block *) &s->blocks[s->tx.her->t->size * --s->cold_blocks];
+        h->block_init(b);
         return b;
     }
-    b = cof(simpstack_pop(&s->free_blocks), block_t, sanc);
+    b = cof(stack_pop(&s->free_blocks), block, sanc);
     if(b)
         return b;
-    int nwb;
-    b = cof(stack_pop_all(&s->wayward_blocks, &nwb), block_t, sanc);
-    if(b && b->sanc.next)
-        simpstack_replace(b->sanc.next, &s->free_blocks, nwb);
-    return b;
+    s->free_blocks = lfstack_pop_all(&s->wayward_blocks);
+    return cof(stack_pop(&s->free_blocks), block, sanc);
 }
 
 static
-slab_t *slab_new(size_t size){
-    slab_t *s = cof(stack_pop(&hot_slabs), slab_t, sanc);
-    if(s){
-        s->block_size = size;
-        s->nblocks_contig = slab_max_blocks(s);
-        return s;
+slab *slab_new(heritage *h){
+    slab *s = cof(lfstack_pop(h->hot_slabs), slab, sanc);
+    if(!s){
+        s = h->new_slabs(ALLOC_SLAB_BATCH);
+        if(!s)
+            return NULL;
+        for(slab *si = s; si != &s[ALLOC_SLAB_BATCH]; si++){
+            *si = (slab) SLAB;
+            if(si != s)
+                lfstack_push(&si->sanc, h->hot_slabs);
+        }
     }
-    
-    s = mmap(NULL, MMAP_BATCH * SLAB_SIZE, PROT_WRITE,
-             MAP_SHARED | MAP_ANONYMOUS | MAP_POPULATE, -1, 0);
-    if(s == MAP_FAILED)
-        return NULL;
-    for(int i = 0; i < MMAP_BATCH; i++){
-        s[i] = (slab_t) FRESH_SLAB;
-        s[i].block_size = size;
-        s[i].nblocks_contig = slab_max_blocks(&s[i]);
-        for(int j = 0; i < s[i].nblocks_contig; i++)
-            assert(write_block_magics((block_t *) &s[i].blocks[j * size], size));
-        if(!i)
-            stack_push(&s[i].sanc, &hot_slabs);
-        else
-            s[i].owner = pthread_self();
-    }
-    
-    /* if(!s && lowest_cold_slab < (slab_t *) HEAP_HIGH){ */
-    /*     static slab_t *lowest_cold_slab = (slab_t *) HEAP_LOW; */
-    /*     s = (slab_t *) xadd(SLAB_SIZE, (int*) &lowest_cold_slab); */
-    /*     if(s >= (slab_t *) HEAP_HIGH){ */
-    /*         lowest_cold_slab = (slab_t *) HEAP_HIGH; */
-    /*         return NULL; */
-    /*     } */
-    /* } */
-    
+    s->tx = (tyx){h, 1};
+    s->cold_blocks = slab_max_blocks(s);
+
+    size sz = h->t->size;
+    for(uint i = 0; i < s->cold_blocks; i++)
+        assert(write_block_magics((block *) &s->blocks[i * sz], sz));
     return s;
 }
 
-void _free(void *buf){
-    if(!buf)
-        return;
-    block_t *b = (block_t *) buf;
-    slab_t *s = slab_of(b);
-    assert(write_block_magics(b, s->block_size));
-
-    cache_dealloc(b, s, &caches[cacheidx_of(s->block_size)], slab_free);
-}
-
-static
-void cache_dealloc(block_t *b, slab_t *s, simpstack *cache,
-                   void (*slab_release)(slab_t *)){
-    *b = (block_t) FRESH_BLOCK;
-
-    disable_interrupts();
-    if(s->owner == pthread_self()){
-        if(slab_priv_empty(s))
-            simpstack_push(&s->sanc, cache);
-        else if(slab_priv_full(s) && cache->size >= IDEAL_CACHED_SLABS)
-            slab_release(s);
+void free(void *ptr){ linfree(ptr); }
+void linfree(lineage *ptr){
+    block *b = (block*) ptr;
+    slab *s = slab_of(b);
+    heritage *h = s->tx.her;
+    *b = (block){SANCHOR};
+    
+    if(s->owner == C && cas_ok(NULL, s->owner, C)){
         dealloc_from_slab(b, s);
+        lfstack_push(&s->sanc, &h->slabs);
     }else{
-        int nwb = stack_push(&b->sanc, &s->wayward_blocks);
-        if(&s->blocks[s->block_size * nwb] == (void *) &s[1])
-            slab_release(s);
-    }
-    enable_interrupts();
-}
-
-static
-void dealloc_from_slab(block_t *b, slab_t *s){
-    if(b == (block_t *) &s->blocks[s->nblocks_contig * s->block_size])
-        s->nblocks_contig++;
-    else
-        simpstack_push(&b->sanc, &s->free_blocks);
-}
-
-static
-void slab_free(slab_t *s){
-    s->wayward_blocks = (stack) FRESH_STACK;
-    s->free_blocks = (simpstack) FRESH_SIMPSTACK;
-    /* s->nblocks_contig = slab_max_blocks(s); */
-    /* TODO: need some protocol for clearing tid */
-    stack_push(&s->sanc, &hot_slabs);
-}
-
-static
-unsigned int slab_max_blocks(slab_t *s){
-    return (SLAB_SIZE - offsetof(slab_t, blocks)) / s->block_size;
-}
-
-static
-bool slab_priv_full(slab_t *s){
-    int nb = s->free_blocks.size + s->nblocks_contig;
-    return &s->blocks[s->block_size * nb] == (void *) &s[1];
-}
-
-static
-bool slab_priv_empty(slab_t *s){
-    return
-        !s->free_blocks.size && !s->nblocks_contig;
-}
-
-static
-slab_t *slab_of(block_t *b){
-    return (slab_t *) align_down_pow2(b, SLAB_SIZE);
-}
-
-void linslab_init(slab_t *s, void *h){
-    assert(!s->linrefs && !s->her);
-    s->her = (heritage *) h;
-    s->linrefs = 1;
-}
-
-void linslab_ref_down(slab_t *s){
-    trace2(s, p);
-    
-    assert(s->linrefs);
-    if(xadd(-1, &s->linrefs) == 1){
-        s->her = NULL;
-        stack_push(&s->sanc, &hot_slabs);
+        int nwb = lfstack_push(&b->sanc, &s->wayward_blocks);
+        if(&s->blocks[s->tx.her->t->size * nwb] == (void *) &s[1])
+            slab_ref_down(s);
     }
 }
 
-lineage_t *linalloc(heritage *h, void (*block_init)(void *)){
-    return
-        cache_alloc(h->t->size_of, &h->slabs,
-                    linslab_init, h,
-                    linslab_ref_down,
-                    block_init);
+static
+void dealloc_from_slab(block *b, slab *s){
+    stack_push(&b->sanc, &s->free_blocks);
 }
 
-void linfree(lineage_t *l){
-    block_t *b = (block_t *) l;
-    slab_t *s = slab_of(b);
-    /* TODO: should be deleted for non-reserved header case. */
-    assert(sanchor_unused(&b->sanc));
-    cache_dealloc(b, s, &s->her->slabs, linslab_ref_down);
+static
+void (slab_ref_down)(slab *s){
+    assert(s->tx.linrefs);
+    if(xadd(-1, &s->tx.linrefs) == 1){
+        s->tx.her = NULL;
+        lfstack_push(&s->sanc, s->tx.her->hot_slabs);
+    }
 }
 
-int linref_up(volatile void *l, type *t){
-    trace2(l, p, t, p);
-    
-    slab_t *s = slab_of((void *) l);
-    hxchg_t old, new;
-    do{
-        new.hx = old.hx = s->hx;
-        if(old.her->t != t)
-            return INPUT_ERROR("Wrong type.");
-        assert(old.linrefs > 0);
-        new.linrefs++;
-    }while(!cas2_ok(new.hx, &s->hx, old.hx));
-    return 0;
+err (linref_up)(volatile void *l, type *t){
+    slab *s = slab_of((void *) l);
+    while(1){
+        tyx tx = s->tx;
+        if(tx.her->t != t)
+            return EARG("Wrong type.");
+        assert(tx.linrefs);
+        if(cas_ok(((tyx){tx.her, tx.linrefs + 1}), &s->tx, tx))
+            return 0;
+    }
 }
 
-void linref_down(volatile void *l){
-    linslab_ref_down(slab_of((void *) l));
+void (linref_down)(volatile void *l){
+    slab_ref_down(slab_of((void *) l));
 }
 
-void *_smemalign(size_t alignment, size_t size){
-    if(alignment == PAGE_SIZE && size == PAGE_SIZE)
-        return (void *) align_up_pow2(_malloc(MAX_BLOCK), PAGE_SIZE);
-    UNIMPLEMENTED();
-    return NULL;
+static
+unsigned int slab_max_blocks(slab *s){
+    return (SLAB_SIZE - offsetof(slab, blocks)) / s->tx.her->t->size;
 }
 
-void *_smalloc(size_t size){
-    return _malloc(size);
+static
+cnt slab_num_priv_blocks(slab *s){
+    return s->free_blocks.size + s->cold_blocks;
+}
+
+/* static */
+/* bool slab_full(slab *s){ */
+/*     return &s->blocks[s->block_size * (slab_num_priv_blocks(s) + */
+/*                                        s->wayward_blocks.size)] == */
+/*         (void *)&s[1]; */
+/* } */
+
+static
+slab *slab_of(block *b){
+    return (slab *) align_down_pow2(b, SLAB_SIZE);
+}
+
+/* void *smemalign(size alignment, size size){ */
+/*     ETODO(); */
+/*     return NULL; */
+/* } */
+
+void *smalloc(size size){
+    return malloc(size);
 };
 
-void _sfree(void *b, size_t size){
-    if(size == PAGE_SIZE){
-        slab_t *s = slab_of(b);
-        assert(s->block_size == MAX_BLOCK);
-        _free(&s->blocks[0]);
-        return;
-    }
-    
-    assert(slab_of(b)->block_size >= size);
-    _free(b);
+void sfree(void *b, size size){
+    assert(slab_of(b)->tx.her->t->size >= size);
+    free(b);
 }
 
 static
-int write_block_magics(block_t *b, size_t bytes){
+int write_block_magics(block *b, size bytes){
+    ETODO("Gotta rethink this now that it's lineage by default.");
     if(!HEAP_DBG)
         return 1;
     int *magics = (int *) (b + 1);
@@ -347,7 +230,7 @@ int write_block_magics(block_t *b, size_t bytes){
 }
 
 static
-int block_magics_valid(block_t *b, size_t bytes){
+int block_magics_valid(block *b, size bytes){
     if(!HEAP_DBG)
         return 1;
     int *magics = (int *) (b + 1);

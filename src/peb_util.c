@@ -9,11 +9,6 @@
 
 #include <global.h>
 
-inline ptrdiff_t ptrdiff(void *a, void *b){
-    assert(a >= b);
-    return (uintptr_t) a - (uintptr_t) b;
-}
-
 /** 
  * @brief Copy the string src to the buffer at dest. Dest must be large
  * enough to hold src, including its null byte.
@@ -29,7 +24,7 @@ char* peb_stpcpy(char *dest, const char *src){
 }
 
 
-char *itobs_8(int num, itobsbuf8_t *bin){
+char *itobs_8(int num, itobsbuf8 *bin){
     trace2(num, d, bin, p);
     for(int i = 7; i >= 0; i--, num /= 2)
         (*bin)[i] = (num & 1) ? '1' : '0';
@@ -37,7 +32,7 @@ char *itobs_8(int num, itobsbuf8_t *bin){
     return *bin;
 }    
 
-char *itobs_16(int num, itobsbuf16_t *bin){
+char *itobs_16(int num, itobsbuf16 *bin){
     trace2(num, d, bin, p);
     for(int i = 15; i >= 0; i--, num /= 2)
         (*bin)[i] = (num & 1) ? '1' : '0';
@@ -45,7 +40,7 @@ char *itobs_16(int num, itobsbuf16_t *bin){
     return *bin;
 }    
 
-char *itobs_32(int num, itobsbuf32_t *bin){
+char *itobs_32(int num, itobsbuf32 *bin){
     trace2(num, d, bin, p);
     for(int i = 31; i >= 0; i--, num /= 2)
         (*bin)[i] = (num & 1) ? '1' : '0';
@@ -57,7 +52,7 @@ char *itobs_32(int num, itobsbuf32_t *bin){
    with something generic. */
 
 void report_err(){
-    LOGIC_ERROR("Called a callback which we shouldn't call back.");
+    EWTF("Called a callback which we shouldn't call back.");
 }
 
 void no_op(){

@@ -10,7 +10,7 @@
 #define GLOBAL_H
 
 /* This has to be uncommented. A lot of the asserts are really slow. For
-   instance they'll cause mem_eat_test to take ages. */
+   instance they'll cause mem_eatest to take ages. */
 /* #define NDEBUG */
 
 /* Used by assertions and errors instead of panic(). */
@@ -29,9 +29,9 @@ enum {FALSE = 0, TRUE};
 #define TICKS_PER_SEC 3000
 /* #define TICKS_PER_SEC 100 */
 
-#define CAS_SLEEP 1000000
-#define CAS_SLEEP_PCNT 30
-#define RUN_UNIT_TESTS 1
+#define ATOMIC_FUZZ 1000000
+#define ATOMIC_FUZZ_PCNT 30
+#define RUN_UNITESTS 1
 #define ENABLE_POOLS 0
 #define HEAP_DBG 0
 #define ARENA_DBG 0
@@ -41,10 +41,10 @@ enum {FALSE = 0, TRUE};
 
    As it turns out, %.2 error rate will make it hard to even
    start a program. */
-#define RANDOM_FAIL_PER_THOUSAND 0
-#define RANDOMLY_OVERCOMMIT_TOO 0
+#define RANDOM_FAIL_PERHOUSAND 0
+#define RANDOMLY_OVERCOMMITOO 0
 
-#define RANDOM_TIMER_SKIP_PERCENT 0
+#define RANDOMIMER_SKIP_PERCENT 0
 
 #define RANDOM_PAUSE_PERCENT 0
 
@@ -52,10 +52,10 @@ enum {FALSE = 0, TRUE};
 
 extern int kernel_booted;
 
-#define UNULL ((uintptr_t) NULL)
+#define UNULL ((uptr) NULL)
 
 #include <stdint.h>
-typedef uintptr_t uptr_t;
+typedef uptr uptr;
 typedef unsigned int uint;
 
 /* Some of the wrapped utils depend on the config settings here. */
@@ -75,11 +75,14 @@ typedef unsigned int uint;
 #include <stdbool.h>
 #include <whtypes.h>
 
-extern __thread long unsigned int tid_;
+extern __thread uint tid_;
 #define _gettid() tid_
 #define _get_ticks() time(NULL)
 
-typedef __int128_t int128_t;
+#define CACHE_SIZE 64
+#define PAGE_SIZE 4096
+
+#define C pthread_self()
 
 #endif  /* GLOBAL_H */
 

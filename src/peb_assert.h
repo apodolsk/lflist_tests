@@ -23,7 +23,7 @@
 #define MAGIC_ASS(pred)                                     \
     do{                                                     \
         if(!(pred)){                                        \
-            LOGIC_ERROR("Failed assertion `%s'.",           \
+            EWTF("Failed assertion `%s'.",           \
                         #pred);                             \
         }                                                   \
     }while(0)
@@ -59,7 +59,7 @@
 #define _assert(lvl, expr, ...)                                 \
     do{                                                         \
         if(DBG_LVL >= lvl && !(expr)){                          \
-            LOGIC_ERROR("Failed assertion %s.", #expr);         \
+            EWTF("Failed assertion %s.", #expr);         \
         }                                                       \
     }while(0)
 
@@ -67,7 +67,7 @@
 #define _rassert(_lvl, expr1, rel, expr2, ...)                \
     do{                                                       \
         if(DBG_LVL >= _lvl && !(expr1 rel expr2)){            \
-            LOGIC_ERROR("Failed assertion %s with %p : %p",   \
+            EWTF("Failed assertion %s with %p : %p",   \
                         #expr1 #rel #expr2, (void*) expr1, (void*) expr2); \
         }                                                     \
     }while(0);

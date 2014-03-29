@@ -1,108 +1,34 @@
-/**
- * @file   stack.h
- * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
- * @date   Fri Oct 19 02:07:12 2012
- * 
- * @brief  
- * 
- */
-
-#ifndef STACK_H
-#define STACK_H
+#pragma once
 
 #include <peb_macros.h>
-#include <whtypes.h>
 
-typedef struct sanchor_t{
-    struct sanchor_t *next;
-} sanchor_t;
+typedef struct sanchor{
+    struct sanchor *n;
+} sanchor;
+#define SANCHOR {}
 
-#define FRESH_SANCHOR { .next = NULL }
-
-typedef union{
-    __attribute__((__aligned__(sizeof(dptr))))
+typedef volatile struct lfstack{
+    sanchor *top;
     struct{
-        int32_t tag;
-        int32_t size;
-        sanchor_t *ptr;
+        uptr gen:WORDBITS/2;
+        uptr size:WORDBITS/2;
     };
-    /* This is necessary because casting tagptr_t* to __int128_t* ("type
-       punning") obviously breaks aliasing rules and GCC likes to optimize out
-       things that "can't exist" in standard C. Caused my stack to stop
-       working on -O3 on the cluster GCC version, but not at home. That was a
-       fun debugging adventure. */
-    __int128_t raw;
-} tagptr_t;
+} lfstack;
+#define LFSTACK {}
+CASSERT(sizeof(lfstack) == sizeof(dptr));
 
-COMPILE_ASSERT(sizeof(tagptr_t) == 16);
+typedef struct stack{
+    sanchor *top;
+    cnt size;
+} stack;
+#define STACK {}
 
-typedef struct{
-    /* Yep, the volatile is here because GCC optimized out the read from top
-       in the cmpxchg loop. Tune in for next week's edition of Fuck You GCC!
-       */
-    volatile tagptr_t top __attribute__((__aligned__ (16)));
-}stack;
+cnt lfstack_push(sanchor *a, lfstack *s);
+sanchor *lfstack_pop(lfstack *s);
+cnt lfstack_size(lfstack *s);
+stack lfstack_pop_all(lfstack *s);
 
-#define FRESH_STACK                                       \
-    {                                                     \
-        .top = {.tag = 0, .ptr = NULL, .size = 0},        \
-    }
-                                                                        
-int stack_push(sanchor_t *anc, stack *stack);
-int stack_size(stack *stack);
-sanchor_t *stack_pop(stack *stack);
-sanchor_t *stack_pop_all(stack *stack, int *size);
+sanchor *stack_pop(stack *s);
+void stack_push(sanchor *a, stack *s);
 
-#define lookup_sanchor(ptr, container_type, field)    \
-    container_of(ptr, container_type, field)          
 
-#define stack_pop_lookup(container_type, field, stack)      \
-    lookup_sanchor(stack_pop(stack), container_type, field) 
-
-#define FOR_EACH_SPOP_LOOKUP(cur_struct, struct_type, field_name, stack)\
-    for(                                                                \
-        cur_struct = stack_pop_lookup(struct_type, field_name, stack);  \
-        cur_struct != NULL;                                             \
-        cur_struct = stack_pop_lookup(struct_type, field_name, stack)   \
-        )                                                               \
-
-/* Hey! You! Close your eyes for a sec. */
-#define FOR_EACH_SPOPALL_LOOKUP(cur_struct, tmp, struct_type, field_name, stack) \
-    for(                                                                \
-        (cur_struct = lookup_sanchor(stack_pop_all(stack),              \
-                                     struct_type,                       \
-                                     field_name))                       \
-            , (tmp = cur_struct ?                                       \
-               lookup_sanchor(cur_struct->field_name.next,              \
-                              struct_type,                              \
-                              field_name)                               \
-               : NULL);                                                 \
-        cur_struct != NULL;                                             \
-        cur_struct = tmp                                                \
-            , (tmp = cur_struct ?                                       \
-               lookup_sanchor(cur_struct->field_name.next,              \
-                              struct_type,                              \
-                              field_name)                               \
-               : NULL)                                                  \
-        )                                                               \
-/* You can open your eyes now. */
-    
-
-typedef struct simpstack{
-    sanchor_t *top;
-    size_t size;
-} simpstack;
-
-#define FRESH_SIMPSTACK {.top = NULL, .size = 0 }
-
-void simpstack_push(sanchor_t *sanc, simpstack *stack);
-sanchor_t *simpstack_pop(simpstack *stack);
-sanchor_t *simpstack_peek(simpstack *stack);
-void simpstack_replace(sanchor_t *new_head, simpstack *stack, int size);
-
-int sanchor_unused(sanchor_t *s);
-
-#define simpstack_pop_lookup(container_type, field, stack)      \
-    lookup_sanchor(simpstack_pop(stack), container_type, field) 
-
-#endif
