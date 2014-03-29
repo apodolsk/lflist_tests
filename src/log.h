@@ -38,7 +38,7 @@
 #include <vip_fun.h>
 
 /* 0 to disable non-VIP logging. */
-#define LOG_MASTER 0
+#define LOG_MASTER 1
 #define DYNAMIC_LOG 0
 
 /* 1 enables mute_log() and unmute_log(). */

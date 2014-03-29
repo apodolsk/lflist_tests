@@ -12,14 +12,14 @@
 
 #define eq(a, b) ({                                 \
             CASSERT(sizeof(a) == sizeof(b));        \
-            bool r = false;                                            \
-            if(sizeof(a) == sizeof(uptr))                              \
-                r = PUN(uptr, a) == PUN(uptr, b);                      \
-            else if(sizeof(a) == sizeof(dptr))                         \
-                r = PUN(dptr, a) == PUN(dptr, b);                      \
-            else                                                       \
-                assert(0);                                             \
-            r;                                                         \
+            bool __eqr = false;                     \
+            if(sizeof(a) == sizeof(uptr))           \
+                __eqr = PUN(uptr, a) == PUN(uptr, b); \
+            else if(sizeof(a) == sizeof(dptr))        \
+                __eqr = PUN(dptr, a) == PUN(dptr, b);   \
+            else                                    \
+                assert(0);                          \
+            __eqr;                                  \
         })
 
 
