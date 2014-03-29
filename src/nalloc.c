@@ -38,8 +38,10 @@ static cnt slab_num_priv_blocks(slab *s);
 static slab *slab_of(block *b);
 static err write_block_magics(block *b, size bytes);         
 static err block_magics_valid(block *b, size bytes);
-
 static void (slab_ref_down)(slab *s);
+
+
+lfstack hot_kslabs = LFSTACK;
 
 #define PTYPE(s, _) {.size=s} ,
 static const type polytypes[] = { APPLY_FUNC_TO_ARGS(
@@ -48,13 +50,18 @@ static const type polytypes[] = { APPLY_FUNC_TO_ARGS(
         192, 256, 384, 512, 1024, MAX_BLOCK)
 };
 
-#define PHERITAGE(i, ...) KERN_HERITAGE(&polyypes[i], no_op) , 
+#define PHERITAGE(i, ...) POSIX_POLY_HERITAGE(&polytypes[i], no_op) , 
 static __thread heritage poly_heritages[] = {
     ITERATE_FUNC_UP_TO(PHERITAGE, 14)
 };
 CASSERT(ARR_LEN(polytypes) == 14);
-    
-lfstack hot_kslabs = LFSTACK;
+
+#include <sys/mman.h>
+slab *mmap_slabs(cnt nslabs){
+    slab *s = mmap(NULL, SLAB_SIZE * nslabs,
+                   PROT_WRITE, MAP_POPULATE | MAP_ANONYMOUS, -1, 0);
+    return s == MAP_FAILED ? NULL : s;
+}
 
 /* extern void *edata; */
 /* static slab* next_cold = (slab *) const_align_up_pow2(edata, PAGE_SIZE); */
@@ -203,11 +210,6 @@ static
 slab *slab_of(block *b){
     return (slab *) align_down_pow2(b, SLAB_SIZE);
 }
-
-/* void *smemalign(size alignment, size size){ */
-/*     ETODO(); */
-/*     return NULL; */
-/* } */
 
 void *smalloc(size size){
     return malloc(size);

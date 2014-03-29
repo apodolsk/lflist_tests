@@ -434,7 +434,7 @@ void cas_update(void){
             EWTF("Failed to fork.");
 }
 
-int mallocest_main(int program){
+int malloc_test_main(int program){
     unmute_log();
 
     PSTR("HI");

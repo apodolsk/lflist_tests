@@ -53,12 +53,6 @@ uptr condxadd(uptr *d, uptr max){
     return r;
 }
 
-slab *mmap_slabs(cnt nslabs){
-    slab *s = mmap(NULL, SLAB_SIZE * nslabs,
-                   PROT_WRITE, MAP_POPULATE | MAP_ANONYMOUS, -1, 0);
-    return s == MAP_FAILED ? NULL : s;
-}
-
 void node_init(node *b){
     b->flanc = (flanchor) FLANCHOR;
     assert(lwrite_magics(b));
@@ -66,8 +60,8 @@ void node_init(node *b){
 
 lfstack hot_slabs = LFSTACK;
 type node_t = {sizeof(node), linref_up, linref_down};
-__thread heritage node_h = HERITAGE(&node_t, &hot_slabs,
-                                    (void (*)(void *))node_init, mmap_slabs);
+__thread heritage node_h =
+    POSIX_HERITAGE(&node_t, &hot_slabs, (void (*)(void *))node_init);
 
 static uptr nb;
 static lflist *shared;

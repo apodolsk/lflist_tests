@@ -4,10 +4,10 @@
 #include <stack.h>
 #include <pthread.h>
 
-void *smalloc(size size);
-void sfree(void *b, size size);
-void *malloc(size size);
-void free(void *b);
+#define SLAB_SIZE PAGE_SIZE
+#define MAX_BLOCK (SLAB_SIZE - offsetof(slab, blocks))
+
+typedef struct slab slab;
 
 typedef struct {
     sanchor sanc;
@@ -19,13 +19,11 @@ typedef struct {
 typedef block lineage;
 
 /* Takes up space so that its address may be a unique key. */
-typedef struct type{
+typedef const struct type{
     size size;
-    err (*linref_up)(volatile void *l, struct type *t);
+    err (*linref_up)(volatile void *l, const struct type *t);
     void (*linref_down)(volatile void *l);
 } type;
-
-typedef struct slab slab;
 
 typedef struct{
     lfstack slabs;
@@ -34,9 +32,20 @@ typedef struct{
     void (*block_init)(void *b);
     slab *(*new_slabs)(cnt nslabs);
 } heritage;
-#define HERITAGE(t, hs, bi, ns) {LFSTACK, &hot_slabs, t, bi, ns}
-#define KERN_HERITAGE(...) {}
+#define POSIX_HERITAGE(t, hs, bi) {LFSTACK, hs, t, bi, mmap_slabs}
+#define POSIX_POLY_HERITAGE(t, bi) {LFSTACK, &hot_kslabs, t, bi, mmap_slabs}
 /* #define KERN_HERITAGE(, bi) HERITAGE(, &hot_kern_slabs, bi, new_kern_slabs) */
+
+
+#define smalloc _smalloc
+#define sfree _sfree
+#define malloc _malloc
+#define free _free
+
+void *smalloc(size size);
+void sfree(void *b, size size);
+void *malloc(size size);
+void free(void *b);
 
 typedef void (*linit)(void *);
 void *linalloc(heritage *type);
@@ -44,5 +53,4 @@ void linfree(lineage *l);
 err linref_up(volatile void *l, type *t);
 void linref_down(volatile void *l);
 
-#define SLAB_SIZE PAGE_SIZE
-#define MAX_BLOCK (SLAB_SIZE - offsetof(slab, blocks))
+slab *mmap_slabs(cnt nslabs);
