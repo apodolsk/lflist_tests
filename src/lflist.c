@@ -194,6 +194,7 @@ flx help_prev(flx a, flx p, type *t){
 }
 
 err lflist_add_before(flx a, flx n, type *t){
+    trace(a.mp.pt, p, n.mp.pt, p);
     if(!casx_ok((flx){.gen.i=a.gen.i + 1}, &pt(a)->p, (flx){.gen=a.gen}))
         return -1;
     pt(a)->n = n;
