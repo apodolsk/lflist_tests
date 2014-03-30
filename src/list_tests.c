@@ -116,10 +116,6 @@ void test_reinsert(){
     if(sem_init(&parent_dead, 0, 0))
         EWTF();
     
-    lflist lists[nlists];
-    for(uint i = 0; i < nlists; i++)
-        lists[i] = (lflist) LFLIST(&lists[i]);
-
     pthread_t tids[nthreads];
     for(uint i = 0; i < nthreads; i++)
         if(pthread_create(&tids[i], NULL,
@@ -131,7 +127,7 @@ void test_reinsert(){
     for(uint i = 0; i < nthreads; i++)
         pthread_join(tids[i], NULL);
     for(uint i = 0; i < nlists; i++)
-        for(flx b; flptr(b = lflist_pop_front(&node_t, &lists[i])); nb--)
+        for(flx b; flptr(b = lflist_pop_front(&node_t, &shared[i])); nb--)
             linfree(&cof(flptr(b), node, flanc)->lin);
 
     assert(!nb);

@@ -198,9 +198,10 @@ flx help_prev(flx a, flx p, type *t){
 
 err lflist_add_before(flx a, flx n, type *t){
     trace(a.mp.pt, p, n.mp.pt, p);
+    assert(n.mp.is_nil);
     if(!casx_ok((flx){.gen.i=a.gen.i + 1}, &pt(a)->p, (flx){.gen=a.gen}))
         return RARITY("Spurious add"), -1;
-    pt(a)->n = n;
+    a.gen.i++;
 
     flx np = {};
     do{
@@ -208,6 +209,7 @@ err lflist_add_before(flx a, flx n, type *t){
         assert(pt(np));
         assert(!np.gen.locked && !np.gen.unlocking);
         pt(a)->p.mp = np.mp;
+        pt(a)->n = (flx){n.mp, (flgen){.i=np.gen.i + 1}};
     }while(!casx_ok((flx){a.mp, (flgen){.i=np.gen.i + 1}}, &pt(n)->p, np));
     
     if(!casx_ok(a, &pt(np)->n, (flx){n.mp, np.gen}))
