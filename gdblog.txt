@@ -1,0 +1,236 @@
+T:3 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:39
+p:0x7fffffffe281:39
+T:2 empty list.
+T:2 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:39
+p:0x7fffffffe281:39
+T:3 empty list.
+T:2 empty list.
+T:3 lflist_pop_front l:0x7ffff638ebc0 n:0x7ffff7fe1a10:79
+p:0x7ffff7fe1a10:20
+T:3 Entered lflist_remove - a.mp.pt: 0x7ffff7fe1a10 
+T:2 lflist_pop_front l:0x7ffff6bdfbc0 n:0x7ffff6bdfbc1:20
+p:0x7ffff6bdfbc1:20
+T:2 empty list.
+T:3 Writing {0x7ffff638ebc1, i:20, lk:0, ul:0} if {0x7ffff638ebc1, i:20,
+lk:0, ul:0} to 0x7ffff7fe1a10:{0x7ffff638ebc1, i:20, lk:0, ul:0}
+T:3 Writing {0x7ffff638ebc1, i:79, lk:1, ul:0} if {0x7ffff638ebc1, i:79,
+lk:0, ul:0} to 0x7ffff7fe1a20:{0x7ffff638ebc1, i:79, lk:0, ul:0}
+T:2 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:39
+p:0x7fffffffe281:39
+T:2 empty list.
+T:3 Writing {0x7ffff638ebc1, i:20, lk:0, ul:0} if {0x7ffff7fe1a10, i:20,
+lk:0, ul:0} to 0x7ffff638ebd0:{0x7ffff7fe1a10, i:20, lk:0, ul:0}
+T:2 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:39
+p:0x7fffffffe281:39
+T:2 empty list.
+T:3 Writing {0x7ffff638ebc1, i:20, lk:0, ul:0} if {0x7ffff7fe1a10, i:79,
+lk:0, ul:0} to 0x7ffff638ebc0:{0x7ffff7fe1a10, i:79, lk:0, ul:0}
+T:2 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:39
+p:0x7fffffffe281:39
+T:3 Done popping. l:0x7ffff638ebc0 n:0x7ffff638ebc1:20 p:0x7ffff638ebc1:20
+T:3 Pushing: 0x7ffff7fe1a10
+T:3 Entered lflist_add_rear - a.mp.pt: 0x7ffff7fe1a10 
+T:2 empty list.
+T:3 lflist_add_rear l:0x7fffffffe280 n:0x7fffffffe281:39
+p:0x7fffffffe281:39
+T:3 Entered lflist_add_before - a.mp.pt: 0x7ffff7fe1a10 n.mp.pt:
+0x7fffffffe281 
+T:2 lflist_pop_front l:0x7ffff6bdfbc0 n:0x7ffff6bdfbc1:20
+p:0x7ffff6bdfbc1:20
+T:3 Writing {(nil), i:80, lk:0, ul:0} if {(nil), i:79, lk:0, ul:0} to
+0x7ffff7fe1a20:{(nil), i:79, lk:0, ul:0}
+T:2 empty list.
+T:2 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:39
+p:0x7fffffffe281:39
+T:2 empty list.
+T:2 lflist_pop_front l:0x7ffff6bdfbc0 n:0x7ffff6bdfbc1:20
+p:0x7ffff6bdfbc1:20
+T:2 empty list.
+T:3 Writing {0x7ffff7fe1a10, i:40, lk:0, ul:0} if {0x7fffffffe281, i:39,
+lk:0, ul:0} to 0x7fffffffe290:{0x7fffffffe281, i:39, lk:0, ul:0}
+T:2 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:39
+p:0x7ffff7fe1a10:40
+T:2 Rarity. src/lflist.c:help_next:145. patp != a
+T:3 Writing {0x7ffff7fe1a10, i:80, lk:0, ul:0} if {0x7fffffffe281, i:39,
+lk:0, ul:0} to 0x7fffffffe280:{0x7fffffffe281, i:39, lk:0, ul:0}
+T:3 i = 145
+T:2 Entered lflist_remove - a.mp.pt: 0x7ffff7fe1a10 
+T:2 Rarity. src/lflist.c:lflist_remove:99. P abort
+T:2 Entered lflist_remove - a.mp.pt: 0x7ffff7fe1a10 
+T:3 lflist_pop_front l:0x7ffff638ebc0 n:0x7ffff638ebc1:20
+p:0x7ffff638ebc1:20
+T:2 Writing {0x7fffffffe281, i:40, lk:0, ul:0} if {0x7fffffffe281, i:40,
+lk:0, ul:0} to 0x7ffff7fe1a10:{0x7fffffffe281, i:40, lk:0, ul:0}
+T:2 Writing {0x7fffffffe281, i:80, lk:1, ul:0} if {0x7fffffffe281, i:80,
+lk:0, ul:0} to 0x7ffff7fe1a20:{0x7fffffffe281, i:80, lk:0, ul:0}
+T:3 empty list.
+T:2 Writing {0x7fffffffe281, i:40, lk:0, ul:0} if {0x7ffff7fe1a10, i:40,
+lk:0, ul:0} to 0x7fffffffe290:{0x7ffff7fe1a10, i:40, lk:0, ul:0}
+T:2 Writing {0x7fffffffe281, i:40, lk:0, ul:0} if {0x7ffff7fe1a10, i:80,
+lk:0, ul:0} to 0x7fffffffe280:{0x7ffff7fe1a10, i:80, lk:0, ul:0}
+T:3 lflist_pop_front l:0x7fffffffe280 n:0x7ffff7fe1a10:80
+p:0x7fffffffe281:40
+T:2 Done popping. l:0x7fffffffe280 n:0x7fffffffe281:40 p:0x7fffffffe281:40
+T:2 Popped: 0x7ffff7fe1a10
+T:2 Entered lflist_add_rear - a.mp.pt: 0x7ffff7fe1a10 
+T:2 lflist_add_rear l:0x7ffff6bdfbc0 n:0x7ffff6bdfbc1:20
+p:0x7ffff6bdfbc1:20
+T:2 Entered lflist_add_before - a.mp.pt: 0x7ffff7fe1a10 n.mp.pt:
+0x7ffff6bdfbc1 
+T:2 Writing {(nil), i:81, lk:0, ul:0} if {(nil), i:80, lk:0, ul:0} to
+0x7ffff7fe1a20:{(nil), i:80, lk:0, ul:0}
+T:2 Writing {0x7ffff7fe1a10, i:21, lk:0, ul:0} if {0x7ffff6bdfbc1, i:20,
+lk:0, ul:0} to 0x7ffff6bdfbd0:{0x7ffff6bdfbc1, i:20, lk:0, ul:0}
+T:2 Writing {0x7ffff7fe1a10, i:81, lk:0, ul:0} if {0x7ffff6bdfbc1, i:20,
+lk:0, ul:0} to 0x7ffff6bdfbc0:{0x7ffff6bdfbc1, i:20, lk:0, ul:0}
+T:2 i = 184
+T:3 empty list.
+T:2 lflist_pop_front l:0x7ffff6bdfbc0 n:0x7ffff7fe1a10:81
+p:0x7ffff7fe1a10:21
+T:3 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:40
+p:0x7fffffffe281:40
+T:3 empty list.
+T:2 Entered lflist_remove - a.mp.pt: 0x7ffff7fe1a10 
+T:3 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:40
+p:0x7fffffffe281:40
+T:2 Writing {0x7ffff6bdfbc1, i:21, lk:0, ul:0} if {0x7ffff6bdfbc1, i:21,
+lk:0, ul:0} to 0x7ffff7fe1a10:{0x7ffff6bdfbc1, i:21, lk:0, ul:0}
+T:2 Writing {0x7ffff6bdfbc1, i:81, lk:1, ul:0} if {0x7ffff6bdfbc1, i:81,
+lk:0, ul:0} to 0x7ffff7fe1a20:{0x7ffff6bdfbc1, i:81, lk:0, ul:0}
+T:2 Writing {0x7ffff6bdfbc1, i:21, lk:0, ul:0} if {0x7ffff7fe1a10, i:21,
+lk:0, ul:0} to 0x7ffff6bdfbd0:{0x7ffff7fe1a10, i:21, lk:0, ul:0}
+T:2 Writing {0x7ffff6bdfbc1, i:21, lk:0, ul:0} if {0x7ffff7fe1a10, i:81,
+lk:0, ul:0} to 0x7ffff6bdfbc0:{0x7ffff7fe1a10, i:81, lk:0, ul:0}
+T:3 empty list.
+T:3 lflist_pop_front l:0x7ffff638ebc0 n:0x7ffff638ebc1:20
+p:0x7ffff638ebc1:20
+T:2 Done popping. l:0x7ffff6bdfbc0 n:0x7ffff6bdfbc1:21 p:0x7ffff6bdfbc1:21
+T:2 Pushing: 0x7ffff7fe1a10
+T:2 Entered lflist_add_rear - a.mp.pt: 0x7ffff7fe1a10 
+T:3 empty list.
+T:2 lflist_add_rear l:0x7fffffffe280 n:0x7fffffffe281:40
+p:0x7fffffffe281:40
+T:2 Entered lflist_add_before - a.mp.pt: 0x7ffff7fe1a10 n.mp.pt:
+0x7fffffffe281 
+T:2 Writing {(nil), i:82, lk:0, ul:0} if {(nil), i:81, lk:0, ul:0} to
+0x7ffff7fe1a20:{(nil), i:81, lk:0, ul:0}
+T:2 Writing {0x7ffff7fe1a10, i:41, lk:0, ul:0} if {0x7fffffffe281, i:40,
+lk:0, ul:0} to 0x7fffffffe290:{0x7fffffffe281, i:40, lk:0, ul:0}
+T:2 Writing {0x7ffff7fe1a10, i:82, lk:0, ul:0} if {0x7fffffffe281, i:40,
+lk:0, ul:0} to 0x7fffffffe280:{0x7fffffffe281, i:40, lk:0, ul:0}
+T:2 i = 185
+T:3 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:40
+p:0x7ffff7fe1a10:41
+T:2 lflist_pop_front l:0x7ffff6bdfbc0 n:0x7ffff6bdfbc1:21
+p:0x7ffff6bdfbc1:21
+T:2 empty list.
+T:2 lflist_pop_front l:0x7fffffffe280 n:0x7ffff7fe1a10:82
+p:0x7ffff7fe1a10:41
+T:2 Entered lflist_remove - a.mp.pt: 0x7ffff7fe1a10 
+T:2 Writing {0x7fffffffe281, i:41, lk:0, ul:0} if {0x7fffffffe281, i:41,
+lk:0, ul:0} to 0x7ffff7fe1a10:{0x7fffffffe281, i:41, lk:0, ul:0}
+T:3 Entered lflist_remove - a.mp.pt: 0x7ffff7fe1a10 
+T:2 Writing {0x7fffffffe281, i:82, lk:1, ul:0} if {0x7fffffffe281, i:82,
+lk:0, ul:0} to 0x7ffff7fe1a20:{0x7fffffffe281, i:82, lk:0, ul:0}
+T:2 Writing {0x7fffffffe281, i:41, lk:0, ul:0} if {0x7ffff7fe1a10, i:41,
+lk:0, ul:0} to 0x7fffffffe290:{0x7ffff7fe1a10, i:41, lk:0, ul:0}
+T:2 Writing {0x7fffffffe281, i:41, lk:0, ul:0} if {0x7ffff7fe1a10, i:82,
+lk:0, ul:0} to 0x7fffffffe280:{0x7ffff7fe1a10, i:82, lk:0, ul:0}
+T:3 Rarity. src/lflist.c:help_next:145. patp != a
+T:3 Rarity. src/lflist.c:help_next:156. patpp != a
+T:2 Done popping. l:0x7fffffffe280 n:0x7fffffffe281:41 p:0x7fffffffe281:41
+T:2 Popped: 0x7ffff7fe1a10
+T:2 Entered lflist_add_rear - a.mp.pt: 0x7ffff7fe1a10 
+T:2 lflist_add_rear l:0x7ffff6bdfbc0 n:0x7ffff6bdfbc1:21
+p:0x7ffff6bdfbc1:21
+T:2 Entered lflist_add_before - a.mp.pt: 0x7ffff7fe1a10 n.mp.pt:
+0x7ffff6bdfbc1 
+T:2 Writing {(nil), i:83, lk:0, ul:0} if {(nil), i:82, lk:0, ul:0} to
+0x7ffff7fe1a20:{(nil), i:82, lk:0, ul:0}
+T:3 Writing {(nil), i:0, lk:0, ul:0} if {0x7fffffffe281, i:41, lk:0, ul:0}
+to 0x7ffff7fe1a10:{(nil), i:0, lk:0, ul:0}
+T:3 Writing {(nil), i:0, lk:0, ul:0} if {(nil), i:0, lk:0, ul:0} to
+0x7ffff7fe1a10:{(nil), i:0, lk:0, ul:0}
+T:2 Writing {0x7ffff7fe1a10, i:22, lk:0, ul:0} if {0x7ffff6bdfbc1, i:21,
+lk:0, ul:0} to 0x7ffff6bdfbd0:{0x7ffff6bdfbc1, i:21, lk:0, ul:0}
+T:2 Writing {0x7ffff7fe1a10, i:83, lk:0, ul:0} if {0x7ffff6bdfbc1, i:21,
+lk:0, ul:0} to 0x7ffff6bdfbc0:{0x7ffff6bdfbc1, i:21, lk:0, ul:0}
+T:2 i = 186
+T:2 lflist_pop_front l:0x7fffffffe280 n:0x7fffffffe281:41
+p:0x7fffffffe281:41
+T:2 empty list.
+T:2 lflist_pop_front l:0x7ffff6bdfbc0 n:0x7ffff7fe1a10:83
+p:0x7ffff7fe1a10:22
+T:3 Writing {0x7ffff6bdfbc1, i:22, lk:0, ul:0} if {0x7ffff6bdfbc1, i:22,
+lk:0, ul:0} to 0x7ffff7fe1a10:{0x7ffff6bdfbc1, i:22, lk:0, ul:0}
+T:2 Entered lflist_remove - a.mp.pt: 0x7ffff7fe1a10 
+T:3 Writing {0x7fffffffe281, i:82, lk:1, ul:0} if {0x7fffffffe281, i:82,
+lk:1, ul:0} to 0x7ffff7fe1a20:{0x7ffff6bdfbc1, i:83, lk:0, ul:0}
+T:2 Writing {0x7ffff6bdfbc1, i:22, lk:0, ul:0} if {0x7ffff6bdfbc1, i:22,
+lk:0, ul:0} to 0x7ffff7fe1a10:{0x7ffff6bdfbc1, i:22, lk:0, ul:0}
+T:2 Writing {0x7ffff6bdfbc1, i:83, lk:1, ul:0} if {0x7ffff6bdfbc1, i:83,
+lk:0, ul:0} to 0x7ffff7fe1a20:{0x7ffff6bdfbc1, i:83, lk:0, ul:0}
+T:2 Writing {0x7ffff6bdfbc1, i:22, lk:0, ul:0} if {0x7ffff7fe1a10, i:22,
+lk:0, ul:0} to 0x7ffff6bdfbd0:{0x7ffff7fe1a10, i:22, lk:0, ul:0}
+T:2 Writing {0x7ffff6bdfbc1, i:22, lk:0, ul:0} if {0x7ffff7fe1a10, i:83,
+lk:0, ul:0} to 0x7ffff6bdfbc0:{0x7ffff7fe1a10, i:83, lk:0, ul:0}
+T:2 Done popping. l:0x7ffff6bdfbc0 n:0x7ffff6bdfbc1:22 p:0x7ffff6bdfbc1:22
+T:2 Pushing: 0x7ffff7fe1a10
+T:2 Entered lflist_add_rear - a.mp.pt: 0x7ffff7fe1a10 
+T:3 Writing {0x7ffff7fe1a10, i:82, lk:0, ul:0} if {0x7ffff6bdfbc1, i:22,
+lk:0, ul:0} to 0x7ffff6bdfbc0:{0x7ffff6bdfbc1, i:22, lk:0, ul:0}
+T:3 Rarity. src/lflist.c:lflist_remove:99. P abort
+T:2 lflist_add_rear l:0x7fffffffe280 n:0x7fffffffe281:41
+p:0x7fffffffe281:41
+T:2 Entered lflist_add_before - a.mp.pt: 0x7ffff7fe1a10 n.mp.pt:
+0x7fffffffe281 
+T:2 Writing {(nil), i:84, lk:0, ul:0} if {(nil), i:83, lk:0, ul:0} to
+0x7ffff7fe1a20:{(nil), i:83, lk:0, ul:0}
+T:3 empty list.
+T:3 lflist_pop_front l:0x7ffff638ebc0 n:0x7ffff638ebc1:20
+p:0x7ffff638ebc1:20
+T:2 Writing {0x7ffff7fe1a10, i:42, lk:0, ul:0} if {0x7fffffffe281, i:41,
+lk:0, ul:0} to 0x7fffffffe290:{0x7fffffffe281, i:41, lk:0, ul:0}
+T:2 Writing {0x7ffff7fe1a10, i:84, lk:0, ul:0} if {0x7fffffffe281, i:41,
+lk:0, ul:0} to 0x7fffffffe280:{0x7fffffffe281, i:41, lk:0, ul:0}
+T:2 i = 188
+T:2 lflist_pop_front l:0x7fffffffe280 n:0x7ffff7fe1a10:84
+p:0x7ffff7fe1a10:42
+T:3 empty list.
+T:3 lflist_pop_front l:0x7fffffffe280 n:0x7ffff7fe1a10:84
+p:0x7ffff7fe1a10:42
+T:2 Entered lflist_remove - a.mp.pt: 0x7ffff7fe1a10 
+T:3 Entered lflist_remove - a.mp.pt: 0x7ffff7fe1a10 
+T:2 Writing {0x7fffffffe281, i:42, lk:0, ul:0} if {0x7fffffffe281, i:42,
+lk:0, ul:0} to 0x7ffff7fe1a10:{0x7fffffffe281, i:42, lk:0, ul:0}
+T:2 Writing {0x7fffffffe281, i:84, lk:1, ul:0} if {0x7fffffffe281, i:84,
+lk:0, ul:0} to 0x7ffff7fe1a20:{0x7fffffffe281, i:84, lk:0, ul:0}
+T:3 Writing {0x7fffffffe281, i:42, lk:0, ul:0} if {0x7fffffffe281, i:42,
+lk:0, ul:0} to 0x7ffff7fe1a10:{0x7fffffffe281, i:42, lk:0, ul:0}
+T:3 Writing {0x7fffffffe281, i:84, lk:1, ul:0} if {0x7fffffffe281, i:84,
+lk:0, ul:0} to 0x7ffff7fe1a20:{0x7fffffffe281, i:84, lk:0, ul:0}
+T:2 Writing {0x7fffffffe281, i:42, lk:0, ul:0} if {0x7ffff7fe1a10, i:42,
+lk:0, ul:0} to 0x7fffffffe290:{0x7ffff7fe1a10, i:42, lk:0, ul:0}
+T:3 Writing {0x7fffffffe281, i:42, lk:0, ul:0} if {0x7fffffffe281, i:42,
+lk:0, ul:0} to 0x7ffff7fe1a10:{0x7fffffffe281, i:42, lk:0, ul:0}
+T:2 Writing {0x7fffffffe281, i:42, lk:0, ul:0} if {0x7ffff7fe1a10, i:84,
+lk:0, ul:0} to 0x7fffffffe280:{0x7ffff7fe1a10, i:84, lk:0, ul:0}
+T:2 Done popping. l:0x7fffffffe280 n:0x7fffffffe281:42 p:0x7fffffffe281:42
+T:2 Popped: 0x7ffff7fe1a10
+T:2 Entered lflist_add_rear - a.mp.pt: 0x7ffff7fe1a10 
+T:2 lflist_add_rear l:0x7ffff6bdfbc0 n:0x7ffff7fe1a10:82
+p:0x7ffff6bdfbc1:22
+T:2 Entered lflist_add_before - a.mp.pt: 0x7ffff7fe1a10 n.mp.pt:
+0x7ffff6bdfbc1 
+T:2 Writing {(nil), i:85, lk:0, ul:0} if {(nil), i:84, lk:0, ul:0} to
+0x7ffff7fe1a20:{(nil), i:84, lk:0, ul:0}
+T:3 Writing {(nil), i:0, lk:0, ul:0} if {(nil), i:0, lk:0, ul:0} to
+0x7ffff7fe1a10:{(nil), i:0, lk:0, ul:0}
+T:2 Logic error. src/lflist.c:lflist_add_before:220. Failed assertion
+pt(np).
+T:3 Rarity. src/lflist.c:lflist_remove:108. n abort
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+[Switching to Thread 0x7ffff6be0700 (LWP 23560)]
+lflist_add_before (a=..., n=..., t=0x407b70 <node_t>) at src/lflist.c:221
+221         assert(!np.gen.locked && !np.gen.unlocking);
