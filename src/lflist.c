@@ -142,10 +142,8 @@ flx help_next(flx a, flx n, type *t)
                     continue;
             }
             RARITY("a has been removed");
-            if(atomic_flxeq(&pt(a)->n, pat)){
-                assert(!a.mp.is_nil);
+            if(atomic_flxeq(&pt(a)->n, pat) || pt(a)->p.gen.i != a.gen.i)
                 return (flx){};
-            }
             else
                 continue;
         }
