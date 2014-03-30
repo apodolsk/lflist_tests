@@ -237,12 +237,14 @@ flx lflist_pop_front(type *t, lflist *l){
         assert(pt(n));
         if(n.mp.is_nil){
             assert(pt(n) == &l->nil);
+            log("empty list.");
             return (flx){};
         }
-        if(!lflist_remove(n, t))
+        if(!lflist_remove(n, t)){
             trace_list("Done popping.", l);
             /* Note that no linref_down has been done. */
             return n;
+        }
     }
 }
 
