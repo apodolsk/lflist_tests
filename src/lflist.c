@@ -141,9 +141,10 @@ flx help_next(flx a, flx n, type *t)
                 else
                     continue;
             }
-            RARITY("a has been removed");
-            if(atomic_flxeq(&pt(a)->n, pat) || pt(a)->p.gen.i != a.gen.i)
-                return (flx){};
+            RARITY("patpp != a");
+            if(atomic_flxeq(&pt(a)->n, pat) ||
+               (!a.mp.is_nil && pt(a)->p.gen.i != a.gen.i))
+                return RARITY("a has been removed or added to."), (flx){};
             else
                 continue;
         }
