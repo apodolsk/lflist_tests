@@ -141,7 +141,7 @@ flx help_next(flx a, flx n, type *t)
                 else
                     continue;
             }
-            /* a has been removed */
+            RARITY("a has been removed");
             if(atomic_flxeq(&pt(a)->n, pat)){
                 assert(!a.mp.is_nil);
                 return (flx){};
@@ -237,11 +237,9 @@ flx lflist_pop_front(type *t, lflist *l){
             assert(pt(n) == &l->nil);
             return (flx){};
         }
-        if(!lflist_remove(n, t)){
-            PPNT(n.mp.pt);
+        if(!lflist_remove(n, t))
             /* Note that no linref_down has been done. */
             return n;
-        }
     }
 }
 

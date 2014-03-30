@@ -72,9 +72,7 @@ static lflist *shared;
 void *reinsert_kid(uint t){
     lflist priv = LFLIST(&priv);
     tid_ = t + firstborn;
-    PPNT(&priv.nil);
-    PPNT((void *)(priv.nil.n.mp.ptr << 2));
-    BREAK;
+    PPNT(&priv);
 
     rand_init();
     sem_wait(&parent_done);
@@ -183,12 +181,11 @@ int main(int argc, char **argv){
     assert(condxadd(&a, 3) == 2);
     assert(a == 3);
 
-    lflist test = (lflist) LFLIST(&test);
-
     lflist lists[nlists];
     for(uint i = 0; i < nlists; i++)
         lists[i] = (lflist) LFLIST(&lists[i]);
     shared = lists;
+    PPNT(shared);
 
     if(do_malloc){
         malloc_test_main(program);
