@@ -81,13 +81,13 @@ err lflist_remove(flx a, type *t){
     trace(a.mp.pt, p);
     assert(!a.mp.is_nil);
 
-    int ret = -1;
+    bool won = false;
     flx n = {}, p = {}, plocked;    
-    do{
+    while(1){
         p = help_prev(a, p, t);
         if(!pt(p) || p.gen.i != a.gen.i){
             RARITY("P abort");
-            goto cleanup;
+            break;
         }
         flx oldn;
         do{
@@ -96,24 +96,26 @@ err lflist_remove(flx a, type *t){
         }while(!casx_ok(n, &pt(a)->n, oldn));
         if(!pt(n)){
             RARITY("n abort");
-            goto cleanup;
+            break;
         }
         plocked = (flx){p.mp, (flgen) {p.gen.i, .locked = 1 }};
-    }while(!casx_ok(plocked, &pt(a)->p, p) ||
-           !casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen}));
+        
+        if(casx_ok(plocked, &pt(a)->p, p) &&
+           casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen})){
+            if(!casx_ok(n, &pt(p)->n, a))
+                RARITY("Failed to swing p->n");
+            pt(a)->p = (flx){.gen = a.gen};
+            pt(a)->n = (flx){};
+            won = true;
+            break;
+        }
+    }
 
-    if(!casx_ok(n, &pt(p)->n, a))
-        RARITY("Failed to swing p->n");
-    
-    pt(a)->p = (flx){.gen = a.gen};
-    ret = 0;
-    
-cleanup:
     if(pt(n))
         flinref_down(n, t);
     if(pt(p))
         flinref_down(p, t);
-    return ret;
+    return won ? 0 : -1;
 }
 
 static
@@ -238,6 +240,7 @@ flx lflist_pop_front(type *t, lflist *l){
             return (flx){};
         }
         if(!lflist_remove(n, t))
+            trace_list("Done popping.", l);
             /* Note that no linref_down has been done. */
             return n;
     }
