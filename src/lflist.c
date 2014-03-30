@@ -199,36 +199,35 @@ flx help_prev(flx a, flx p, type *t){
 err lflist_add_before(flx a, flx n, type *t){
     trace(a.mp.pt, p, n.mp.pt, p);
     if(!casx_ok((flx){.gen.i=a.gen.i + 1}, &pt(a)->p, (flx){.gen=a.gen}))
-        return -1;
+        return RARITY("Spurious add"), -1;
     pt(a)->n = n;
-    a.gen.i++;
 
-    flx p = {};
+    flx np = {};
     do{
-        p = help_prev(n, p, t);
-        assert(pt(p));
-        assert(geneq(n.gen, p.gen));
-        
-        pt(a)->p.mp = p.mp;
-    }while(!casx_ok((flx){a.mp, n.gen}, &pt(n)->p, p));
-    casx(a, &pt(p)->n, n);
-    flinref_down(p, t);
+        np = help_prev(n, np, t);
+        assert(pt(np));
+        assert(!np.gen.locked && !np.gen.unlocking);
+        pt(a)->p.mp = np.mp;
+    }while(!casx_ok((flx){a.mp, (flgen){.i=np.gen.i + 1}}, &pt(n)->p, np));
+    
+    if(!casx_ok(a, &pt(np)->n, (flx){n.mp, np.gen}))
+        RARITY("p helped a add itself");
+    
+    flinref_down(np, t);
     return 0;
 }
 
 err lflist_add_rear(flx a, type *t, lflist *l){
     assert(pt(a) != &l->nil);
-    assert(aligned_pow2(l, 16));
 
     trace(a.mp.pt, p);
-    trace_list("", l);
+    trace_list("lflist_add_rear", l);
     
     return lflist_add_before(a, (flx){mptr(&l->nil, 1)}, t);
 }
 
 flx lflist_pop_front(type *t, lflist *l){
     trace_list("lflist_pop_front", l);
-    assert(aligned_pow2(l, 16));
 
     for(flx n = {};;){
         n = help_next((flx){mptr(&l->nil, 1)}, n, t);
