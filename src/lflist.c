@@ -33,11 +33,21 @@ static inline int atomic_flxeq(volatile flx *aptr, flx b){
     flx a = atomic_readflx(aptr);
     return PUN(dptr, a) == PUN(dptr, b);
 }
-static inline int casx_ok(flx n, volatile flx *a, flx e){
-    return cas2_ok(n, a, e);
+typedef char pflxbuf[128];
+static inline char *pflx(flx f, pflxbuf *buf){
+    assert(sprintf(*buf, "{%p, i:%d, lk:%d, ul:%d}",
+                   f.mp.pt, f.gen.i, f.gen.locked, f.gen.unlocking));
+    return *buf;
 }
 static inline flx casx(flx n, volatile flx *a, flx e){
+    pflxbuf nb, ab, eb;
+    log("Writing %s if %s to %p:%s",
+        pflx(n, &nb), pflx(e, &eb), a, pflx(*a, &ab));
     return cas2(n, a, e);
+}
+static inline int casx_ok(flx n, volatile flx *a, flx e){
+    flx ret = casx(n, a, e);
+    return eq2(ret, e);
 }
 
 static
