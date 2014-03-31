@@ -111,7 +111,6 @@ err lflist_remove(flx a, type *t){
                 RARITY("n abort");
                 break;
             }
-            n = help_next(a, n, t);
         }while(!casx_ok(n, &pt(a)->n, oldn));
         
         plocked = (flx){p.mp, (flgen) {p.gen.i, .locked = 1 }};
@@ -192,10 +191,10 @@ flx help_prev(flx a, flx p, type *t){
     flx pn = {};
     do{
         p = flinref_read(&pt(a)->p, (flx*[]){&p, &pn, NULL}, t);
-        if(p.gen.i != a.gen.i)
-            return flinref_down(p, t), (flx){.gen = p.gen};
         if(p.gen.locked || !pt(p))
             return p;
+        if(p.gen.i != a.gen.i)
+            return flinref_down(p, t), (flx){.gen = p.gen};
         pn = atomic_readflx(&pt(p)->n);
         if(pt(pn) == pt(a))
             return p;
@@ -229,6 +228,7 @@ err lflist_add_before(flx a, flx n, type *t){
         if(!pt(np)){
             assert(np.gen.i != n.gen.i);
             RARITY("List was added to beneath us");
+            n.gen = np.gen;
             continue;
         }
         assert(!np.gen.locked && !np.gen.unlocking);
