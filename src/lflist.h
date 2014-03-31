@@ -1,6 +1,6 @@
 #pragma once
 
-/* #define FAKELOCKFREE */
+#define FAKELOCKFREE
 
 #ifndef FAKELOCKFREE
 
@@ -64,20 +64,20 @@ err lflist_add_rear(flx a, type *h, lflist *l);
 
 typedef struct{
     lanchor lanc;
-    int gen;
+    uptr gen;
 } flanchor;
 #define FLANCHOR {LANCHOR}
 
 typedef struct {
     flanchor *a;
-    int gen;
+    uptr gen;
 }flx;
 
 typedef struct lflist{
     list l;
 } lflist;
 
-#define LFLIST(self) {LIST}
+#define LFLIST(self) {.l = LIST(&(self)->l)}
 
 flx flx_of(flanchor *a);
 flanchor *flptr(flx a);

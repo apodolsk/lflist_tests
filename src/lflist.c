@@ -33,13 +33,14 @@ static inline int atomic_flxeq(volatile flx *aptr, flx b){
     flx a = atomic_readflx(aptr);
     return PUN(dptr, a) == PUN(dptr, b);
 }
+
+/* This next bit sets up wrappers to print on each cas. */
 typedef char pflxbuf[128];
 static inline char *pflx(flx f, pflxbuf *buf){
     assert(sprintf(*buf, "{%p, i:%d, lk:%d, ul:%d}",
                    f.mp.pt, f.gen.i, f.gen.locked, f.gen.unlocking));
     return *buf;
 }
-
 #define casx(...) _casx(__func__, __LINE__, __VA_ARGS__)
 #define casx_ok(...) _casx_ok(__func__, __LINE__, __VA_ARGS__)
 

@@ -1,38 +1,76 @@
 #include <lflist.h>
 #include <list.h>
+#include <atomics.h>
+#include <global.h>
 
 #ifdef FAKELOCKFREE
 
-flx flx_of(flanchor *a){
-    return a;
-}
-flanchor *flptr(flx a){
-    return a;
+#include <pthread.h>
+
+pthread_mutex_t *mut = &((pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER);
+
+static
+void lock_world(void){
+    pthread_mutex_lock(mut);
+    /* disable_interrupts(); */
 }
 
-void lflist_add_before(flx a, flx n, type *h, lflist *l){
-    pthread_mutex_lock(&l->lock);
-    list_add_before(a, n, &l->l);
-    pthread_mutex_unlock(&l->lock);
+static
+void unlock_world(void){
+    pthread_mutex_unlock(mut);
+    /* enable_interrupts(); */
 }
-int lflist_remove(flx a, type *h, lflist *l){
-    pthread_mutex_lock(&l->lock);
-    list_remove(a, &l->l);
-    pthread_mutex_unlock(&l->lock);
+
+flx flx_of(flanchor *a){
+    return (flx){a, a->gen};
+}
+
+flanchor *flptr(flx a){
+    return a.a;
+}
+
+err lflist_add_before(flx a, flx n, type *h, lflist *l){
+    (void) h;
+    lock_world();
+    assert(!(a.a->gen & 1));
+    if(!cas_ok(a.gen + 2, &a.a->gen, a.gen) || a.a->lanc.n)
+        return unlock_world(), -1;
+    list_add_before(&a.a->lanc, &n.a->lanc, &l->l);
+    unlock_world();
+    return 0;
+}
+
+err lflist_remove(flx a, type *h, lflist *l){
+    (void) h;
+    lock_world();
+    if(a.a->gen != a.gen || !a.a->lanc.n || ((uptr) a.a->lanc.n & 1))
+        return unlock_world(), -1;
+    list_remove(&a.a->lanc, &l->l);
+    unlock_world();
     return 0;
 }
 
 flx lflist_pop_front(type *h, lflist *l){
-    pthread_mutex_lock(&l->lock);
-    flx r = list_pop(&l->l);
-    pthread_mutex_unlock(&l->lock);
-    return r;
+    (void) h;
+    lock_world();
+    flx rlx = (flx){};
+    flanchor *r = cof(list_pop(&l->l), flanchor, lanc);
+    if(r)
+        rlx = (flx){r, r->gen};
+    unlock_world();
+    return rlx;
 }
-void lflist_add_rear(flx a, type *h, lflist *l){
-    pthread_mutex_lock(&l->lock);
-    list_add_rear(a, &l->l);
-    pthread_mutex_unlock(&l->lock);
+
+err lflist_add_rear(flx a, type *h, lflist *l){
+    (void) h;
+    lock_world();
+    if(!cas_ok(a.gen + 2, &a.a->gen, a.gen) || a.a->lanc.n)
+        return unlock_world(), -1;
+    list_add_rear(&a.a->lanc, &l->l);
+    unlock_world();
+    return 0;
 }
+
 
 #endif
  
