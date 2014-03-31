@@ -103,7 +103,7 @@ void *linalloc(heritage *h){
         s->owner = C;
     
     assert(b);   
-    assert(aligned(b, MIN_ALIGNMENT));
+    /* assert(aligned(b, MIN_ALIGNMENT)); */
     return b;
 }
 

@@ -63,8 +63,8 @@ void node_init(node *b){
 
 lfstack hot_slabs = LFSTACK;
 type node_t = {sizeof(node), linref_up, linref_down};
-__thread heritage node_h =
-    POSIX_HERITAGE(&node_t, &hot_slabs, (void (*)(void *))node_init);
+heritage *node_hs;
+    
 
 static uptr nb;
 static lflist *shared;
@@ -72,6 +72,7 @@ static lflist *shared;
 void *reinsert_kid(uint t){
     lflist priv = LFLIST(&priv);
     tid_ = t + firstborn;
+    heritage *node_h = &node_hs[t];
     PPNT(&priv);
 
     rand_init();
@@ -79,8 +80,7 @@ void *reinsert_kid(uint t){
 
     for(uint i = 0; i < niter; i++){
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
-            node *b = (node *)
-                linalloc(&node_h);
+            node *b = (node *) linalloc(node_h);
             PPNT(b);
             assert(lmagics_valid(b));
             lflist_add_rear(flx_of(&b->flanc), &node_t, &priv);
@@ -176,6 +176,12 @@ int main(int argc, char **argv){
     assert(a == 2);
     assert(condxadd(&a, 3) == 2);
     assert(a == 3);
+
+    heritage hs[nthreads];
+    for(uint i = 0; i < nthreads; i++)
+        hs[i] = (heritage) POSIX_HERITAGE(&node_t, &hot_slabs,
+                                          (void (*)(void *)) node_init);
+    node_hs = hs;
 
     lflist lists[nlists];
     for(uint i = 0; i < nlists; i++)
