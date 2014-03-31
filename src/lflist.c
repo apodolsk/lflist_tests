@@ -109,7 +109,7 @@ err lflist_remove(flx a, type *t){
             oldn = atomic_readflx(&pt(a)->n);
             if(!pt(oldn) || !pt(n = help_next(a, n, t))){
                 RARITY("n abort");
-                break;
+                goto super_break;
             }
         }while(!casx_ok(n, &pt(a)->n, oldn));
         
@@ -124,6 +124,7 @@ err lflist_remove(flx a, type *t){
             break;
         }
     }
+super_break:    
 
     if(pt(n))
         flinref_down(n, t);
