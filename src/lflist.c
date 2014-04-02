@@ -229,10 +229,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
 
 err (lflist_add_rear)(flx a, type *t, lflist *l){
     assert(pt(a) != &l->nil);
-    (void) a; (void) t; (void) l;
-    return 0;
-    
-    /* return lflist_add_before(a, ((flx){mptr(&l->nil, 1)}), t); */
+    return lflist_add_before(a, ((flx){mptr(&l->nil, 1)}), t);
 }
 
 flx (lflist_pop_front)(type *t, lflist *l){
