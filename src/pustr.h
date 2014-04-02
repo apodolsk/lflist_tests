@@ -7,6 +7,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define NPUSTR
+
+#ifdef NPUSTR
+#define pustr(...)
+#define pudef(...)
+#define putrace(_, __, f, as...) f(as)
+#define putracev(_, __, f, as...) f(as)
+#define putracef(_, __, f, as...) f(as)
+#define putracevf(_, __, f, as...) f(as)
+#define pulog(...)
+#define pulogf(...)
+#else
+
 /* Note that every _Generic clause must be a well-typed expr. The array
    literals serve to generate a pointer to 'a' so that we can defeat the
    typechecker by casting pointers when passing args to the pu_snprint
@@ -119,5 +132,6 @@ pudef(uint32_t, "%"PRIu32, *a);
 pudef(uint64_t, "%"PRIu64, *a);
 pudef(void, "%p", a);
 
+#endif
 #endif
 

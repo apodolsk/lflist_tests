@@ -5,7 +5,7 @@
 #include <pustr.h>
 
 /* 0 to disable non-VIP logging. */
-#define LOG_MASTER 0
+#define LOG_MASTER 1
 #define DYNAMIC_LOG 0
 
 /* 1 enables mute_log() and unmute_log(). */
@@ -42,7 +42,11 @@
 #endif
 
 #if LOG_MASTER && LOG_LVL > 0
-#define log(ts, as...) pulog(llprintf1, t)
+/* #define log(as...) pulog(llprintf1, t) */
+/* #define log2(ts, as...) pulog(llprintf1, t) */
+#define log(as...) 
+#define log2(ts, as...) 
+
 #define trace(ts, f, as...) putrace(llprintf1, ts, as)
 #else
 #define log(...)
