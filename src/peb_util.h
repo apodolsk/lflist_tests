@@ -34,6 +34,7 @@ static inline void *subtract_if_not_null(void *ptr, size s){
 #define PUN(t, s)                                               \
     (((union {__typeof__(s) str; t i;}) (s)).i)
 
+
 /* #define PUN(t, s) (*(t*)(typeof(s)[]){s}) */
 
 #define eq(a, b) (PUN(uptr, a) == PUN(uptr, b))
