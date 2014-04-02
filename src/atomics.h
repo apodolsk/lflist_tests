@@ -33,9 +33,23 @@ dptr _cmpxchg2(dptr n, volatile dptr *p, dptr old);
                    (dptr *) (addr),                 \
                    PUN(dptr, old)))
 
-#define cas_ok(n, addr, old)                    \
-    eq(old, cas(n, addr, old))                  \
+#define cas_ok(n, addr, old)                           \
+    PUN(uptr, old) ==                                  \
+        _cmpxchg(PUN(uptr, n),                         \
+                 (uptr *) (addr),                      \
+                 PUN(uptr, old))
 
-#define cas2_ok(n, addr, old)                   \
-    eq2(old, cas2(n, addr, old))                 \
+#define cas2_ok(n, addr, old)                       \
+    PUN(dptr, old) ==                               \
+         _cmpxchg2(PUN(dptr, n),                    \
+                   (dptr *) (addr),                 \
+                   PUN(dptr, old))
+
+
+/* fuck clang */
+/* #define cas_ok(n, addr, old)                    \ */
+/*     eq(old, cas(n, addr, old))                  \ */
+
+/* #define cas2_ok(n, addr, old)                    \ */
+/*     eq2(old, cas2(n, addr, old))                 \ */
 
