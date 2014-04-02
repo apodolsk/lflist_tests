@@ -40,7 +40,6 @@ static err write_block_magics(block *b, size bytes);
 static err block_magics_valid(block *b, size bytes);
 static void (slab_ref_down)(slab *s);
 
-
 lfstack hot_kslabs = LFSTACK;
 
 #define PTYPE(s, ...) {.size=s, .linref_up=NULL, .linref_down=NULL} 

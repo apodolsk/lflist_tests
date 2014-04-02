@@ -21,12 +21,18 @@ static inline void *subtract_if_not_null(void *ptr, size s){
     return ptr == NULL ? ptr : (void *)((u8 *)ptr - s);
 }
 
-/* Type pun through a union equal in size to s, but use integer conversion
-   to zero out extra bits of output if s is smaller than t. */
-#define PUN(t, s) ({                                                \
-        CASSERT(sizeof(s) == sizeof(t));                            \
-        ((union {__typeof__(s) str; t i;}) (s)).i;                  \
-        })                                                      
+/* Clang has a buggy statement-expression implementation. */
+/* #define PUN(t, s) ({                                                \ */
+/*         CASSERT(sizeof(s) == sizeof(t));                            \ */
+/*         ((union {__typeof__(s) str; t i;}) (s)).i;                  \ */
+/*         })                                                       */
+
+/* #define PUN(t, s)                                               \ */
+/*     (assert(sizeof(s) == sizeof(t)),                            \ */
+/*      ((union {__typeof__(s) str; t i;}) (s)).i) */
+
+#define PUN(t, s)                                               \
+    (((union {__typeof__(s) str; t i;}) (s)).i)
 
 
 #define eq(a, b) (PUN(uptr, a) == PUN(uptr, b))
