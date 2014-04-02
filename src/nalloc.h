@@ -54,3 +54,5 @@ err linref_up(volatile void *l, type *t);
 void linref_down(volatile void *l);
 
 slab *mmap_slabs(cnt nslabs);
+
+#define NALLOC_TS

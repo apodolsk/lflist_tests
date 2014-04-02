@@ -42,11 +42,12 @@
 #endif
 
 #if LOG_MASTER && LOG_LVL > 0
-#define log(t, as...) pulog(llprintf1, tostr, t)
+#define log(ts, as...) pulog(llprintf1, t)
+#define trace(ts, f, as...) putrace(llprintf1, ts, as)
 #else
 #define log(...)
 #define log2(...)
-#define trace(tostr, f, as...) f(as)
+#define trace(ts, f, as...) f(as)
 #endif
 
 #define llprintf1(a...) llprintf(1, a...)
