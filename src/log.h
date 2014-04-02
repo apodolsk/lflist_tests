@@ -51,14 +51,15 @@
 #define trace(ts, f, as...) f(as)
 #endif
 
-#define llprintf1(a...) llprintf(1, a...)
+#define llprintf1(a...) llprintf(1, a)
 
 /* ---------- Main logger plumbing. ---------------*/
 
-#define llprintf(need_lvl, s, ...) do{                                  \
+#define llprintf(as...)  _llprintf(as)
+#define _llprintf(need_lvl, s, ...) ({                                  \
         if(meets_log_criteria(LOG_LVL, need_lvl))                       \
             lprintf(s, ##__VA_ARGS__);                                  \
-    } while(0)                                                          \
+        })
 
 #define meets_log_criteria(log_lvl, needed)             \
     ((LOG_MASTER && log_lvl >= needed && !mute_flag)    \

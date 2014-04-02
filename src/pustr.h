@@ -106,7 +106,7 @@
 
 #define putracef(print, strof, fun, as...)                             \
     ({                                                                 \
-        typeof(fun(as)) __pu_ret = putracefv(print, strof, fun, as);   \
+        typeof(fun(as)) __pu_ret = putracevf(print, strof, fun, as);   \
         print("%s ret: %s", #fun, strof(__pu_ret));                    \
         __pu_ret;                                                      \
     })

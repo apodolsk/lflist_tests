@@ -78,6 +78,8 @@ void *reinsert_kid(uint t){
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
+        log(i);
+        
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             assert(lmagics_valid(b));
@@ -87,7 +89,7 @@ void *reinsert_kid(uint t){
         lflist *l = &shared[rand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_pop_front(&node_t, &priv))){
-            log("Pushing: %p", flptr(bx));
+            log("Pushing: ", flptr(bx));
             assert(lmagics_valid(cof(flptr(bx), node, flanc)));
             lflist_add_rear(bx, &node_t, l);
         }else{
@@ -95,7 +97,7 @@ void *reinsert_kid(uint t){
             node *b = cof(flptr(bx), node, flanc);
             if(!b)
                 continue;
-            log("Popped: %p", flptr(bx));
+            log("Popped: ", flptr(bx));
             assert(lwrite_magics(b));
             lflist_add_rear(bx, &node_t, &priv);
         }
