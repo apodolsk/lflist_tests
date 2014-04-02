@@ -9,7 +9,7 @@
 /* Default break, print, and dbg levels. */
 #define BRK 4
 #define PRNT 3
-#define DBG 0
+#define DBG 1
 
 #define E_NALLOC DBG, BRK, PRNT
 #define E_ERRORS DBG, BRK, PRNT
@@ -40,9 +40,9 @@
 #define _SECOND(a, b, ...) b
 #define _THIRD(a, b, c) c
 
-#define DBG_LVL 0
-#define ERR_BREAK_LVL 0
-#define ERR_PRINT_LVL 0
+#define DBG_LVL 1
+#define ERR_BREAK_LVL 1
+#define ERR_PRINT_LVL 1
 
 /* #define DBG_LVL FIRST(LOOKUP) */
 /* #define ERR_BREAK_LVL SECOND(LOOKUP) */

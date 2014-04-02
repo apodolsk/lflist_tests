@@ -14,24 +14,6 @@
 
 #undef assert
 
-#define MAGIC_ASS(pred)                                     \
-    do{                                                     \
-        if(!(pred)){                                        \
-            EWTF("Failed assertion `%s'.",                  \
-                        #pred);                             \
-        }                                                   \
-    }while(0)
-
-#define hassert(expr, handler) _hassert(1, expr, handler)
-#define _hassert(lvl, expr, handler)            \
-         do{                                    \
-             if(DBG_LVL >= lvl && !(expr)){     \
-                 handler;                       \
-                 MAGIC_ASS(expr);               \
-             }                                  \
-         }while(0)
-
-
 #define assert(expr) _assert(1, expr)
 #define assert2(expr) _assert(2, expr)
 #define _assert(lvl, expr, ...)                                 \
