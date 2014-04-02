@@ -236,6 +236,7 @@ err (lflist_add_rear)(flx a, type *t, lflist *l){
 }
 
 flx (lflist_pop_front)(type *t, lflist *l){
+    assert(_Generic((0, l->nil), struct flanchor : 1, default : 0));
     for(flx n = {};;){
         n = help_next((flx){mptr(&l->nil, 1)}, n, t);
         assert(pt(n));

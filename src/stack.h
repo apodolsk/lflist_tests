@@ -7,6 +7,7 @@ typedef struct sanchor{
 } sanchor;
 #define SANCHOR {}
 
+__attribute__((__aligned__(sizeof(dptr))))
 typedef volatile struct lfstack{
     sanchor *top;
     struct{

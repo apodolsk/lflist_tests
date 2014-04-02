@@ -7,8 +7,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define NPUSTR
-
 #ifdef NPUSTR
 #define pustr(...)
 #define pudef(...)
@@ -57,21 +55,18 @@
         __pu_b;                                         \
     })
 
-
-
-
-#define _pu_strfmt(_, __, ___) %s
+#define _pu_argstr(a, __, ___) a:%s
 #define _call_pustr(a, ts, _) __call_pustr(a COMMAPFX_IF_NZ ts)
 #define __call_pustr(as...) pustr(as)
 #define pulog(print, ts, as...)                                         \
-    printf(STRLIT(MAP(_pu_strfmt, _, as))                               \
-           " in %s:%d\n", MAP3(_call_pustr, ts, as),                    \
+    printf(STRLIT(MAP(_pu_argstr, _, as))                               \
+           " in %s:%d", MAP3(_call_pustr, ts, as),                      \
            __func__, __LINE__)
 
 #define _call_strof(a, strof, _) strof(a) 
 #define pulogf(print, strof, as...)                                     \
-    printf(STRLIT(MAP(_pu_strfmt, _, as))                               \
-           " in %s:%d\n", MAP2(_call_strof, strof, as),                 \
+    printf(STRLIT(MAP(_pu_argstr, _, as))                               \
+           " in %s:%d", MAP2(_call_strof, strof, as),                   \
            __func__, __LINE__)
 
 
@@ -86,7 +81,7 @@
 #define putracev(print, ts, fun, as...)                                 \
         ({                                                              \
             MAP_NOCOMMA(PU_STORE, _, as);                               \
-            print("%s(" STRLIT(MAP(PU_STRFMT, _, as)) ") in %s:%d\n",   \
+            print("%s(" STRLIT(MAP(PU_STRFMT, _, as)) ") in %s:%d",     \
                   #fun COMMAPFX_IF_NZ(MAP2(_call_pustr, ts, as)),       \
                   __func__, __LINE__);                                  \
             fun(MAP(PU_REF, _, as));                                    \
@@ -95,7 +90,7 @@
 #define putrace(print, ts, fun, as...)                              \
     ({                                                              \
         typeof(fun(as)) __pu_ret = putracev(print, ts, fun, as);    \
-        print("%s ret: %s\n", #fun, _call_pustr(__pu_ret, ts, _));  \
+        print("%s ret: %s", #fun, _call_pustr(__pu_ret, ts, _));  \
         __pu_ret;                                                   \
     })
 
@@ -103,7 +98,7 @@
 #define putracevf(print, strof, fun, as...)                            \
     ({                                                                 \
         MAP_NOCOMMA(PU_STORE, _, as);                                  \
-        print("%s(" STRLIT(MAP(PU_STRFMT, _, as)) ") in %s:%d\n",      \
+        print("%s(" STRLIT(MAP(PU_STRFMT, _, as)) ") in %s:%d",        \
               #fun, MAP_NOCOMMA(PU_REF_STRING, strof, as)              \
               __func__, __LINE__);                                     \
         fun(MAP(PU_REF, _, as));                                       \
@@ -112,7 +107,7 @@
 #define putracef(print, strof, fun, as...)                             \
     ({                                                                 \
         typeof(fun(as)) __pu_ret = putracefv(print, strof, fun, as);   \
-        print("%s ret: %s\n", #fun, strof(__pu_ret));                  \
+        print("%s ret: %s", #fun, strof(__pu_ret));                    \
         __pu_ret;                                                      \
     })
 
