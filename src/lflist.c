@@ -36,7 +36,7 @@ static inline flx casx(flx n, volatile flx *a, flx e){
     return cas2(n, a, e);
 }
 static inline int casx_ok(flx n, volatile flx *a, flx e){
-    return casx_ok(n, a, e);
+    return cas2_ok(n, a, e);
 }
  
 static
