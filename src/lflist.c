@@ -18,6 +18,9 @@ static void flinref_down(flx a, type *t);
 static flx help_next(flx a, flx n, type *t);
 static flx help_prev(flx a, flx p, type *t);
 
+#define help_next(a...) lflist_trace(help_next, a)
+#define help_prev(a...) lflist_trace(help_prev, a)
+
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.mp.ptr << 1);
 }
@@ -32,12 +35,21 @@ static inline int atomic_flxeq(volatile flx *aptr, flx b){
     flx a = atomic_readflx(aptr);
     return PUN(dptr, a) == PUN(dptr, b);
 }
-static inline flx casx(flx n, volatile flx *a, flx e){
-    return cas2(n, a, e);
+static inline flx casx(const char *f,
+                       int l, flx n, volatile flx *a, flx e){
+    lprintf("%s:%d - %s to %s if %s", f, l,
+           pustr(n, flx), pustr((void *) a), pustr(e, flx)); 
+    flx r = cas2(n, a, e);
+    lprintf("%s", eq(r,e)? "WON" : "LOST");
+    return r;
 }
-static inline int casx_ok(flx n, volatile flx *a, flx e){
-    return cas2_ok(n, a, e);
+static inline int casx_ok(const char *f, int l,
+                          flx n, volatile flx *a, flx e){
+    return eq2(casx(f, l, n, a, e), e);
 }
+
+#define casx(as...) casx(__func__, __LINE__, as)
+#define casx_ok(as...) casx_ok(__func__, __LINE__, as)
  
 static
 flx (flinref_read)(volatile flx *from, flx **held, type *t){
@@ -174,7 +186,7 @@ flx (help_next)(flx a, flx n, type *t)
 static
 flx (help_prev)(flx a, flx p, type *t){
     flx pn = {};
-    do{
+    while(1){
         p = flinref_read(&pt(a)->p, (flx*[]){&p, &pn, NULL}, t);
         if(p.gen.locked || !pt(p))
             return p;
@@ -188,6 +200,7 @@ flx (help_prev)(flx a, flx p, type *t){
             pn = (flx){.gen = p.gen};
             continue;
         }
+        EWTF("it happened");
         flanchor *pnn = pt(pt(pn)->n);
         if(!atomic_flxeq(&pt(a)->p, p) || !atomic_flxeq(&pt(p)->n, pn))
             continue;
@@ -196,7 +209,9 @@ flx (help_prev)(flx a, flx p, type *t){
             flinref_down(pn, t);
             return (flx){.gen = p.gen};
         }
-    }while(!casx_ok(a, &pt(p)->n, pn));
+        if(casx_ok(a, &pt(p)->n, pn))
+            break;
+    };
     return p;
 }
 
@@ -207,7 +222,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
     a.gen.i++;
 
     flx np = {};
-    do{
+    while(1){
         np = help_prev(n, np, t);
         if(!pt(np)){
             assert(np.gen.i != n.gen.i);
@@ -218,7 +233,9 @@ err (lflist_add_before)(flx a, flx n, type *t){
         assert(!np.gen.locked && !np.gen.unlocking);
         pt(a)->p.mp = np.mp;
         pt(a)->n = (flx){n.mp, (flgen){.i=np.gen.i + 1}};
-    }while(!casx_ok((flx){a.mp, (flgen){.i=np.gen.i + 1}}, &pt(n)->p, np));
+        if(casx_ok((flx){a.mp, (flgen){.i=np.gen.i + 1}}, &pt(n)->p, np))
+            break;
+    };
     
     if(!casx_ok(a, &pt(np)->n, (flx){n.mp, np.gen}))
         RARITY("p helped a add itself");

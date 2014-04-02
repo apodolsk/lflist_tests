@@ -41,8 +41,8 @@
 #define _THIRD(a, b, c) c
 
 #define DBG_LVL 1
-#define ERR_BREAK_LVL 1
-#define ERR_PRINT_LVL 1
+#define ERR_BREAK_LVL 4
+#define ERR_PRINT_LVL 5
 
 /* #define DBG_LVL FIRST(LOOKUP) */
 /* #define ERR_BREAK_LVL SECOND(LOOKUP) */

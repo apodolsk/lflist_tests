@@ -49,14 +49,11 @@ err lflist_remove(flx a, type *h);
 flx lflist_pop_front(type *h, lflist *l);
 err lflist_add_rear(flx a, type *h, lflist *l);
 
-pudef(flgen, "flgen(g:%d,l:%d,u:%d)", a->i, a->locked, a->unlocking);
-pudef(flx, "flx(%p, %s)", (flanchor *) (a->mp.ptr << 1),
+pudef(flgen, "g:%d,l:%d,u:%d", a->i, a->locked, a->unlocking);
+pudef(flx, "{%p, %s}", (flanchor *) (a->mp.ptr << 1),
       pustr(a->gen, flgen));
 pudef(flanchor, "n:%s, p:%s", pustr(a->n, flx), pustr(a->p, flx));
-/* TODO: comma expression in pustr discards volatile */
-typedef struct flanchor flanchorp;
-pudef(flanchorp, "n:%s, p:%s", pustr(a->n, flx), pustr(a->p, flx));
-pudef(lflist, "lflist(%s)", pustr(a->nil, flanchorp));
+pudef(lflist, "lflist(%s)", pustr(a->nil, flanchor));
 
 #else  /* FAKELOCKFREE */
 
@@ -91,8 +88,8 @@ err lflist_add_rear(flx a, type *h, lflist *l);
 #endif
 
 #define LFLIST_TS flx, flanchor, lflist
-#define lflist_trace(f, as...) putrace(lprintf, (flx, flanchor, lflist), f, as)
-#define lflist_add_before(a...) lflist_trace(lflist_add_before, a)
+#define lflist_trace(f, as...) putrace(llprintf1, (flx, flanchor, lflist), f, as)
+/* #define lflist_add_before(a...) lflist_trace(lflist_add_before, a) */
 #define lflist_remove(a...) lflist_trace(lflist_remove, a)
-#define lflist_pop_front(a...) lflist_trace(lflist_pop_front, a)
+/* #define lflist_pop_front(a...) lflist_trace(lflist_pop_front, a) */
 #define lflist_add_rear(a...) lflist_trace(lflist_add_rear, a)

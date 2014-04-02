@@ -89,7 +89,7 @@ void *reinsert_kid(uint t){
         lflist *l = &shared[rand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_pop_front(&node_t, &priv))){
-            log("Pushing: ", flptr(bx));
+            log("Pushing", flptr(bx));
             assert(lmagics_valid(cof(flptr(bx), node, flanc)));
             lflist_add_rear(bx, &node_t, l);
         }else{
@@ -97,12 +97,10 @@ void *reinsert_kid(uint t){
             node *b = cof(flptr(bx), node, flanc);
             if(!b)
                 continue;
-            log("Popped: ", flptr(bx));
+            log("Popped", flptr(bx));
             assert(lwrite_magics(b));
             lflist_add_rear(bx, &node_t, &priv);
         }
-
-        log(i);
     }
 
     for(flx bx; flptr(bx = lflist_pop_front(&node_t, &priv));)
@@ -141,7 +139,7 @@ int malloc_test_main(int program);
 
 int main(int argc, char **argv){
     int program = 1, opt, do_malloc = 0;
-    while( (opt = getopt(argc, argv, "t:l:a:i:o:p:w:m")) != -1 ){
+    while( (opt = getopt(argc, argv, "t:l:a:i:p:w:m")) != -1 ){
         switch (opt){
         case 't':
             nthreads = atoi(optarg);

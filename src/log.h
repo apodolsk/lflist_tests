@@ -43,6 +43,7 @@
 
 #if LOG_MASTER && LOG_LVL > 0
 #define log(as...) pulog(llprintf1, (), as)
+#define logt(ts, as...) pulog(llprintf1, ts, as)
 #define log2(ts, as...) pulog(llprintf1, (), as)
 #define trace(ts, f, as...) putrace(llprintf1, ts, as)
 #else
@@ -55,13 +56,12 @@
 
 /* ---------- Main logger plumbing. ---------------*/
 
-#define llprintf(as...)  _llprintf(as)
-#define _llprintf(need_lvl, s, ...) ({                                  \
-        if(meets_log_criteria(LOG_LVL, need_lvl))                       \
-            lprintf(s, ##__VA_ARGS__);                                  \
+#define llprintf(need_lvl, s, ...) ({                                   \
+            if(can_log(LOG_LVL, need_lvl))                              \
+                lprintf(s, ##__VA_ARGS__);                              \
         })
 
-#define meets_log_criteria(log_lvl, needed)             \
+#define can_log(log_lvl, needed)                        \
     ((LOG_MASTER && log_lvl >= needed && !mute_flag)    \
      ||                                                 \
      (VIP_MODE && VIP_VERBOSITY >= needed && fun_is_vip(__func__)))

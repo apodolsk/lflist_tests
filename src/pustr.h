@@ -22,17 +22,23 @@
    literals serve to generate a pointer to 'a' so that we can defeat the
    typechecker by casting pointers when passing args to the pu_snprint
    functions, while only the clause where the cast doesn't invoke
-   undefined behavior is the one that is ultimately evaluated. The (0, a)
-   causes the type of a to decay to a pointer type if it's an array type
-   (such as typeof("hi")). Otherwise, you'd have to add char[1], char[2],
-   etc clauses.
+   undefined behavior is the one that is ultimately evaluated.
+
+   The (0, a) causes the type of a to decay to a pointer type if it's an
+   array type (such as typeof("hi")). Otherwise, you'd have to add
+   char[1], char[2], etc clauses. It also strips volatile and const away.
 */
+#define _v volatile
+#define _c const
 #define pustr(a, ts...)                                                 \
     _Generic((0, a),                                                    \
-             MAP(pu_ref, (typeof(a)[]){a}, DEFAULT_TYPES, ##ts),        \
+             MAP(pu_ref, (typeof((0, a))[]){a}, DEFAULT_TYPES, ##ts),   \
              char *: a,                                                 \
-             void *: _pu_ref_bod(void, 1, *(void **)(typeof(a)[]){a}),  \
+             void *: _pu_ref_bod(void, 0, *(void **)(typeof(a)[]){a}),  \
     default: "<>")
+#define pu_ref(t, a, _)                                                 \
+    t : _pu_ref_bod(t, 0, (t *) a), t *: _pu_ref_bod(t, 1, *(t **)a)
+#define _pu_ref_bod(t, isptr, a) aasprintf(CONCAT(pu_snprint, t), isptr, a)
 
 #define pudef(t, fmt, as...)                                            \
     static inline int CONCAT(pu_snprint, t)                             \
@@ -42,10 +48,6 @@
         else                                                            \
             return snprintf(b, l, fmt, as);                             \
     }
-
-#define _pu_ref_bod(t, isptr, a) aasprintf(CONCAT(pu_snprint, t), isptr, a)
-#define pu_ref(t, a, _)                                                 \
-    t : _pu_ref_bod(t, 0, (t *) a), t *: _pu_ref_bod(t, 1, *(t **)a)
 
 #define aasprintf(snprint, ispt, a)                     \
     ({                                                  \
@@ -59,13 +61,13 @@
 #define _call_pustr(a, ts, _) __call_pustr(a COMMAPFX_IF_NZ ts)
 #define __call_pustr(as...) pustr(as)
 #define pulog(print, ts, as...)                                         \
-    printf(STRLIT(MAP(_pu_argstr, _, as))                               \
+    print(STRLIT(MAP(_pu_argstr, _, as))                                \
            " in %s:%d", MAP3(_call_pustr, ts, as),                      \
            __func__, __LINE__)
 
 #define _call_strof(a, strof, _) strof(a) 
 #define pulogf(print, strof, as...)                                     \
-    printf(STRLIT(MAP(_pu_argstr, _, as))                               \
+    print(STRLIT(MAP(_pu_argstr, _, as))                                \
            " in %s:%d", MAP2(_call_strof, strof, as),                   \
            __func__, __LINE__)
 
