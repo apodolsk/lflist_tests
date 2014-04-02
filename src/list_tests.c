@@ -73,7 +73,6 @@ void *reinsert_kid(uint t){
     lflist priv = LFLIST(&priv);
     tid_ = t + firstborn;
     heritage *node_h = &node_hs[t];
-    PPNT(&priv);
 
     rand_init();
     sem_wait(&parent_done);
@@ -81,7 +80,6 @@ void *reinsert_kid(uint t){
     for(uint i = 0; i < niter; i++){
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
-            PPNT(b);
             assert(lmagics_valid(b));
             lflist_add_rear(flx_of(&b->flanc), &node_t, &priv);
         }
@@ -102,7 +100,7 @@ void *reinsert_kid(uint t){
             lflist_add_rear(bx, &node_t, &priv);
         }
 
-        PINT(i);
+        log(i);
     }
 
     for(flx bx; flptr(bx = lflist_pop_front(&node_t, &priv));)
@@ -187,7 +185,7 @@ int main(int argc, char **argv){
     for(uint i = 0; i < nlists; i++)
         lists[i] = (lflist) LFLIST(&lists[i]);
     shared = lists;
-    PPNT(shared);
+    log(shared);
 
     if(do_malloc){
         malloc_test_main(program);

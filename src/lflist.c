@@ -1,7 +1,7 @@
 #define MODULE LFLISTM
 
 #include <stdlib.h>
-#include <peb_macros.h>
+#include <peb_util.h>
 #include <atomics.h>
 #include <stdbool.h>
 #include <lflist.h>
@@ -17,7 +17,6 @@ static int flinref_up(flx a, type *t);
 static void flinref_down(flx a, type *t);
 static flx help_next(flx a, flx n, type *t);
 static flx help_prev(flx a, flx p, type *t);
-static void trace_list(char *s, lflist *l);
 
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.mp.ptr << 1);
@@ -33,27 +32,11 @@ static inline int atomic_flxeq(volatile flx *aptr, flx b){
     flx a = atomic_readflx(aptr);
     return PUN(dptr, a) == PUN(dptr, b);
 }
-
-/* This next bit sets up wrappers to print on each cas. */
-typedef char pflxbuf[128];
-static inline char *pflx(flx f, pflxbuf *buf){
-    assert(sprintf(*buf, "{%p, i:%d, lk:%d, ul:%d}",
-                   f.mp.pt, f.gen.i, f.gen.locked, f.gen.unlocking));
-    return *buf;
-}
-#define casx(...) _casx(__func__, __LINE__, __VA_ARGS__)
-#define casx_ok(...) _casx_ok(__func__, __LINE__, __VA_ARGS__)
-
-static inline flx _casx(const char *f, int l,
-                        flx n, volatile flx *a, flx e){
-    pflxbuf nb, ab, eb;
-    log("%s:%d-Writing %s if %s to %p:%s", f, l,
-        pflx(n, &nb), pflx(e, &eb), a, pflx(*a, &ab));
+static inline flx casx(flx n, volatile flx *a, flx e){
     return cas2(n, a, e);
 }
-static inline int _casx_ok(const char *f, int l,
-                           flx n, volatile flx *a, flx e){
-    return eq2(_casx(f, l, n, a, e), e);
+static inline int casx_ok(flx n, volatile flx *a, flx e){
+    return casx_ok(n, a, e);
 }
  
 static
@@ -94,7 +77,6 @@ void flinref_down(flx a, type *t){
 }
 
 err lflist_remove(flx a, type *t){
-    trace(a.mp.pt, p);
     assert(!a.mp.is_nil);
 
     bool won = false;
@@ -116,10 +98,11 @@ err lflist_remove(flx a, type *t){
         
         plocked = (flx){p.mp, (flgen) {p.gen.i, .locked = 1 }};
         if(casx_ok(plocked, &pt(a)->p, p) &&
-           casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen})){
+           casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen}))
+        {
+            pt(a)->p = (flx){.gen = a.gen};
             if(!casx_ok(n, &pt(p)->n, a))
                 RARITY("Failed to swing p->n");
-            pt(a)->p = (flx){.gen = a.gen};
             pt(a)->n = (flx){};
             won = true;
             break;
@@ -218,7 +201,6 @@ flx help_prev(flx a, flx p, type *t){
 }
 
 err lflist_add_before(flx a, flx n, type *t){
-    trace(a.mp.pt, p, n.mp.pt, p);
     assert(n.mp.is_nil);
     if(!casx_ok((flx){.gen.i=a.gen.i + 1}, &pt(a)->p, (flx){.gen=a.gen}))
         return RARITY("Spurious add"), -1;
@@ -247,26 +229,19 @@ err lflist_add_before(flx a, flx n, type *t){
 
 err lflist_add_rear(flx a, type *t, lflist *l){
     assert(pt(a) != &l->nil);
-
-    trace(a.mp.pt, p);
-    trace_list("lflist_add_rear", l);
     
     return lflist_add_before(a, (flx){mptr(&l->nil, 1)}, t);
 }
 
 flx lflist_pop_front(type *t, lflist *l){
-    trace_list("lflist_pop_front", l);
-
     for(flx n = {};;){
         n = help_next((flx){mptr(&l->nil, 1)}, n, t);
         assert(pt(n));
         if(n.mp.is_nil){
             assert(pt(n) == &l->nil);
-            log("empty list.");
             return (flx){};
         }
         if(!lflist_remove(n, t)){
-            trace_list("Done popping.", l);
             /* Note that no linref_down has been done. */
             return n;
         }
@@ -280,14 +255,6 @@ flanchor *flptr(flx a){
 
 flx flx_of(flanchor *a){
     return (flx){mptr(a, 0), a->p.gen};
-}
-
-static
-void trace_list(char *s, lflist *l){
-    flx n = atomic_readflx(&l->nil.n);
-    flx p = atomic_readflx(&l->nil.p);
-    log("%s l:%p n:%p:%"PRIuPTR" p:%p:%"PRIuPTR, s,
-        l, n.mp.pt, n.gen.i, p.mp.pt, p.gen.i);
 }
 
 

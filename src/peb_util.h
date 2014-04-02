@@ -1,14 +1,33 @@
-/**
- * @file   peb_util.h
- * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
- * 
- * @brief  Some globally useful utilities. 
+#pragma once
+#include <pumacros.h>
+
+#define CASSERT(e) _Static_assert(e, #e)
+
+#define ARR_LEN(a) (sizeof(a)/sizeof(*a))
+
+/** 
+ * Return the address of the struct s containing member_ptr, assuming s
+ * has type container_type and member_ptr points to its field_name
+ * field. If member_ptr is NULL, return NULL.
  */
+#define cof container_of
+#define container_of(member_ptr, container_type, field_name)        \
+    ((container_type *)                                             \
+     subtract_if_not_null((void *) member_ptr,                      \
+                          offsetof(container_type, field_name)))
 
-#ifndef __PEB_UTIL_H__
-#define __PEB_UTIL_H__
+/* Used to do a NULL check without expanding member_ptr twice. */
+static inline void *subtract_if_not_null(void *ptr, size s){
+    return ptr == NULL ? ptr : (void *)((u8 *)ptr - s);
+}
 
-#include <peb_macros.h>
+/* Type pun through a union equal in size to s, but use integer conversion
+   to zero out extra bits of output if s is smaller than t. */
+#define PUN(t, s) ({                                                \
+        CASSERT(sizeof(s) == sizeof(t));                            \
+        ((union {__typeof__(s) str; t i;}) (s)).i;                  \
+        })                                                      
+
 
 #define eq(a, b) (PUN(uptr, a) == PUN(uptr, b))
 
@@ -100,9 +119,6 @@ static inline uptr ualign_up(uptr addr, size size){
 }
 
 
-/* COMPILE_ASSERT doesn't like using the ualign_*() functions because they're
-   not integer constants.
-   DANGER: up to the programmer to make sure that double-eval of addr is safe.*/
 #define const_align_down_pow2(n, size)          \
     ((n) & ~((size) - 1))
 
@@ -124,21 +140,6 @@ static inline uptr ualign_up(uptr addr, size size){
     (mod_pow2(n, size) == 0)
 
 char *peb_stpcpy(char *dest, const char *src);
-
-typedef char itobsbuf8[8 + 1];
-char *itobs_8(int num, itobsbuf8 *bin);
-typedef char itobsbuf16[16 + 1];
-char *itobs_16(int num, itobsbuf16 *bin);
-typedef char itobsbuf32[32 + 1];
-char *itobs_32(int num, itobsbuf32 *bin);
-
 void report_err();
 void no_op();
-int return_neg();
-void *return_null();
-int return_zero();
-int return_zero_rare_event();
-
-#endif /* __PEB_UTIL_H__ */
-
 

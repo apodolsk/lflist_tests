@@ -128,8 +128,6 @@ void profile_report(void){}
 void mt_child_rand(int parentid);
 
 void mallocest_randsize(){
-    trace();
-
     pthread_t kids[numhreads];
     for(uint i = 0; i < numhreads; i++)
         assert(!kfork((entrypoint *) mt_child_rand,
@@ -142,8 +140,6 @@ void mallocest_randsize(){
 }
 
 void mt_child_rand(int parentid){
-    trace(parentid, d);
-
     struct tblock *cur_block;
     list block_lists[NUM_LISTS];
     int tid = _gettid();
@@ -195,8 +191,6 @@ void mt_child_rand(int parentid){
 void mt_sharing_child();
 
 void mallocest_sharing(){
-    trace();
-
     struct child_args shared;
     shared.parentid = _gettid();
     for(uint i = 0; i < NUM_STACKS; i++)
@@ -278,8 +272,6 @@ void producer_child(struct child_args *shared);
 void produce(struct child_args *shared);
 
 void producerest(void){
-    trace();
-
     struct child_args shared;
     shared.parentid = _gettid();
     for(uint i = 0; i < NUM_STACKS; i++)
@@ -437,7 +429,7 @@ void cas_update(void){
 int malloc_test_main(int program){
     unmute_log();
 
-    PSTR("HI");
+    log("HI");
 
     extern int nthreads;
     extern int nalloc;
@@ -448,8 +440,6 @@ int malloc_test_main(int program){
     num_allocations = nalloc;
     max_writes = nwrites;
     ops_mult = niter;
-
-    PINT(print_profile);
 
     profile_init();
 

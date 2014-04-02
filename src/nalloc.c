@@ -43,16 +43,15 @@ static void (slab_ref_down)(slab *s);
 
 lfstack hot_kslabs = LFSTACK;
 
-#define PTYPE(s, _) {.size=s} ,
-static const type polytypes[] = { APPLY_FUNC_TO_ARGS(
-        PTYPE, _,
+#define PTYPE(s, ...) {.size=s, .linref_up=NULL, .linref_down=NULL} 
+static const type polytypes[] = { MAP(PTYPE, _,
         16, 32, 48, 64, 80, 96, 112, 128,
         192, 256, 384, 512, 1024, MAX_BLOCK)
 };
 
 #define PHERITAGE(i, ...) POSIX_POLY_HERITAGE(&polytypes[i], no_op) , 
 static __thread heritage poly_heritages[] = {
-    ITERATE_FUNC_UP_TO(PHERITAGE, 14)
+    ITERATE(PHERITAGE, _, 14)
 };
 CASSERT(ARR_LEN(polytypes) == 14);
 

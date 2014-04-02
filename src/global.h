@@ -1,23 +1,7 @@
-/**
- * @file   global.h
- * @author Alex Podolsky <apodolsk@andrew.cmu.edu>
- * 
- * @brief Global configuration settings. Wrapper file for globally-useful
- * utilities and config settings.
- */
-
-#ifndef GLOBAL_H
-#define GLOBAL_H
-
-/* This has to be uncommented. A lot of the asserts are really slow. For
-   instance they'll cause mem_eatest to take ages. */
-/* #define NDEBUG */
+#pragma once
 
 /* Used by assertions and errors instead of panic(). */
-extern void _halt(void);
-#include <stdlib.h>
 #define BREAK asm("int3")
-/* #define BREAK do{while(1) continue;}while(0) */
 #define lprintf(s, ...) printf("T:%d " s "\n", _gettid(), ##__VA_ARGS__)
 
 
@@ -40,10 +24,10 @@ extern void _halt(void);
 
    As it turns out, %.2 error rate will make it hard to even
    start a program. */
-#define RANDOM_FAIL_PERHOUSAND 0
-#define RANDOMLY_OVERCOMMITOO 0
+#define RANDOM_FAIL_PER_THOUSAND 0
+#define RANDOMLY_OVERCOMMIT_TOO 0
 
-#define RANDOMIMER_SKIP_PERCENT 0
+#define RANDOM_TIMER_SKIP_PERCENT 0
 
 #define RANDOM_PAUSE_PERCENT 0
 
@@ -53,26 +37,14 @@ extern int kernel_booted;
 
 #define UNULL ((uptr) NULL)
 
-#include <stdint.h>
-typedef uptr uptr;
-typedef unsigned int uint;
-
 /* Some of the wrapped utils depend on the config settings here. */
 #include <log.h>
-#include <pretty_print.h>
-
 #include <stdio.h>
-#include <limits.h>
-
 #include <peb_util.h>
-
 #include <pthread.h>
-
-#include <assert.h>
 #include <peb_assert.h>
 #include <errors.h>
 #include <stdbool.h>
-#include <whtypes.h>
 
 extern __thread uint tid_;
 #define _gettid() tid_
@@ -83,5 +55,4 @@ extern __thread uint tid_;
 
 #define C pthread_self()
 
-#endif  /* GLOBAL_H */
 

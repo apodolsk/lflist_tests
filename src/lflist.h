@@ -1,6 +1,6 @@
 #pragma once
 
-#define FAKELOCKFREE
+/* #define FAKELOCKFREE */
 
 #ifndef FAKELOCKFREE
 
@@ -23,7 +23,6 @@ struct flx{
     } mp;
     flgen gen;
 } __attribute__((__aligned__(sizeof(dptr))));
-
 #define mptr(p, nil) ((mptr){.is_nil=nil, .ptr=(uptr)(p) >> 1})
 
 struct flanchor{
@@ -38,7 +37,9 @@ typedef struct lflist{
 #define LFLIST(l) {{                            \
                 .n = {mptr(&(l)->nil, 1)},      \
                 .p = {mptr(&(l)->nil, 1)}       \
-        }}                                      \
+        }}                                      
+
+
 
 flx flx_of(flanchor *a);
 flanchor *flptr(flx a);
@@ -49,13 +50,14 @@ err lflist_remove(flx a, type *h);
 flx lflist_pop_front(type *h, lflist *l);
 err lflist_add_rear(flx a, type *h, lflist *l);
 
-
-
-
-
-
-
-
+#include <log.h>
+/* pu_def(flx, "{%p,g:%d,l:%d,u:%d}", a.mp.pt, a.gen.i, a.gen.locked, a.gen.unlocking); */
+/* pu_defp(flanchor, "%p:{n:%s, p:%s}", a, str(a->n, flx), str(a->p, flx)); */
+/* pu_defp(lflist, "l:%s", str(&a->nil, )); */
+/* #define lflist_add_before(a...) trace(lflist_add_before, a) */
+/* #define lflist_remove(a...) trace(lflist_remove, a) */
+/* #define lflist_pop_front(a...) trace(lflist_pop_front, a) */
+/* #define lflist_add_rear(a...) trace(lflist_add_rear, a) */
 
 #else  /* FAKELOCKFREE */
 
