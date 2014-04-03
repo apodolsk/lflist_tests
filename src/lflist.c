@@ -119,10 +119,11 @@ err (lflist_remove)(flx a, type *t){
     for(uint i = 0; i < 2; i++){
         if(p.gen.i != a.gen.i || !pt(p))
             break;
-        assert(p.gen.locked);
         flx p0 = casx((flx){.gen.i = a.gen.i}, &pt(a)->p, p);
         if(eq2(p, p0))
             return 0;
+        if(!p0.gen.unlocking)
+            return -1;
         p = p0;
     }
     
