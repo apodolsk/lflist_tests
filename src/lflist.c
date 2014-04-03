@@ -227,27 +227,34 @@ err (lflist_add_before)(flx a, flx n, type *t){
         return RARITY("Spurious add"), -1;
     a.gen.i++;
 
-    flx np = {};
+    flx p = {}, pp = {};
     while(1){
-        np = help_prev(n, np, t);
-        if(!pt(np)){
-            assert(np.gen.i != n.gen.i);
+        p = help_prev(n, p, t);
+        if(!pt(p)){
+            assert(p.gen.i != n.gen.i);
             RARITY("List was added to beneath us");
-            n.gen = np.gen;
+            n.gen = p.gen;
             continue;
         }
-        assert(!np.gen.locked && !np.gen.unlocking);
+        assert(!p.gen.locked && !p.gen.unlocking);
 
-        pt(a)->p.mp = np.mp;
-        pt(a)->n = (flx){n.mp, (flgen){.i=np.gen.i + 1}};
-        if(casx_ok((flx){a.mp, (flgen){.i=np.gen.i + 1}}, &pt(n)->p, np))
+        pp = flinref_read(&pt(p)->p, (flx*[]){&pp, NULL}, t);
+        if(!pt(pp))
+            continue;
+        if(pt(pp) != pt(n))
+            casx((flx){p.mp, pp.gen}, &pt(pp)->n, (flx){n.mp, p.gen});
+
+        pt(a)->p.mp = p.mp;
+        pt(a)->n = (flx){n.mp, (flgen){.i=p.gen.i + 1}};
+        if(casx_ok((flx){a.mp, (flgen){.i=p.gen.i + 1}}, &pt(n)->p, p))
             break;
     };
     
-    if(!casx_ok(a, &pt(np)->n, (flx){n.mp, np.gen}))
+    if(!casx_ok(a, &pt(p)->n, (flx){n.mp, p.gen}))
         RARITY("p helped a add itself");
-    
-    flinref_down(np, t);
+
+    flinref_down(pp, t);
+    flinref_down(p, t);
     return 0;
 }
 
