@@ -25,13 +25,13 @@
 
 #define LOG_ATOMICS 0
 #define LOG_LISTM 0
-#define LOG_LFLISTM 1
+#define LOG_LFLISTM 0
 #define LOG_STACKM 0
 
 #define LOG_KMALLOC 0
 #define LOG_POOLS 0
 #define LOG_UNITESTS 1
-#define LOG_LIST_TESTSM 1
+#define LOG_LIST_TESTSM 0
 
 #define LOG_LVL CONCAT(LOG_, MODULE)
 

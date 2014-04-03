@@ -35,10 +35,10 @@ static inline int atomic_flxeq(volatile flx *aptr, flx b){
 }
 static inline flx casx(const char *f,
                        int l, flx n, volatile flx *a, flx e){
-    lprintf("CAS! %s:%d - %s to %s if %s", f, l,
-           pustr(n, flx), pustr((void *) a), pustr(e, flx)); 
+    llprintf1("CAS! %s:%d - %s to %s if %s", f, l,
+              pustr(n, flx), pustr((void *) a), pustr(e, flx)); 
     flx r = cas2(n, a, e);
-    lprintf("%s", eq(r,e)? "WON" : "LOST");
+    llprintf1("%s", eq(r,e)? "WON" : "LOST");
     return r;
 }
 static inline int casx_ok(const char *f, int l,
