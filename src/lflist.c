@@ -243,8 +243,12 @@ err (lflist_add_before)(flx a, flx n, type *t){
         pp = flinref_read(&pt(p)->p, (flx*[]){&pp, NULL}, t);
         if(!pt(pp))
             continue;
-        casx((flx){p.mp, (flgen){.i=pp.gen.i}}, &pt(pp)->n,
-             (flx){n.mp, p.gen});
+        /* TODO: should prove that this nonatomicity is safe. */
+        flx ppn = pt(pp)->n;
+        if(!eq2(pt(n)->p, p))
+            continue;
+        if(eq(ppn.mp, n.mp) && eq(ppn.gen, p.gen)) 
+            casx((flx){p.mp, (flgen){.i=pp.gen.i}}, &pt(pp)->n, ppn);
 
         pt(a)->p.mp = p.mp;
         pt(a)->n = (flx){n.mp, (flgen){.i=p.gen.i + 1}};
@@ -255,7 +259,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
     if(!casx_ok(a, &pt(p)->n, (flx){n.mp, p.gen}))
         RARITY("p helped a add itself");
 
-    /* flinref_down(pp, t); */
+    flinref_down(pp, t);
     flinref_down(p, t);
     return 0;
 }
