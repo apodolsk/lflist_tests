@@ -11,6 +11,7 @@
 #include <global.h>
 
 #define TS LFLIST_TS
+#define str(a) pustr(a, TS)
 
 #ifndef FAKELOCKFREE
 
@@ -36,9 +37,9 @@ static inline int atomic_flxeq(volatile flx *aptr, flx b){
 static inline flx casx(const char *f,
                        int l, flx n, volatile flx *a, flx e){
     llprintf1("CAS! %s:%d - %s if %s, addr:%s", f, l,
-              pustr(n, flx), pustr(e, flx), pustr((void *) a)); 
+              str(n), str(e), str((void *) a)); 
     flx r = cas2(n, a, e);
-    llprintf1("%s - %s", eq2(r,e)? "WON" : "LOST", pustr(r, flx));
+    llprintf1("%s - %s", eq2(r,e)? "WON" : "LOST", str(r));
     return r;
 }
 static inline int casx_ok(const char *f, int l,
@@ -137,22 +138,22 @@ flx (help_next)(flx a, flx n, type *t){
             return (flx){};
 
         patp = atomic_readflx(&pt(pat)->p);
-        
         if(pt(patp) != pt(a)){
-            RARITY("patp != a");
+            RARITY("patp != a (patp:%s)", str(patp));
             if(flinref_up(patp, t))
                 continue;
             flx patpp = atomic_readflx(&pt(patp)->p);
-            /* patp has been added */
             if(pt(patpp) == pt(a)){
+                RARITY("patp has been added.");
                 if(!patpp.gen.locked){
-                    casx((flx){patp.mp, patpp.gen}, &pt(a)->n, pat);
-                    return flinref_down(pat, t), patp;
+                    flx added = (flx){patp.mp, patpp.gen};
+                    casx(added, &pt(a)->n, pat);
+                    return flinref_down(pat, t), added;
                 }
                 else
                     continue;
             }
-            RARITY("patpp != a");
+            RARITY("patpp != a (patpp:%s)", str(patpp));
             if(atomic_flxeq(&pt(a)->n, pat) ||
                (!a.mp.is_nil && pt(a)->p.gen.i != a.gen.i))
             {
@@ -201,7 +202,8 @@ flx (help_prev)(flx a, flx p, type *t){
         pn = atomic_readflx(&pt(p)->n);
         if(pt(pn) == pt(a))
             return p;
-        RARITY("pn doesn't point to a. Either a died or p was dying.");
+        RARITY("pn != a. (pn:%s) A died, p died, or something was added.",
+               str(pn));
         if(flinref_up(pn, t)){
             pn = (flx){.gen = p.gen};
             continue;
