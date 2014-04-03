@@ -131,8 +131,7 @@ err (lflist_remove)(flx a, type *t){
 
 static
 /* TODO: could have flx *n. */
-flx (help_next)(flx a, flx n, type *t)
-{
+flx (help_next)(flx a, flx n, type *t){
     flx pat = {}, patp = {};
     while(1){
         pat = flinref_read(&pt(a)->n, (flx*[]){&n, &pat, &patp, NULL}, t);
@@ -148,8 +147,9 @@ flx (help_next)(flx a, flx n, type *t)
             flx patpp = atomic_readflx(&pt(patp)->p);
             /* patp has been added */
             if(pt(patpp) == pt(a)){
-                if(!patpp.gen.locked)
+                if(!patpp.gen.locked){
                     return flinref_down(pat, t), patp;
+                }
                 else
                     continue;
             }
@@ -237,6 +237,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
             continue;
         }
         assert(!np.gen.locked && !np.gen.unlocking);
+
         pt(a)->p.mp = np.mp;
         pt(a)->n = (flx){n.mp, (flgen){.i=np.gen.i + 1}};
         if(casx_ok((flx){a.mp, (flgen){.i=np.gen.i + 1}}, &pt(n)->p, np))
