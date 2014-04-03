@@ -251,7 +251,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
 
 err (lflist_add_rear)(flx a, type *t, lflist *l){
     assert(pt(a) != &l->nil);
-    return lflist_add_before(a, flx_of(&l->nil), t);
+    return lflist_add_before(a, (flx){mptr(&l->nil, 1), l->nil.p.gen}, t);
 }
 
 flx (lflist_pop_front)(type *t, lflist *l){
