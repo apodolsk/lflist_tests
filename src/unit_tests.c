@@ -20,6 +20,8 @@
 #include <global.h>
 #include <unistd.h>
 
+#define TS
+
 typedef void *(entrypoint)(void *);
 
 #define _yield(tid) do{ (void) tid; pthread_yield();} while(0)

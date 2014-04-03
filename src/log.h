@@ -42,7 +42,7 @@
 #endif
 
 #if LOG_MASTER && LOG_LVL > 0
-#define log(as...) pulog(llprintf1, (), as)
+#define log(as...) pulog(llprintf1, (TS), as)
 #define logt(ts, as...) pulog(llprintf1, ts, as)
 #define log2(ts, as...) pulog(llprintf1, (), as)
 #define trace(ts, f, as...) putrace(llprintf1, ts, as)

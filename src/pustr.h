@@ -37,7 +37,8 @@
              void *: _pu_ref_bod(void, 0, *(void **)(typeof(a)[]){a}),  \
     default: "<>")
 #define pu_ref(t, a, _)                                                 \
-    t : _pu_ref_bod(t, 0, (t *) a), t *: _pu_ref_bod(t, 1, *(t **)a)
+    typeof( (0, *(t[1]){}) ) : _pu_ref_bod(t, 0, (t *) a),             \
+    typeof( (0, *(t[1]){}) ) *: _pu_ref_bod(t, 1, *(t **)a)
 #define _pu_ref_bod(t, isptr, a) aasprintf(CONCAT(pu_snprint, t), isptr, a)
 
 #define pudef(t, fmt, as...)                                            \
@@ -61,9 +62,8 @@
 #define _call_pustr(a, ts, _) __call_pustr(a COMMAPFX_IF_NZ ts)
 #define __call_pustr(as...) pustr(as)
 #define pulog(print, ts, as...)                                         \
-    print(STRLIT(MAP(_pu_argstr, _, as))                                \
-           " in %s:%d", MAP3(_call_pustr, ts, as),                      \
-           __func__, __LINE__)
+    print("%s:%d - " STRLIT(MAP(_pu_argstr, _, as)),                    \
+          __func__, __LINE__, MAP3(_call_pustr, ts, as))
 
 #define _call_strof(a, strof, _) strof(a) 
 #define pulogf(print, strof, as...)                                     \

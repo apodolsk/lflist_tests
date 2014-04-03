@@ -10,6 +10,8 @@
 
 #include <global.h>
 
+#define TS LFLIST_TS
+
 #ifndef FAKELOCKFREE
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
@@ -18,8 +20,8 @@ static void flinref_down(flx a, type *t);
 static flx help_next(flx a, flx n, type *t);
 static flx help_prev(flx a, flx p, type *t);
 
-#define help_next(a...) lflist_trace(help_next, a)
-#define help_prev(a...) lflist_trace(help_prev, a)
+/* #define help_next(a...) lflist_trace(help_next, a) */
+/* #define help_prev(a...) lflist_trace(help_prev, a) */
 
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.mp.ptr << 1);
@@ -37,7 +39,7 @@ static inline int atomic_flxeq(volatile flx *aptr, flx b){
 }
 static inline flx casx(const char *f,
                        int l, flx n, volatile flx *a, flx e){
-    lprintf("%s:%d - %s to %s if %s", f, l,
+    lprintf("CAS! %s:%d - %s to %s if %s", f, l,
            pustr(n, flx), pustr((void *) a), pustr(e, flx)); 
     flx r = cas2(n, a, e);
     lprintf("%s", eq(r,e)? "WON" : "LOST");
@@ -94,6 +96,7 @@ err (lflist_remove)(flx a, type *t){
     bool won = false;
     flx n = {}, p = {}, plocked;    
     while(1){
+        log(*pt(a));
         p = help_prev(a, p, t);
         if(!pt(p) || p.gen.i != a.gen.i){
             RARITY("P abort");
@@ -164,22 +167,26 @@ flx (help_next)(flx a, flx n, type *t)
         if(!patp.gen.locked)
             return pat;
 
-        /* try helping pat finish its removal transaction */
+        RARITY("Trying to help pat finish its removal.");
         n = flinref_read(&pt(pat)->n, (flx*[]){NULL}, t);
-        if(pt(n)){
-            flx np = casx((flx){a.mp, n.gen}, &pt(n)->p, (flx){pat.mp, n.gen});
-            if(pt(np) == pt(a) || (pt(np) == pt(pat) && geneq(np.gen, n.gen)))
+        if(pt(n) && eq2(atomic_readflx(&pt(a)->n), pat)){
+            flx np = casx((flx){a.mp, n.gen}, &pt(n)->p,
+                          (flx){pat.mp, n.gen});
+            if(pt(np) == pt(a) ||
+               (pt(np) == pt(pat) && geneq(np.gen, n.gen)))
                 return flinref_down(pat, t), n;
         }
+        else
+            continue;
 
-        RARITY("unlocking n");
+        RARITY("Unlocking n if it hasn't begun a new transaction.");
         /* unlock pat if it hasn't begun a new transaction */
         flx new = {a.mp, (flgen){patp.gen.i, .locked=1, .unlocking=1}};
         if(casx_ok(new, &pt(pat)->p, patp) &&
            atomic_flxeq(&pt(pat)->n, n) &&
            casx_ok((flx){a.mp, (flgen){patp.gen.i}}, &pt(pat)->n, new))
             return flinref_down(n, t), pat;
-        RARITY("failed to unlock");
+        RARITY("Failed to unlock.");
     }
 }
 
@@ -200,7 +207,6 @@ flx (help_prev)(flx a, flx p, type *t){
             pn = (flx){.gen = p.gen};
             continue;
         }
-        EWTF("it happened");
         flanchor *pnn = pt(pt(pn)->n);
         if(!atomic_flxeq(&pt(a)->p, p) || !atomic_flxeq(&pt(p)->n, pn))
             continue;
@@ -250,8 +256,8 @@ err (lflist_add_rear)(flx a, type *t, lflist *l){
 }
 
 flx (lflist_pop_front)(type *t, lflist *l){
-    assert(_Generic((0, l->nil), struct flanchor : 1, default : 0));
     for(flx n = {};;){
+        log(l);
         n = help_next((flx){mptr(&l->nil, 1)}, n, t);
         assert(pt(n));
         if(n.mp.is_nil){

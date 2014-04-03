@@ -12,6 +12,8 @@
 #include <global.h>
 #include <sys/mman.h>
 
+#define TS
+
 uint nlists = 1;
 uint nthreads = 2;
 uint niter = 1000;
@@ -78,8 +80,6 @@ void *reinsert_kid(uint t){
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        log(i);
-        
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             assert(lmagics_valid(b));

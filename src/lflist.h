@@ -49,11 +49,11 @@ err lflist_remove(flx a, type *h);
 flx lflist_pop_front(type *h, lflist *l);
 err lflist_add_rear(flx a, type *h, lflist *l);
 
-pudef(flgen, "g:%d,l:%d,u:%d", a->i, a->locked, a->unlocking);
+pudef(flgen, "gen:%d %d/%d", a->i, a->locked, a->unlocking);
 pudef(flx, "{%p, %s}", (flanchor *) (a->mp.ptr << 1),
       pustr(a->gen, flgen));
 pudef(flanchor, "n:%s, p:%s", pustr(a->n, flx), pustr(a->p, flx));
-pudef(lflist, "lflist(%s)", pustr(a->nil, flanchor));
+pudef(lflist, "LIST(%s)", pustr(a->nil, flanchor));
 
 #else  /* FAKELOCKFREE */
 
