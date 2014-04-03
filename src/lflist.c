@@ -240,6 +240,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
         }
         assert(!p.gen.locked && !p.gen.unlocking);
 
+        /* Finish up an interrupted add. */
         pp = flinref_read(&pt(p)->p, (flx*[]){&pp, NULL}, t);
         if(!pt(pp))
             continue;

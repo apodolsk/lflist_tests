@@ -42,7 +42,7 @@
 
 #define DBG_LVL 1
 #define ERR_BREAK_LVL 4
-#define ERR_PRINT_LVL 2
+#define ERR_PRINT_LVL 3
 
 /* #define DBG_LVL FIRST(LOOKUP) */
 /* #define ERR_BREAK_LVL SECOND(LOOKUP) */
