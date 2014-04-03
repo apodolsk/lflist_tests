@@ -26,12 +26,8 @@ static flx help_prev(flx a, flx p, type *t);
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.mp.ptr << 1);
 }
-
 static inline flx atomic_readflx(volatile flx *x){
     return cas2((flx){}, x, (flx){});
-}
-static inline int geneq(flgen a, flgen b){
-    return PUN(uptr, a) == PUN(uptr, b);
 }
 static inline int atomic_flxeq(volatile flx *aptr, flx b){
     flx a = atomic_readflx(aptr);
@@ -170,16 +166,15 @@ flx (help_next)(flx a, flx n, type *t)
         RARITY("Trying to help pat finish its removal.");
         n = flinref_read(&pt(pat)->n, (flx*[]){NULL}, t);
         if(pt(n) && eq2(atomic_readflx(&pt(a)->n), pat)){
-            flx np = casx((flx){a.mp, n.gen}, &pt(n)->p,
-                          (flx){pat.mp, n.gen});
-            if(pt(np) == pt(a) ||
-               (pt(np) == pt(pat) && geneq(np.gen, n.gen)))
+            flx e = (flx){pat.mp, n.gen};
+            flx np = casx((flx){a.mp, n.gen}, &pt(n)->p, e);
+            if(eq2(np, e) || pt(np) == pt(a))
                 return flinref_down(pat, t), n;
         }
         else
             continue;
 
-        RARITY("Unlocking n if it hasn't begun a new transaction.");
+        RARITY("Unlocking pat if it hasn't begun a new transaction.");
         /* unlock pat if it hasn't begun a new transaction */
         flx new = {a.mp, (flgen){patp.gen.i, .locked=1, .unlocking=1}};
         if(casx_ok(new, &pt(pat)->p, patp) &&
