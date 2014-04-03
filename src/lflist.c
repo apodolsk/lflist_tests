@@ -108,6 +108,7 @@ err (lflist_remove)(flx a, type *t){
             break;
         }
     }
+    assert(pt(a)->p.gen.locked || pt(a)->p.gen.i != a.gen.i);
 
     if(pt(n))
         flinref_down(n, t);

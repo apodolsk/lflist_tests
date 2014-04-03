@@ -15,7 +15,7 @@
 #define VIP_MODE 1
 #define VIP_VERBOSITY 2
 
-/* -------- Per-module verbosity settings ---------- */
+/* Verbosities */
 
 #define LOG_NALLOC 0
 #define LOG_ERRORS 0
@@ -25,13 +25,13 @@
 
 #define LOG_ATOMICS 0
 #define LOG_LISTM 0
-#define LOG_LFLISTM 0
+#define LOG_LFLISTM 1
 #define LOG_STACKM 0
 
 #define LOG_KMALLOC 0
 #define LOG_POOLS 0
 #define LOG_UNITESTS 0
-#define LOG_LIST_TESTSM 0
+#define LOG_LIST_TESTSM 1
 
 #define LOG_LVL CONCAT(LOG_, MODULE)
 
@@ -41,7 +41,7 @@
 #define unmute_log()
 #endif
 
-#if LOG_MASTER && LOG_LVL > 0
+#if LOG_MASTER
 #define log(as...) pulog(llprintf1, (TS), as)
 #define logt(ts, as...) pulog(llprintf1, ts, as)
 #define log2(ts, as...) pulog(llprintf1, (), as)
@@ -54,12 +54,9 @@
 
 #define llprintf1(a...) llprintf(1, a)
 
-/* ---------- Main logger plumbing. ---------------*/
-
-#define llprintf(need_lvl, s, ...) ({                                   \
-            if(can_log(LOG_LVL, need_lvl))                              \
-                lprintf(s, ##__VA_ARGS__);                              \
-        })
+#define llprintf(need_lvl, s, ...)                              \
+    (can_log(LOG_LVL, need_lvl) ? lprintf(s, ##__VA_ARGS__) : 0)
+        
 
 #define can_log(log_lvl, needed)                        \
     ((LOG_MASTER && log_lvl >= needed && !mute_flag)    \

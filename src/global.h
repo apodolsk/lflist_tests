@@ -13,7 +13,7 @@
 /* #define TICKS_PER_SEC 100 */
 
 #define ATOMIC_FUZZ 1000000
-#define ATOMIC_FUZZ_PCNT 50
+#define ATOMIC_FUZZ_PCNT 30
 #define RUN_UNITESTS 1
 #define ENABLE_POOLS 0
 #define HEAP_DBG 0
