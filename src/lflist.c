@@ -114,7 +114,7 @@ err (lflist_remove)(flx a, type *t){
     p = pt(a)->p;
     for(uint i = 0; i < 2; i++){
         if(p.gen.i != a.gen.i || !pt(p))
-            break;
+            return -1;
         flx p0 = casx((flx){.gen.i = a.gen.i}, &pt(a)->p, p);
         if(eq2(p, p0)){
             casx(pt(a)->n, &pt(p)->n, a);
@@ -145,6 +145,8 @@ flx (help_next)(flx a, flx n, type *t){
                 continue;
             flx patpp = atomic_readflx(&pt(patp)->p);
             if(pt(patpp) == pt(a)){
+                if(!atomic_flxeq(&pt(a)->n, pat))
+                    continue;
                 RARITY("patp has been added.");
                 if(!patpp.gen.locked){
                     flx added = (flx){patp.mp, patpp.gen};
@@ -244,12 +246,8 @@ err (lflist_add_before)(flx a, flx n, type *t){
         pp = flinref_read(&pt(p)->p, (flx*[]){&pp, NULL}, t);
         if(!pt(pp))
             continue;
-        /* TODO: should prove that this nonatomicity is safe. */
-        flx ppn = pt(pp)->n;
-        if(!eq2(pt(n)->p, p))
-            continue;
-        if(eq(ppn.mp, n.mp) && eq(ppn.gen, p.gen)) 
-            casx((flx){p.mp, (flgen){.i=pp.gen.i}}, &pt(pp)->n, ppn);
+        casx((flx){p.mp, (flgen){.i=pp.gen.i}}, &pt(pp)->n,
+             (flx){n.mp, (flgen){.i=p.gen.i - 1}});
 
         pt(a)->p.mp = p.mp;
         pt(a)->n = (flx){n.mp, (flgen){.i=p.gen.i + 1}};

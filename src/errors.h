@@ -40,9 +40,9 @@
 #define _SECOND(a, b, ...) b
 #define _THIRD(a, b, c) c
 
-#define DBG_LVL 1
-#define ERR_BREAK_LVL 4
-#define ERR_PRINT_LVL 3
+#define DBG_LVL DBG
+#define ERR_BREAK_LVL BRK
+#define ERR_PRINT_LVL PRNT
 
 /* #define DBG_LVL FIRST(LOOKUP) */
 /* #define ERR_BREAK_LVL SECOND(LOOKUP) */
