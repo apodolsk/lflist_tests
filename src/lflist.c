@@ -102,11 +102,7 @@ err (lflist_remove)(flx a, type *t){
         }
         if(casx_ok((flx){p.mp, (flgen){p.gen.i, .locked = 1}}, &pt(a)->p, p)
            && casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen}))
-        {
-            if(!casx_ok(n, &pt(p)->n, a))
-                RARITY("p must have updated itself in help_next");
             break;
-        }
     }
 
     if(pt(n))
@@ -119,8 +115,10 @@ err (lflist_remove)(flx a, type *t){
         if(p.gen.i != a.gen.i || !pt(p))
             break;
         flx p0 = casx((flx){.gen.i = a.gen.i}, &pt(a)->p, p);
-        if(eq2(p, p0))
+        if(eq2(p, p0)){
+            casx(pt(a)->n, &pt(p)->n, a);
             return 0;
+        }
         if(!p0.gen.unlocking)
             return -1;
         p = p0;
