@@ -89,43 +89,36 @@ void flinref_down(flx a, type *t){
 err (lflist_remove)(flx a, type *t){
     assert(!a.mp.is_nil);
 
-    bool won = false;
-    flx n = {}, p = {}, plocked;    
+    flx n = {}, p = {};
     while(1){
         log(*pt(a));
-        p = help_prev(a, p, t);
-        if(!pt(p) || p.gen.i != a.gen.i){
+        if(!pt(p = help_prev(a, p, t)) || p.gen.i != a.gen.i){
             RARITY("P abort");
             break;
         }
-        flx oldn;
-        do{
-            oldn = atomic_readflx(&pt(a)->n);
-            if(!pt(oldn) || !pt(n = help_next(a, n, t))){
-                RARITY("n abort");
-                goto super_break;
-            }
-        }while(!casx_ok(n, &pt(a)->n, oldn));
-        
-        plocked = (flx){p.mp, (flgen) {p.gen.i, .locked = 1 }};
-        if(casx_ok(plocked, &pt(a)->p, p) &&
-           casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen}))
+        if(!pt(n = help_next(a, n, t))){
+            RARITY("N abort");
+            break;
+        }
+        if(casx_ok((flx){p.mp, (flgen){p.gen.i, .locked = 1}}, &pt(a)->p, p)
+           && casx_ok((flx){p.mp, n.gen}, &pt(n)->p, (flx){a.mp, n.gen}))
         {
-            pt(a)->p = (flx){.gen = a.gen};
             if(!casx_ok(n, &pt(p)->n, a))
-                RARITY("Failed to swing p->n");
-            pt(a)->n = (flx){};
-            won = true;
+                RARITY("p must have updated itself in help_next");
             break;
         }
     }
-super_break:    
 
     if(pt(n))
         flinref_down(n, t);
     if(pt(p))
         flinref_down(p, t);
-    return won ? 0 : -1;
+    
+    if(!pt(p))
+        p = pt(a)->p;
+    if(p.gen.i != a.gen.i)
+        return -1;
+    return casx_ok((flx){.gen.i = a.gen.i}, &pt(a)->p, p) ? 0 : -1;
 }
 
 static
@@ -168,14 +161,16 @@ flx (help_next)(flx a, flx n, type *t)
         if(pt(n) && eq2(atomic_readflx(&pt(a)->n), pat)){
             flx e = (flx){pat.mp, n.gen};
             flx np = casx((flx){a.mp, n.gen}, &pt(n)->p, e);
-            if(eq2(np, e) || pt(np) == pt(a))
+            if(eq2(np, e) || pt(np) == pt(a)){
+                if(!casx_ok(n, &pt(a)->n, pat))
+                    RARITY("Helped pat by swinging n, but then n died.");
                 return flinref_down(pat, t), n;
+            }
         }
         else
             continue;
 
         RARITY("Unlocking pat if it hasn't begun a new transaction.");
-        /* unlock pat if it hasn't begun a new transaction */
         flx new = {a.mp, (flgen){patp.gen.i, .locked=1, .unlocking=1}};
         if(casx_ok(new, &pt(pat)->p, patp) &&
            atomic_flxeq(&pt(pat)->n, n) &&
@@ -197,7 +192,7 @@ flx (help_prev)(flx a, flx p, type *t){
         pn = atomic_readflx(&pt(p)->n);
         if(pt(pn) == pt(a))
             return p;
-        RARITY("pn doesn't point to a");
+        RARITY("pn doesn't point to a. Either a died or p was dying.");
         if(flinref_up(pn, t)){
             pn = (flx){.gen = p.gen};
             continue;
