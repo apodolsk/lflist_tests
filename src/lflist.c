@@ -136,6 +136,7 @@ flx (help_next)(flx a, flx n, type *t){
         pat = flinref_read(&pt(a)->n, (flx*[]){&n, &pat, &patp, NULL}, t);
         if(!pt(pat))
             return (flx){};
+        assert(!pat.gen.locked && !pat.gen.unlocking);
 
         patp = atomic_readflx(&pt(pat)->p);
         if(pt(patp) != pt(a)){
@@ -242,7 +243,8 @@ err (lflist_add_before)(flx a, flx n, type *t){
         pp = flinref_read(&pt(p)->p, (flx*[]){&pp, NULL}, t);
         if(!pt(pp))
             continue;
-        casx((flx){p.mp, pp.gen}, &pt(pp)->n, (flx){n.mp, p.gen});
+        casx((flx){p.mp, (flgen){.i=pp.gen.i}}, &pt(pp)->n,
+             (flx){n.mp, p.gen});
 
         pt(a)->p.mp = p.mp;
         pt(a)->n = (flx){n.mp, (flgen){.i=p.gen.i + 1}};
