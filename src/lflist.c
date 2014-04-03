@@ -240,8 +240,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
         pp = flinref_read(&pt(p)->p, (flx*[]){&pp, NULL}, t);
         if(!pt(pp))
             continue;
-        if(pt(pp) != pt(n))
-            casx((flx){p.mp, pp.gen}, &pt(pp)->n, (flx){n.mp, p.gen});
+        casx((flx){p.mp, pp.gen}, &pt(pp)->n, (flx){n.mp, p.gen});
 
         pt(a)->p.mp = p.mp;
         pt(a)->n = (flx){n.mp, (flgen){.i=p.gen.i + 1}};
@@ -252,7 +251,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
     if(!casx_ok(a, &pt(p)->n, (flx){n.mp, p.gen}))
         RARITY("p helped a add itself");
 
-    flinref_down(pp, t);
+    /* flinref_down(pp, t); */
     flinref_down(p, t);
     return 0;
 }
