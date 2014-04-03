@@ -38,7 +38,7 @@ static inline flx casx(const char *f,
     llprintf1("CAS! %s:%d - %s if %s, addr:%s", f, l,
               pustr(n, flx), pustr(e, flx), pustr((void *) a)); 
     flx r = cas2(n, a, e);
-    llprintf1("%s - %s", eq(r,e)? "WON" : "LOST", pustr(e, flx));
+    llprintf1("%s - %s", eq2(r,e)? "WON" : "LOST", pustr(r, flx));
     return r;
 }
 static inline int casx_ok(const char *f, int l,
