@@ -10,7 +10,11 @@ typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
 typedef union mptr mptr;
 
-typedef struct { uptr i:62; uint locked:1; uint unlocking:1; } flgen;
+typedef struct {
+    uptr i:62;
+    uint locked:1;
+    uint unlocking:1;
+} flgen;
 
 struct flx{
     union mptr {
@@ -28,6 +32,8 @@ struct flx{
 struct flanchor{
     volatile flx n;
     volatile flx p;
+    /* TODO:Could pack this in somewhere. n.gen may be a good place. */
+    bool adding;
 };
 #define FLANCHOR {}
 

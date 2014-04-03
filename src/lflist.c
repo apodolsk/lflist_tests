@@ -110,6 +110,8 @@ err (lflist_remove)(flx a, type *t){
         flinref_down(n, t);
     if(pt(p))
         flinref_down(p, t);
+    if((!pt(p) || !pt(n)) && pt(a)->n.gen.locked)
+        return -1;
     
     p = pt(a)->p;
     for(uint i = 0; i < 2; i++){
@@ -136,7 +138,9 @@ flx (help_next)(flx a, flx n, type *t){
         pat = flinref_read(&pt(a)->n, (flx*[]){&n, &pat, &patp, NULL}, t);
         if(!pt(pat))
             return (flx){};
-        assert(!pat.gen.locked && !pat.gen.unlocking);
+        if(pat.gen.locked)
+            return flinref_down(pat, t), (flx){};
+        assert(!pat.gen.unlocking);
 
         patp = atomic_readflx(&pt(pat)->p);
         if(pt(patp) != pt(a)){
@@ -187,7 +191,7 @@ flx (help_next)(flx a, flx n, type *t){
         flx new = {a.mp, (flgen){patp.gen.i, .locked=1, .unlocking=1}};
         if(casx_ok(new, &pt(pat)->p, patp) &&
            atomic_flxeq(&pt(pat)->n, n) &&
-           casx_ok((flx){a.mp, (flgen){patp.gen.i}}, &pt(pat)->n, new))
+           casx_ok((flx){a.mp, (flgen){patp.gen.i}}, &pt(pat)->p, new))
             return flinref_down(n, t), pat;
         RARITY("Failed to unlock.");
     }
@@ -208,7 +212,7 @@ flx (help_prev)(flx a, flx p, type *t){
         RARITY("pn != a. (pn:%s) A died, p died, or something was added.",
                str(pn));
         if(flinref_up(pn, t)){
-            pn = (flx){.gen = p.gen};
+            pn = (flx){};
             continue;
         }
         flanchor *pnn = pt(pt(pn)->n);
@@ -231,7 +235,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
         return RARITY("Spurious add"), -1;
     a.gen.i++;
 
-    flx p = {}, pp = {};
+    flx p = {}, pp = {}, newn;
     while(1){
         p = help_prev(n, p, t);
         if(!pt(p)){
@@ -240,6 +244,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
             n.gen = p.gen;
             continue;
         }
+        n.gen = p.gen;
         assert(!p.gen.locked && !p.gen.unlocking);
 
         /* Finish up an interrupted add. */
@@ -247,14 +252,18 @@ err (lflist_add_before)(flx a, flx n, type *t){
         if(!pt(pp))
             continue;
         casx((flx){p.mp, (flgen){.i=pp.gen.i}}, &pt(pp)->n,
-             (flx){n.mp, (flgen){.i=p.gen.i - 1}});
+             (flx){n.mp, (flgen){.i=n.gen.i - 1}});
 
+        n.gen.i++;
         pt(a)->p.mp = p.mp;
-        pt(a)->n = (flx){n.mp, (flgen){.i=p.gen.i + 1}};
-        if(casx_ok((flx){a.mp, (flgen){.i=p.gen.i + 1}}, &pt(n)->p, p))
+        pt(a)->n = (flx){n.mp, (flgen){n.gen.i, .locked = 1}};
+        if(casx_ok((flx){a.mp, n.gen}, &pt(n)->p, p))
             break;
+        
     };
-    
+
+    if(!casx_ok(n, &pt(a)->n, (flx){n.mp, (flgen){.i=n.gen.i, .locked = 1}}))
+        RARITY("Some node was added to the right.");
     if(!casx_ok(a, &pt(p)->n, (flx){n.mp, p.gen}))
         RARITY("p helped a add itself");
 
