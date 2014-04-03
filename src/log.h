@@ -30,7 +30,7 @@
 
 #define LOG_KMALLOC 0
 #define LOG_POOLS 0
-#define LOG_UNITESTS 1
+#define LOG_UNITESTS 0
 #define LOG_LIST_TESTSM 0
 
 #define LOG_LVL CONCAT(LOG_, MODULE)
