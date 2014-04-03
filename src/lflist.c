@@ -148,6 +148,7 @@ flx (help_next)(flx a, flx n, type *t){
             /* patp has been added */
             if(pt(patpp) == pt(a)){
                 if(!patpp.gen.locked){
+                    casx((flx){patp.mp, patpp.gen}, &pt(a)->n, pat);
                     return flinref_down(pat, t), patp;
                 }
                 else
