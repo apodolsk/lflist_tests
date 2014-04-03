@@ -114,23 +114,29 @@ err (lflist_remove)(flx a, type *t){
     if(pt(p))
         flinref_down(p, t);
     
-    if(!pt(p))
-        p = pt(a)->p;
-    if(p.gen.i != a.gen.i)
-        return -1;
-    return casx_ok((flx){.gen.i = a.gen.i}, &pt(a)->p, p) ? 0 : -1;
+    p = pt(a)->p;
+    for(uint i = 0; i < 2; i++){
+        if(p.gen.i != a.gen.i || !pt(p))
+            break;
+        assert(p.gen.locked);
+        flx p0 = casx((flx){.gen.i = a.gen.i}, &pt(a)->p, p);
+        if(eq2(p, p0))
+            return 0;
+        p = p0;
+    }
+    
+    return -1;
 }
 
 static
+/* TODO: could have flx *n. */
 flx (help_next)(flx a, flx n, type *t)
 {
     flx pat = {}, patp = {};
     while(1){
         pat = flinref_read(&pt(a)->n, (flx*[]){&n, &pat, &patp, NULL}, t);
-        if(!pt(pat)){
-            assert(!a.mp.is_nil);
+        if(!pt(pat))
             return (flx){};
-        }
 
         patp = atomic_readflx(&pt(pat)->p);
         
@@ -149,7 +155,10 @@ flx (help_next)(flx a, flx n, type *t)
             RARITY("patpp != a");
             if(atomic_flxeq(&pt(a)->n, pat) ||
                (!a.mp.is_nil && pt(a)->p.gen.i != a.gen.i))
-                return RARITY("a has been removed or added to."), (flx){};
+            {
+                flinref_down(pat, t), flinref_down(patp, t);
+                return (flx){};
+            }
             else
                 continue;
         }
@@ -242,7 +251,7 @@ err (lflist_add_before)(flx a, flx n, type *t){
 
 err (lflist_add_rear)(flx a, type *t, lflist *l){
     assert(pt(a) != &l->nil);
-    return lflist_add_before(a, ((flx){mptr(&l->nil, 1)}), t);
+    return lflist_add_before(a, flx_of(&l->nil), t);
 }
 
 flx (lflist_pop_front)(type *t, lflist *l){
