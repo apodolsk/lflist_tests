@@ -34,8 +34,8 @@ typedef union{
     struct{
         flanchor flanc;
         pthread_t magics[MAXWRITE];
+        lanchor lanc;
     };
-    lanchor lanc;
 } node;
 
 int lwrite_magics(node *b){
@@ -64,6 +64,7 @@ dptr condxadd(volatile dptr *d, dptr max){
 
 void node_init(node *b){
     b->flanc = (flanchor) FLANCHOR;
+    b->lanc = (lanchor) LANCHOR;
     assert(lwrite_magics(b));
 }
 
