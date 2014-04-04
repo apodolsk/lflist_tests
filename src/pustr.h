@@ -83,7 +83,7 @@
 #define putracev(print, ts, fun, as...)                                 \
         ({                                                              \
             MAP_NOCOMMA(PU_STORE, _, as);                               \
-            print("%s(" STRLIT(MAP(PU_STRFMT, _, as)) ") in %s:%d",     \
+            print("Begin %s(" STRLIT(MAP(PU_STRFMT, _, as)) ") in %s:%d", \
                   #fun COMMAPFX_IF_NZ(MAP2(_call_pustr, ts, as)),       \
                   __func__, __LINE__);                                  \
             fun(MAP(PU_REF, _, as));                                    \
@@ -92,7 +92,7 @@
 #define putrace(print, ts, fun, as...)                              \
     ({                                                              \
         typeof(fun(as)) __pu_ret = putracev(print, ts, fun, as);    \
-        print("%s ret: %s", #fun, _call_pustr(__pu_ret, ts, _));  \
+        print("End %s ret: %s", #fun, _call_pustr(__pu_ret, ts, _));    \
         __pu_ret;                                                   \
     })
 
@@ -100,7 +100,7 @@
 #define putracevf(print, strof, fun, as...)                            \
     ({                                                                 \
         MAP_NOCOMMA(PU_STORE, _, as);                                  \
-        print("%s(" STRLIT(MAP(PU_STRFMT, _, as)) ") in %s:%d",        \
+        print("Begin %s(" STRLIT(MAP(PU_STRFMT, _, as)) ") in %s:%d",  \
               #fun, MAP_NOCOMMA(PU_REF_STRING, strof, as)              \
               __func__, __LINE__);                                     \
         fun(MAP(PU_REF, _, as));                                       \
@@ -109,7 +109,7 @@
 #define putracef(print, strof, fun, as...)                             \
     ({                                                                 \
         typeof(fun(as)) __pu_ret = putracevf(print, strof, fun, as);   \
-        print("%s ret: %s", #fun, strof(__pu_ret));                    \
+        print("End %s. ret: %s", #fun, strof(__pu_ret));               \
         __pu_ret;                                                      \
     })
 

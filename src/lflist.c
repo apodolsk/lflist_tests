@@ -113,14 +113,14 @@ err (lflist_remove)(flx a, type *t){
     p = pt(a)->p;
     for(uint i = 0; (assert(i < 2), 1) ; i++){
         if(!pt(p) || p.gen.i != a.gen.i || !p.gen.locked)
-            return -1;
+            return RARITY("%s", str(p)), -1;
         flx p0 = casx((flx){.gen.i = a.gen.i}, &pt(a)->p, p);
         if(eq2(p, p0)){
             casx(pt(a)->n, &pt(p)->n, a);
             return 0;
         }
         if(!p0.gen.unlocking)
-            return -1;
+            return RARITY("!unlocking"), -1;
         p = p0;
     }
 
@@ -164,17 +164,16 @@ flx (help_next)(flx a, flx n, type *t){
 
         RARITY("Trying to help pat finish its removal.");
         n = flinref_read(&pt(pat)->n, (flx*[]){NULL}, t);
-        if(pt(n) && eq2(atomic_readflx(&pt(a)->n), pat)){
-            flx e = (flx){pat.mp, n.gen};
-            flx np = casx((flx){a.mp, n.gen}, &pt(n)->p, e);
-            if(eq2(np, e) || pt(np) == pt(a)){
-                if(!casx_ok(n, &pt(a)->n, pat))
-                    RARITY("Helped pat by swinging n, but then n died.");
-                return flinref_down(pat, t), n;
-            }
-        }
-        else
+        if(!pt(n) || !eq2(atomic_readflx(&pt(a)->n), pat))
             continue;
+        
+        flx e = (flx){pat.mp, n.gen};
+        flx np = casx((flx){a.mp, n.gen}, &pt(n)->p, e);
+        if(eq2(np, e) || pt(np) == pt(a)){
+            if(!casx_ok(n, &pt(a)->n, pat))
+                RARITY("Helped pat by swinging n, but then n died.");
+            return flinref_down(pat, t), n;
+        }
 
         RARITY("Unlocking pat if it hasn't begun a new transaction.");
         flx new = {a.mp, (flgen){patp.gen.i, .locked=1, .unlocking=1}};
