@@ -17,7 +17,7 @@
 uint nlists = 1;
 uint nthreads = 2;
 uint niter = 1000;
-uint nalloc = 1000;
+uint nalloc = 100;
 uint nwrites = 0;
 
 /* GDB starts counting child threads at 2. Urgh. */
@@ -83,6 +83,7 @@ void *reinsert_kid(uint t){
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             assert(lmagics_valid(b));
+            log((void *) b, nb, nalloc);
             lflist_add_rear(flx_of(&b->flanc), &node_t, &priv);
         }
 
@@ -113,7 +114,7 @@ void test_reinsert(){
     sem_t parent_dead;
     if(sem_init(&parent_dead, 0, 0))
         EWTF();
-    
+
     pthread_t tids[nthreads];
     for(uint i = 0; i < nthreads; i++)
         if(pthread_create(&tids[i], NULL,
@@ -153,11 +154,11 @@ int main(int argc, char **argv){
         case 'i':
             niter = atoi(optarg);
             break;
-        case 'w':
-            nwrites = atoi(optarg);
-            break;
         case 'p':
             program = atoi(optarg);
+            break;
+        case 'w':
+            nwrites = atoi(optarg);
             break;
         case 'm':
             do_malloc = 1;
@@ -168,7 +169,7 @@ int main(int argc, char **argv){
     assert(mmap(NULL, SLAB_SIZE * 8, PROT_WRITE | PROT_WRITE,
                 MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0)
            != MAP_FAILED);
-        
+
     uptr a = 1;
     assert(cas_ok((uptr) 2, &a, (uptr) 1));
     assert(a == 2);

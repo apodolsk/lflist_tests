@@ -5,7 +5,7 @@ __thread int mute_flag;
 __thread uint tid_;
 
 const char *vip_list[] = {
-    
+    "casx", "casx_ok"
 };
 
 bool fun_is_vip(const char *fun_name){

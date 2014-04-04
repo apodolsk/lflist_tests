@@ -12,8 +12,8 @@
 #define DYNAMIC_GLOBAL_MUTE 0
 
 /* 1 supersedes all other log settings inside functions on vip_list. */
-#define VIP_MODE 1
-#define VIP_VERBOSITY 2
+#define VIP_MODE 0
+#define VIP_VERBOSITY 1
 
 /* Verbosities */
 
