@@ -32,8 +32,6 @@ struct flx{
 struct flanchor{
     volatile flx n;
     volatile flx p;
-    /* TODO:Could pack this in somewhere. n.gen may be a good place. */
-    bool adding;
 };
 #define FLANCHOR {}
 

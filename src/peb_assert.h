@@ -16,11 +16,10 @@
 
 #define assert(expr) _assert(1, expr)
 #define assert2(expr) _assert(2, expr)
-#define _assert(lvl, expr, ...)                                 \
-    do{                                                         \
-        if(DBG_LVL >= lvl && !(expr))                           \
-            EWTF("Failed assertion %s.", #expr);                \
-    }while(0)
+#define _assert(lvl, expr, ...)                                         \
+    ((void) ((DBG_LVL >= lvl && !(expr))                                \
+             ? EWTF("Failed assertion %s.", #expr)                      \
+             : 0))                                                      \
 
 #define rassert(expr1, expr2, relation) _rassert(1, expr1, expr2, relation)
 #define _rassert(_lvl, expr1, rel, expr2, ...)                \

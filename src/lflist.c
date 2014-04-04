@@ -137,9 +137,9 @@ flx (help_next)(flx a, flx n, type *t){
     while(1){
         pat = flinref_read(&pt(a)->n, (flx*[]){&n, &pat, &patp, NULL}, t);
         if(!pt(pat))
-            return (flx){};
+            return assert(!a.mp.is_nil), (flx){};
         if(pat.gen.locked)
-            return flinref_down(pat, t), (flx){};
+            return flinref_down(pat, t), assert(!a.mp.is_nil), (flx){};
         assert(!pat.gen.unlocking);
 
         patp = atomic_readflx(&pt(pat)->p);
@@ -165,7 +165,7 @@ flx (help_next)(flx a, flx n, type *t){
                (!a.mp.is_nil && pt(a)->p.gen.i != a.gen.i))
             {
                 flinref_down(pat, t), flinref_down(patp, t);
-                return (flx){};
+                return assert(!a.mp.is_nil), (flx){};
             }
             else
                 continue;
@@ -205,7 +205,9 @@ flx (help_prev)(flx a, flx p, type *t){
         if(p.gen.locked || !pt(p))
             return p;
         if(p.gen.i != a.gen.i)
-            return flinref_down(p, t), (flx){.gen = p.gen};
+            return flinref_down(p, t),
+                assert(!a.mp.is_nil || p.gen.i != a.gen.i),
+                (flx){.gen = p.gen};
         pn = atomic_readflx(&pt(p)->n);
         if(pt(pn) == pt(a))
             return p;
@@ -221,7 +223,8 @@ flx (help_prev)(flx a, flx p, type *t){
         if(pnn != pt(a)){
             flinref_down(p, t);
             flinref_down(pn, t);
-            return (flx){.gen = p.gen};
+            return assert(!a.mp.is_nil || p.gen.i != a.gen.i),
+                (flx){.gen = p.gen};
         }
         if(casx_ok(a, &pt(p)->n, pn))
             break;
