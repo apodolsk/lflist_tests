@@ -6,6 +6,7 @@
 #include <semaphore.h>
 #include <nalloc.h>
 #include <lflist.h>
+#include <list.h>
 #include <getopt.h>
 #include <prand.h>
 #include <atomics.h>
@@ -34,6 +35,7 @@ typedef union{
         flanchor flanc;
         pthread_t magics[MAXWRITE];
     };
+    lanchor lanc;
 } node;
 
 int lwrite_magics(node *b){
@@ -71,9 +73,12 @@ heritage *node_hs;
 
 volatile dptr nb;
 static lflist *shared;
+static list all = LIST(&all);
+static pthread_mutex_t all_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void *reinsert_kid(uint t){
     lflist priv = LFLIST(&priv);
+    list perm = LIST(&perm);
     tid_ = t + firstborn;
     heritage *node_h = &node_hs[t];
 
@@ -81,14 +86,14 @@ void *reinsert_kid(uint t){
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
+        lprintf("%d", i);
         if(randpcnt(10)){
             uptr r = condxadd(&nb, nalloc);
             if(r < nalloc){
                 node *b = (node *) linalloc(node_h);
-                assert(nb <= nalloc);
-                assert(lmagics_valid(b));
                 log((void *) b, r, nb, nalloc);
                 lflist_add_rear(flx_of(&b->flanc), &node_t, &priv);
+                list_add_rear(&b->lanc, &perm);
             }
         }
 
@@ -112,6 +117,11 @@ void *reinsert_kid(uint t){
     for(flx bx; flptr(bx = lflist_pop_front(&node_t, &priv));)
         lflist_add_rear(bx, &node_t, &shared[0]);
 
+    pthread_mutex_lock(&all_lock);
+    for(node *b; (b = cof(list_pop(&perm), node, lanc));)
+        list_add_rear(&b->lanc, &all);
+    pthread_mutex_unlock(&all_lock);
+
     return NULL;
 }
 
@@ -130,13 +140,20 @@ void test_reinsert(){
         sem_post(&parent_done);
     for(uint i = 0; i < nthreads; i++)
         pthread_join(tids[i], NULL);
+    list done = LIST(&done);
     for(uint i = 0; i < nlists; i++)
-        for(flx b; flptr(b = lflist_pop_front(&node_t, &shared[i])); nb--){
-            assert(nb);
-            /* linfree(&cof(flptr(b), node, flanc)->lin); */
+        for(node *b; (b = cof(flptr(lflist_pop_front(&node_t, &shared[i])),
+                              node, flanc)); nb--)
+        {
+            list_remove(&b->lanc, &all);
+            list_add_rear(&b->lanc, &done);
         }
 
+    assert(!list_size(&all));
     assert(!nb);
+
+    for(node *b; (b = cof(list_pop(&done), node, lanc));)
+        linfree(&b->lin);
 }
 
 int malloc_test_main(int program);

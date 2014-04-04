@@ -92,6 +92,10 @@ int lanchor_valid(lanchor *a, list *l){
     return 1;
 }
 
+uptr list_size(list *l){
+    return l->size;
+}
+
 int list_valid(list *l){
     lanchor *c;
     LIST_FOR_EACH(c, l)

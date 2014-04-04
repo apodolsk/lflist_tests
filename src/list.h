@@ -8,7 +8,7 @@ typedef struct lanchor{
 
 typedef struct{
     lanchor nil;
-    unsigned int size;
+    uptr size;
 } list;
 #define LIST(l) { .nil = {&(l)->nil, &(l)->nil} }
 
@@ -31,6 +31,8 @@ lanchor *list_nth(unsigned int n, list *list);
 
 lanchor *list_pop(list *l);
 lanchor *list_peek(list *l);
+
+uptr list_size(list *list);
 
 lanchor *circlist_next(lanchor *a, list *l);
 lanchor *circlist_prev(lanchor *a, list *l);
