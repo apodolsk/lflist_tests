@@ -49,13 +49,14 @@ int lmagics_valid(node *b){
     return 1;
 }
 
-uptr condxadd(volatile uptr *d, uptr max){
-    uptr r;
+dptr condxadd(volatile dptr *d, dptr max){
+    dptr r, f = *d;
     do{
-        r = *d;
+        r = f;
         if(r >= max)
             return r;
-    }while(!cas_ok(r + 1, d, r));
+        f = cas2(r + 1, d, r);
+    }while(f != r);
     return r;
 }
 
@@ -67,9 +68,8 @@ void node_init(node *b){
 lfstack hot_slabs = LFSTACK;
 type node_t = {sizeof(node), linref_up, linref_down};
 heritage *node_hs;
-    
 
-static volatile uptr nb;
+volatile dptr nb;
 static lflist *shared;
 
 void *reinsert_kid(uint t){
@@ -81,12 +81,15 @@ void *reinsert_kid(uint t){
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
-            node *b = (node *) linalloc(node_h);
-            assert(nb <= nalloc);
-            assert(lmagics_valid(b));
-            log((void *) b, nb, nalloc);
-            lflist_add_rear(flx_of(&b->flanc), &node_t, &priv);
+        if(randpcnt(10)){
+            uptr r = condxadd(&nb, nalloc);
+            if(r < nalloc){
+                node *b = (node *) linalloc(node_h);
+                assert(nb <= nalloc);
+                assert(lmagics_valid(b));
+                log((void *) b, r, nb, nalloc);
+                lflist_add_rear(flx_of(&b->flanc), &node_t, &priv);
+            }
         }
 
         lflist *l = &shared[rand() % nlists];
@@ -129,10 +132,11 @@ void test_reinsert(){
         pthread_join(tids[i], NULL);
     for(uint i = 0; i < nlists; i++)
         for(flx b; flptr(b = lflist_pop_front(&node_t, &shared[i])); nb--){
-            log(nb, b);
             assert(nb);
-            linfree(&cof(flptr(b), node, flanc)->lin);
+            /* linfree(&cof(flptr(b), node, flanc)->lin); */
         }
+
+    assert(!nb);
 }
 
 int malloc_test_main(int program);
@@ -169,11 +173,6 @@ int main(int argc, char **argv){
                 MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0)
            != MAP_FAILED);
 
-    uptr a = 1;
-    assert(cas_ok((uptr) 2, &a, (uptr) 1));
-    assert(a == 2);
-    assert(condxadd(&a, 3) == 2);
-    assert(a == 3);
 
     heritage hs[nthreads];
     for(uint i = 0; i < nthreads; i++)

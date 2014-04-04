@@ -2,9 +2,9 @@
 
 #include <peb_util.h>
 
-uptr _xadd(uptr s, uptr *p);
-uptr _xchg(uptr s, uptr *p);
-uptr _xchg2(dptr s, dptr *p);
+uptr _xadd(uptr s, volatile uptr *p);
+uptr _xchg(uptr s, volatile uptr *p);
+uptr _xchg2(dptr s, volatile dptr *p);
 
 uptr _cmpxchg(uptr n, volatile uptr *p, uptr old);
 dptr _cmpxchg2(dptr n, volatile dptr *p, dptr old);
