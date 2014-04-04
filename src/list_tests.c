@@ -11,8 +11,9 @@
 #include <atomics.h>
 #include <global.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
-#define TS
+#define TS LFLIST_TS
 
 uint nlists = 1;
 uint nthreads = 2;
@@ -48,7 +49,7 @@ int lmagics_valid(node *b){
     return 1;
 }
 
-uptr condxadd(uptr *d, uptr max){
+uptr condxadd(volatile uptr *d, uptr max){
     uptr r;
     do{
         r = *d;
@@ -68,7 +69,7 @@ type node_t = {sizeof(node), linref_up, linref_down};
 heritage *node_hs;
     
 
-static uptr nb;
+static volatile uptr nb;
 static lflist *shared;
 
 void *reinsert_kid(uint t){
@@ -82,6 +83,7 @@ void *reinsert_kid(uint t){
     for(uint i = 0; i < niter; i++){
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
+            assert(nb <= nalloc);
             assert(lmagics_valid(b));
             log((void *) b, nb, nalloc);
             lflist_add_rear(flx_of(&b->flanc), &node_t, &priv);
@@ -107,7 +109,7 @@ void *reinsert_kid(uint t){
     for(flx bx; flptr(bx = lflist_pop_front(&node_t, &priv));)
         lflist_add_rear(bx, &node_t, &shared[0]);
 
-    return (void *) nb;
+    return NULL;
 }
 
 void test_reinsert(){
@@ -126,14 +128,11 @@ void test_reinsert(){
     for(uint i = 0; i < nthreads; i++)
         pthread_join(tids[i], NULL);
     for(uint i = 0; i < nlists; i++)
-        for(flx b; flptr(b = lflist_pop_front(&node_t, &shared[i])); nb--)
+        for(flx b; flptr(b = lflist_pop_front(&node_t, &shared[i])); nb--){
+            log(nb, b);
+            assert(nb);
             linfree(&cof(flptr(b), node, flanc)->lin);
-
-    assert(!nb);
-}
-
-void test_basic(){
-
+        }
 }
 
 int malloc_test_main(int program);
@@ -188,12 +187,13 @@ int main(int argc, char **argv){
     shared = lists;
     log(shared);
 
-    if(do_malloc){
-        malloc_test_main(program);
-        return 0;
-    }
+
+    if(do_malloc)
+        return malloc_test_main(program);
     
     test_reinsert();
+
+    assert(!nb);
     return 0;
 }
 

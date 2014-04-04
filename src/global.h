@@ -1,7 +1,7 @@
 #pragma once
 
 /* Used by assertions and errors instead of panic(). */
-#define BREAK asm("int3")
+#define BREAK asm volatile ("int3")
 #define lprintf(s, ...) printf("T:%d " s "\n", _gettid(), ##__VA_ARGS__)
 
 
