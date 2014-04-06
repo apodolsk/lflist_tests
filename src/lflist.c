@@ -141,12 +141,15 @@ err (help_next)(flx a, flx *n, type *t){
         if(pt(np) != pt(a)){
             if(flinref_up(np, t))
                 continue;
-            flx npp = n.nil ? atomic_readx(&pt(np)->p) : flx(){};
+            flx npp = n->nil ? atomic_readx(&pt(np)->p) : flx(){};
             if(!atomic_eqx(&pt(a)->n, n))
                 goto skip_read;
-            if(pt(npp) == pt(a)){
+            if(n.nil && pt(npp) == pt(a)){
+                casx_ok(np, &pt(a)->n, n)
                 
             }
+            if(eq2(np, atomic_readx(&pt(*n)->p)))
+                return -1;
         }
         if(!np.locked)
             return 0;
