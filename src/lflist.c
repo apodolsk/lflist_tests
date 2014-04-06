@@ -132,7 +132,7 @@ static
 err (help_next)(flx a, flx *n, type *t){
     flx nn = {}, np = {};
     while(1){
-        *n = flinref_read(&pt(a)->n, (flx*[]){&n, &nn, &np, NULL}, t);
+        *n = flinref_read(&pt(a)->n, (flx*[]){n, &nn, &np, NULL}, t);
     skip_read:
         if(!pt(*n))
             return assert(!a.mp.is_nil), -1;
@@ -140,12 +140,13 @@ err (help_next)(flx a, flx *n, type *t){
         np = atomic_readx(&pt(*n)->p);
         if(pt(np) != pt(a)){
             if(flinref_up(np, t))
-                /* TODO: should this return -1? */
                 continue;
-            flx npp = atomic_readx(&pt(np)->p);
+            flx npp = n.nil ? atomic_readx(&pt(np)->p) : flx(){};
             if(!atomic_eqx(&pt(a)->n, n))
                 goto skip_read;
-            
+            if(pt(npp) == pt(a)){
+                
+            }
         }
         if(!np.locked)
             return 0;
