@@ -27,12 +27,17 @@ static flx help_prev(flx a, flx p, type *t);
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.mp.ptr << 1);
 }
-static inline flx atomic_readflx(volatile flx *x){
+static inline flx atomic_readx(volatile flx *x){
     return cas2((flx){}, x, (flx){});
 }
-static inline int atomic_flxeq(volatile flx *aptr, flx b){
-    flx a = atomic_readflx(aptr);
-    return PUN(dptr, a) == PUN(dptr, b);
+static inline bool atomic_eqx(volatile flx *a, flx *b){
+    flx old = *b;
+    *b = atomic_readflx(a);
+    if(eq2(old, b))
+        return true;
+    if(flinref_up(*b, t))
+        *b = (flx){};
+    return false;
 }
 static inline flx casx(const char *f,
                        int l, flx n, volatile flx *a, flx e){
@@ -128,150 +133,22 @@ err (help_next)(flx a, flx *n, type *t){
     flx nn = {}, np = {};
     while(1){
         *n = flinref_read(&pt(a)->n, (flx*[]){&n, &nn, &np, NULL}, t);
+    skip_read:
         if(!pt(*n))
             return assert(!a.mp.is_nil), -1;
 
-        np = atomic_readflx(&pt(*n)->p);
-        assert(!np.locked);
+        np = atomic_readx(&pt(*n)->p);
         if(pt(np) != pt(a)){
-            RARITY("np != a (np:%s)", str(np));
             if(flinref_up(np, t))
-                return -1;
-            flx npp = atomic_readflx(&pt(np)->p);
-            if(!atomic_flxeq(&pt(a)->n, *n))
+                /* TODO: should this return -1? */
                 continue;
-            if(pt(npp) == pt(a)){
-                RARITY("np has been added.");
-                flx added = (flx){np.mp, npp.gen};
-                casx(added, &pt(a)->n, n);
-                return flinref_down(n, t), added;
-            }
-            RARITY("DEAD! npp != a (npp:%s), a:%s", str(npp), str(a));
-            flinref_down(n, t), flinref_down(np, t);
-            return assert(!a.mp.is_nil), -1;
-        }
-
-            nn = flinref_read(&pt(n)->n, (flx*[]){n, NULL}, t);
-            if(!pt(nn) || !eq2(atomic_readflx(&pt(a)->n), n))
-                break;
-
-            for(int i = 0; i < 2; i++){
-                flx e = (flx){nn.mp, nn.gen};
-                e.locked = i;
-                flxn nnp = casx((flx){a.mp, e.gen}, &pt(nn)->p, e);
-                if(pt(nnp) == pt(a)){
-                    if(!casx_ok(n, &pt(a)->n, n))
-                        RARITY("Helped n by swinging n, but then n died.");
-                    n = nn;
-                    if(!nnp.locked)
-                        return n;
-                    continue;
-                }
-                if(pt(np) != pt(n))
-                    break;
-            }
-            
+            flx npp = atomic_readx(&pt(np)->p);
+            if(!atomic_eqx(&pt(a)->n, n))
+                goto skip_read;
             
         }
-        RARITY("Trying to help n finish its removal.");
-
-    }
-}
-
-static
-flx (help_prev)(flx a, flx p, type *t){
-    flx pn = {};
-    while(1){
-        p = flinref_read(&pt(a)->p, (flx*[]){&p, &pn, NULL}, t);
-        if(p.gen.locked || !pt(p))
-            return p;
-        if(p.gen.i != a.gen.i)
-            return flinref_down(p, t),
-                assert(!a.mp.is_nil || p.gen.i != a.gen.i),
-                (flx){.gen = p.gen};
-        pn = atomic_readflx(&pt(p)->n);
-        if(pt(pn) == pt(a))
-            return p;
-        
-        RARITY("pn != a. (pn:%s) ", str(pn));
-        if(flinref_up(pn, t)){
-            pn = (flx){};
-            continue;
-        }
-        flanchor *pnn = pt(pt(pn)->n);
-        if(!atomic_flxeq(&pt(a)->p, p) || !atomic_flxeq(&pt(p)->n, pn))
-            continue;
-        if(pnn != pt(a)){
-            flinref_down(p, t);
-            flinref_down(pn, t);
-            return assert(!a.mp.is_nil || p.gen.i != a.gen.i),
-                (flx){.gen = p.gen};
-        }
-        if(casx_ok(a, &pt(p)->n, pn))
-            break;
-    };
-    return p;
-}
-
-err (lflist_add_before)(flx a, flx n, type *t){
-    assert(n.mp.is_nil);
-    if(!casx_ok((flx){.gen.i=a.gen.i + 1}, &pt(a)->p, (flx){.gen=a.gen}))
-        return RARITY("Spurious add"), -1;
-    a.gen.i++;
-
-    flx p = {}, pp = {}, newn;
-    while(1){
-        p = help_prev(n, p, t);
-        if(!pt(p)){
-            assert(p.gen.i != n.gen.i);
-            RARITY("List was added to beneath us");
-            n.gen = p.gen;
-            continue;
-        }
-        n.gen = p.gen;
-        assert(!p.gen.locked && !p.gen.unlocking);
-
-        /* Finish up an interrupted add. */
-        pp = flinref_read(&pt(p)->p, (flx*[]){&pp, NULL}, t);
-        if(!pt(pp))
-            continue;
-        casx((flx){p.mp, (flgen){pp.gen.i}}, &pt(pp)->n,
-             (flx){n.mp, (flgen){n.gen.i - 1}});
-
-        pt(a)->p.mp = p.mp;
-        n.gen.i++;
-        pt(a)->n = n;
-        if(casx_ok((flx){a.mp, n.gen}, &pt(n)->p, p))
-            break;
-    };
-
-    if(!casx_ok(a, &pt(p)->n, (flx){n.mp, p.gen}))
-        RARITY("p helped a add itself");
-    
-    flinref_down(pp, t);
-    flinref_down(p, t);
-    return 0;
-}
-
-err (lflist_add_rear)(flx a, type *t, lflist *l){
-    assert(pt(a) != &l->nil);
-    return lflist_add_before(a, (flx){mptr(&l->nil, 1), l->nil.p.gen}, t);
-}
-
-flx (lflist_pop_front)(type *t, lflist *l){
-    for(flx n = {};;){
-        n = help_next((flx){mptr(&l->nil, 1)}, n, t);
-        assert(pt(n));
-        if(n.mp.is_nil){
-            assert(pt(n) == &l->nil);
-            return (flx){};
-        }
-        if(!lflist_remove(n, t)){
-            /* Note that no linref_down has been done. */
-            return n;
-        }
-    }
-}
+        if(!np.locked)
+            return 0;
 
 flanchor *flptr(flx a){
     assert(!a.mp.is_nil);
