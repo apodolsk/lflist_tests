@@ -10,22 +10,17 @@ typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
 typedef union mptr mptr;
 
-typedef struct {
-    uptr i:62;
-    uint locked:1;
-    uint unlocking:1;
-} flgen;
-
 struct flx{
     union mptr {
         struct{
-            uint is_nil:1;
-            uptr ptr:WORDBITS-1;
+            uptr nil:1;
+            uptr locked:1;
+            uptr pt:WORDBITS-2;
         };
         /* For debugging. */
-        flanchor *pt;
-    } mp;
-    flgen gen;
+        flanchor *mp;
+    };
+    uptr gen;
 } __attribute__((__aligned__(sizeof(dptr))));
 #define mptr(p, nil) ((mptr){.is_nil=nil, .ptr=(uptr)(p) >> 1})
 
