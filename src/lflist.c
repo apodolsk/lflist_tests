@@ -140,6 +140,8 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         if(!pt(*n))
             return -1;
         *np = atomic_readx(&pt(*n)->p);
+        if(!pt(*np))
+            return -1;
         if(pt(*np) == pt(a)){
             if(!atomic_eqx(&pt(a)->n, n, t))
                 goto newn;
@@ -168,7 +170,6 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         *pn = atomic_readx(&pt(*p)->n);
         if(!atomic_eqx(&pt(a)->p, p, t))
             goto newp;
-
         if(pt(*pn) != pt(a))
             return -1;
         if(!pn->locked)
