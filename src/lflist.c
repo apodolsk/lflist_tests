@@ -211,7 +211,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         }
         
         pt(a)->p.mp = p.mp;
-        if(casx_won((flx){.mp = a.mp, pn.gen}, &pt(p)->n, pn))
+        if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, pn))
             break;
     }
 
