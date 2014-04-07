@@ -168,14 +168,18 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         *pn = atomic_readx(&pt(*p)->n);
         if(!atomic_eqx(&pt(a)->p, p, t))
             goto newp;
+
         if(pt(*pn) != pt(a))
             return -1;
         if(!pn->locked)
             return 0;
 
-        flinref_read(&pt(*p)->p, (flx*[]){&pp, NULL}, t);
+        pp = atomic_readx(&pt(*p)->p, (flx*[]){&pp, NULL}, t);
         /* TODO: !pt(pp)? */
         flx ppn = atomic_readx(&pt(pp)->n);
+        if(!atomic_eqx(&pt(a)->p, p, t))
+            goto newp;
+
         if(pt(ppn) != pt(*p))
             continue;
         
