@@ -139,15 +139,18 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
     newn:
         if(!pt(*n))
             return assert(!a.nil), -1;
-        if(!pt(*np = atomic_readx(&pt(*n)->p)) || pt(*np) == pt(a)){
+        *np = atomic_readx(&pt(*n)->p);
+    newnp:;
+        if(!pt(*np) || pt(*np) == pt(a)){
             if(!atomic_eqx(&pt(a)->n, n, t))
                 goto newn;
             else
                 return pt(*np) == pt(a) ? 0 : (assert(!a.nil), -1);
         }
-    newnp:;
         flx npp = atomic_readx(&pt(*np)->p);
         if(pt(npp) != pt(a)){
+            if(!atomic_eqx(&pt(a)->n, n, t))
+                goto newn;
             if(!eq2(*np, *np = atomic_readx(&pt(*n)->p)))
                 goto newnp;
             if(!atomic_eqx(&pt(a)->n, n, t))
