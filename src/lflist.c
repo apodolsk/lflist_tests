@@ -46,6 +46,12 @@ static inline flx casx(const char *f,
 }
 static inline int casx_ok(const char *f, int l,
                           flx n, volatile flx *a, flx e){
+    flx r = casx(f, l, n, a, e);
+    return eq2(r, e) || eq2(r, n);
+}
+
+static inline int casx_won(const char *f, int l,
+                           flx n, volatile flx *a, flx e){
     return eq2(casx(f, l, n, a, e), e);
 }
 
@@ -103,17 +109,15 @@ err (lflist_remove)(flx a, type *t){
             RARITY("P abort");
             break;
         }
-
-        flx newn = (flx){n.nil, 1, n.pt, n.gen + 1};
-        flx f = cas(newn, &pt(a)->n, n);
-        if((eq2(f, n) || eq2(f, newn)) && casx_ok(n, &pt(p)->n, a))
+        
+        if(casx_ok(newn, &pt(a)->n, n) && casx_ok(n, &pt(p)->n, a))
             break;
     }
 
     int ret = -1;
     if(!pt(n) || p.gen != a.gen || !n.locked)
         RARITY("%s", str(p));
-    else if(casx_ok((flx){.gen = a.gen}, &pt(a)->p, p)){
+    else if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p)){
         casx((flx){.mp=p.mp, n.gen}, &pt(n)->p, a);
         ret = 0;
     }
@@ -135,16 +139,10 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             return -1;
         *np = atomic_readx(&pt(n)->p);
         if(!atomic_eq(&pt(a)->n, n))
-            continue;
+            goto newn;
         if(n->nil && pt(*np)){
             
         }
-        return -1;
-
-
-        }
-        
-            
         
         if(n->nil){
             if(
@@ -173,25 +171,30 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 goto newp;
             return -1;
         }
-    newgoodpn:
+    newpn:
         if(!pn->locked)
             return 0;
 
-        
         pp = flinref_read(&pt(p)->p, (flx*[]){pp, NULL}, t);
         flx ppn = atomic_readflx(&pt(pp)->n);
-        if(pt(ppn) == pt(a) || (pt(ppn) == pt(p) && !ppn.locked)){
+        if(pt(ppn) != pt(p))
+            continue;
+        
+        flx new = (flx){a.mp, ppn.gen};
+        if(!ppn.locked && casx_ok(new, &pt(pp)->n, ppn) || pt(ppn) == pt(a)){
+            if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
+                continue;
             flinref_down(*p);
             *p = pp;
+            if(ppn != pt(a))
+                return *pn = new, 0;
             *pn = ppn;
-            goto newgoodpn;
+            goto newp;
         }
         
         flx newpn = (flx){a.nil, a.pt, pn->gen + 1};
-        if(casx_ok(newpn, &pt(*p)->n, *pn)){
-            *pn = newpn;
-            return 0;
-        }
+        if(casx_ok(newpn, &pt(*p)->n, *pn))
+            return *pn = newpn, 0;
     }
 }
 
