@@ -21,9 +21,6 @@ static void flinref_down(flx a, type *t);
 static flx help_next(flx a, flx n, type *t);
 static flx help_prev(flx a, flx p, type *t);
 
-/* #define help_next(a...) lflist_trace(help_next, a) */
-/* #define help_prev(a...) lflist_trace(help_prev, a) */
-
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.mp.ptr << 1);
 }
@@ -93,15 +90,15 @@ void flinref_down(flx a, type *t){
 
 
 err (lflist_remove)(flx a, type *t){
-    assert(!a.mp.is_nil);
+    assert(!a.nil);
 
-    flx n = {}, p = {};
+    flx n = {}, p = {}, pn, np;
     while(1){
-        if(help_next(a, &n, t)){
+        if(help_next(a, &n, &np, t)){
             RARITY("N abort");
             break;
         }
-        if(help_prev(a, &p, t)){
+        if(help_prev(a, &p, &pn, t)){
             RARITY("P abort");
             break;
         }
@@ -129,30 +126,78 @@ err (lflist_remove)(flx a, type *t){
 }
 
 static
-err (help_next)(flx a, flx *n, type *t){
-    flx nn = {}, np = {};
+err (help_next)(flx a, flx *n, flx *np, type *t){
     while(1){
-        *n = flinref_read(&pt(a)->n, (flx*[]){n, &nn, &np, NULL}, t);
-    skip_read:
-        if(!pt(*n))
-            return assert(!a.mp.is_nil), -1;
+        *n = flinref_read(&pt(a)->n, (flx*[]), t);
+        assert(pt(n));
 
-        np = atomic_readx(&pt(*n)->p);
-        if(pt(np) != pt(a)){
-            if(flinref_up(np, t))
-                continue;
-            flx npp = n->nil ? atomic_readx(&pt(np)->p) : flx(){};
-            if(!atomic_eqx(&pt(a)->n, n))
-                goto skip_read;
-            if(n.nil && pt(npp) == pt(a)){
-                casx_ok(np, &pt(a)->n, n)
-                
-            }
-            if(eq2(np, atomic_readx(&pt(*n)->p)))
-                return -1;
+    }
+}
+
+static
+err (help_prev)(flx a, flx *p, flx *pn, type *t){
+    flx pp = {};
+    while(1){
+        *p = flinref_read(&pt(a)->p, (flx*[]){p, &pp, NULL}, t);
+    newp:
+        if(!pt(*p) || (!a.nil && p.gen != a.gen))
+            return -1;
+
+        *pn = atomic_readflx(&pt(p)->n);
+        if(pt(*pn) != pt(a)){
+            if(!atomic_eqx(&pt(a)->p, p))
+                goto newp;
+            return -1;
         }
-        if(!np.locked)
+        if(!pn->locked)
             return 0;
+
+        pp = flinref_read(&pt(p)->p, (flx*[]){pp, NULL}, t);
+        flx ppn = atomic_readflx(&pt(pp)->n);
+        if(!ppn.locked && (pt(ppn) == pt(a) || pt(ppn) == pt(p))){
+            *p = pp;
+            *pn = ppn;
+            return 0;
+        }
+
+        flx newpn = (flx){a.nil, a.pt, pn->gen + 1};
+        if(casx_ok(newpn, &pt(p)->n, *pn)){
+            *pn = newpn;
+            return 0;
+        }
+    }
+}
+
+static
+err lflist_enq(flx a, lflist *l, type *t){
+    if(!casx_ok((flx){.gen = a.gen + 1}, &pt(a)->p, (flx){.gen = a.gen}))
+        return -1;
+    pt(a)->n.pt = mpt(&l->nil);
+    pt(a)->n.gen++;
+
+    flx p = {}, pn;
+    while(1){
+        if(help_prev((flx){.nil = 1, .pt = mpt(&l->nil)}, &p, &pn, t)){
+            if(!pt(pn))
+                casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, p);
+            continue;
+        }
+
+        pt(a)->p.mp = p.mp;
+        if(casx_ok((flx){.mp = a.mp, pn.gen, &pt(p)->n, pn}))
+            break;
+    }
+
+    casx((flx){.mp = p.mp, .gen = p.gen + 1}, &l->nil.p, p);
+}
+
+static
+err lflist_deq(lflist *l, type *t){
+    flx n = {}, np;
+    while(1){
+        help_next((flx){.nil = 1, .pt = mpt(&l->nil)}, &n, &np);
+    }
+}
 
 flanchor *flptr(flx a){
     assert(!a.mp.is_nil);
@@ -160,7 +205,7 @@ flanchor *flptr(flx a){
 }
 
 flx flx_of(flanchor *a){
-    return (flx){mptr(a, 0), a->p.gen};
+    return (flx){.pt = mpt(a), a->p.gen};
 }
 
 

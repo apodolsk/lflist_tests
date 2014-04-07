@@ -22,7 +22,6 @@ struct flx{
     };
     uptr gen;
 } __attribute__((__aligned__(sizeof(dptr))));
-#define mptr(p, nil) ((mptr){.is_nil=nil, .ptr=(uptr)(p) >> 1})
 
 struct flanchor{
     volatile flx n;
