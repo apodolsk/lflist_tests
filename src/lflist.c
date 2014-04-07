@@ -175,7 +175,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             return 0;
 
         pp = atomic_readx(&pt(*p)->p, (flx*[]){&pp, NULL}, t);
-        /* TODO: !pt(pp)? */
+        if(!pt(pp))
+            continue;
         flx ppn = atomic_readx(&pt(pp)->n);
         if(!atomic_eqx(&pt(a)->p, p, t))
             goto newp;
@@ -187,6 +188,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if((!ppn.locked && casx_ok(new, &pt(pp)->n, ppn)) || pt(ppn) == pt(a)){
             if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
                 continue;
+            cas(n, &a->p, )
             flinref_down(*p, t);
             *p = pp;
             if(pt(ppn) != pt(a))
