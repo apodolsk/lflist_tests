@@ -24,23 +24,6 @@ static err help_prev(flx a, flx *p, flx *pn, type *t);
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.pt << 2);
 }
-static inline flx atomic_readx(volatile flx *x){
-    return cas2((flx){}, x, (flx){});
-}
-static inline bool atomic_eqx(volatile flx *a, flx *b, type *t){
-    while(1){
-        flx old = *b;
-        *b = atomic_readx(a);
-        if(eq2(old, *b))
-            return true;
-        if(pt(old) == pt(*b))
-            return false;
-        if(!pt(*b) || !flinref_up(*b, t)){
-            flinref_down(old, t);
-            return false;
-        }
-    }
-}
 static inline flx casx(const char *f,
                        int l, flx n, volatile flx *a, flx e){
     llprintf1("CAS! %s:%d - %s if %s, addr:%p", f, l, str(n), str(e), a); 
@@ -62,7 +45,24 @@ static inline int casx_won(const char *f, int l,
 #define casx(as...) casx(__func__, __LINE__, as)
 #define casx_ok(as...) casx_ok(__func__, __LINE__, as)
 #define casx_won(as...) casx_won(__func__, __LINE__, as)
- 
+
+static inline flx atomic_readx(volatile flx *x){
+    return cas2((flx){}, x, (flx){});
+}
+static inline bool atomic_eqx(volatile flx *a, flx *b, type *t){
+    while(1){
+        flx old = *b;
+        *b = atomic_readx(a);
+        if(eq2(old, *b))
+            return true;
+        if(pt(old) == pt(*b))
+            return false;
+        if(!pt(*b) || !flinref_up(*b, t)){
+            flinref_down(old, t);
+            return false;
+        }
+    }
+}
 static
 flx (flinref_read)(volatile flx *from, flx **held, type *t){
     while(1){
@@ -139,14 +139,11 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
     newn:
         if(!pt(*n))
             return -1;
-        *np = atomic_readx(&pt(*n)->p);
-        if(!pt(*np))
-            return -1;
-        if(pt(*np) == pt(a)){
+        if(!pt(*np = atomic_readx(&pt(*n)->p)) || pt(*np) == pt(a)){
             if(!atomic_eqx(&pt(a)->n, n, t))
                 goto newn;
             else
-                return 0;
+                return pt(*np) == pt(a) ? 0 : -1;
         }
         flx npp = atomic_readx(&pt(*np)->p);
         if(!atomic_eqx(&pt(a)->n, n, t))
@@ -175,7 +172,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(!pn->locked)
             return 0;
 
-        pp = atomic_readx(&pt(*p)->p, (flx*[]){&pp, NULL}, t);
+        pp = flinref_read(&pt(*p)->p, (flx*[]){&pp, NULL}, t);
         if(!pt(pp))
             continue;
         flx ppn = atomic_readx(&pt(pp)->n);
@@ -190,8 +187,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
                 continue;
             flinref_down(*p, t);
-            *p = pp;
-            if(pt(ppn) != pt(a))
+            *p = (flx){pp.mp, p->gen};
+            if(pt(ppn) == pt(a))
                 return *pn = new, 0;
             *pn = ppn;
             goto newp;
