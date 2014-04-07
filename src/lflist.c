@@ -138,18 +138,18 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         *n = flinref_read(&pt(a)->n, (flx*[]){n, NULL}, t);
     newn:
         if(!pt(*n))
-            return -1;
+            return assert(!a.nil), -1;
         if(!pt(*np = atomic_readx(&pt(*n)->p)) || pt(*np) == pt(a)){
             if(!atomic_eqx(&pt(a)->n, n, t))
                 goto newn;
             else
-                return pt(*np) == pt(a) ? 0 : -1;
+                return pt(*np) == pt(a) ? 0 : (assert(!a.nil), -1);
         }
         flx npp = atomic_readx(&pt(*np)->p);
         if(!atomic_eqx(&pt(a)->n, n, t))
             goto newn;
         if(pt(npp) != pt(a))
-            return -1;
+            return assert(!a.nil), -1;
         if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, *np))
             return 0;
     }
@@ -202,7 +202,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
-    if(!casx_ok((flx){.gen = a.gen + 1}, &pt(a)->p, (flx){.gen = a.gen}))
+    if(!casx_won((flx){.gen = a.gen + 1}, &pt(a)->p, (flx){.gen = a.gen}))
         return -1;
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
@@ -226,7 +226,8 @@ err (lflist_enq)(flx a, type *t, lflist *l){
 flx (lflist_deq)(type *t, lflist *l){
     flx n = {}, np;
     while(1){
-        help_next((flx){.nil = 1, .pt = mpt(&l->nil)}, &n, &np, t);
+        if(help_next((flx){.nil = 1, .pt = mpt(&l->nil)}, &n, &np, t))
+            EWTF();
         assert(pt(n));
         if(n.nil)
             return assert(&l->nil == pt(n)), (flx){};
