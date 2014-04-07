@@ -36,9 +36,9 @@ static inline void *subtract_if_not_null(void *ptr, size s){
 
 #define PUN(t, s) (*(t*)(typeof(s)[]){s})
 
-#define eq(a, b) ({ typeof(a) __eq_chk = b; (PUN(uptr, a) == PUN(uptr, b)) })
+#define eq(a, b) ({ typeof(b) __eqa = a; (PUN(uptr, __eqa) == PUN(uptr, b)) })
 
-#define eq2(a, b) ({ typeof(a) __eq2_chk = b; (PUN(dptr, a) == PUN(dptr, b)); })
+#define eq2(a, b) ({ typeof(b) __eq2a = a; (PUN(dptr, __eq2a) == PUN(dptr, b)); })
 
 /* Aladdin system doesn't have librt installed. I'm sick of wrangling with the
    loader. */
