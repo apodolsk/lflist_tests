@@ -179,8 +179,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         flx ppn = atomic_readx(&pt(pp)->n);
         if(!atomic_eqx(&pt(a)->p, p, t))
             goto newp;
-
-        if(pt(ppn) != pt(*p))
+        if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
             continue;
         
         flx new = (flx){a.mp, ppn.gen + 1};
