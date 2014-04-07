@@ -150,10 +150,13 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         if(pt(npp) != pt(a)){
             if(!atomic_eqx(&pt(a)->n, n, t))
                 goto newn;
-            if(!eq2(npp, npp = atomic_readx(&pt(*n)->p)))
+            if(!eq2(*np, *np = atomic_readx(&pt(*n)->p)))
                 goto newnpp;
             return assert(!a.nil), -1;
         }
+        if(n->is_nil && !atomic_eqx(&pt(a)->n, n, t))
+            goto newn
+        
         if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, *np))
             return 0;
     }
