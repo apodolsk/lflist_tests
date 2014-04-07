@@ -188,7 +188,6 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if((!ppn.locked && casx_ok(new, &pt(pp)->n, ppn)) || pt(ppn) == pt(a)){
             if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
                 continue;
-            cas(n, &a->p, )
             flinref_down(*p, t);
             *p = pp;
             if(pt(ppn) != pt(a))
