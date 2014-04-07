@@ -141,7 +141,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         if(!atomic_eq(&pt(a)->n, n))
             goto newn;
         if(pt(np) != pt(a))
-        
+            
         if(n->nil){
             if(
                
@@ -178,7 +178,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(pt(ppn) != pt(p))
             continue;
         
-        flx new = (flx){a.mp, ppn.gen};
+        flx new = (flx){a.mp, ppn.gen + 1};
         if(!ppn.locked && casx_ok(new, &pt(pp)->n, ppn) || pt(ppn) == pt(a)){
             if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
                 continue;
