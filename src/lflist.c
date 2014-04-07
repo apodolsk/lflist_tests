@@ -169,6 +169,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             goto newp;
         if(pt(*pn) != pt(a))
             return -1;
+    newpn:
         if(!pn->locked)
             return 0;
 
@@ -183,15 +184,15 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             continue;
         
         flx new = (flx){a.mp, ppn.gen + 1};
-        if((!ppn.locked && casx_ok(new, &pt(pp)->n, ppn)) || pt(ppn) == pt(a)){
+        if(pt(ppn) == pt(a) || (!ppn.locked && casx_ok(new, &pt(pp)->n, ppn))){
             if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
                 continue;
             flinref_down(*p, t);
             *p = (flx){pp.mp, p->gen};
-            if(pt(ppn) == pt(a))
+            if(pt(ppn) != pt(a))
                 return *pn = new, 0;
             *pn = ppn;
-            goto newp;
+            goto newpn;
         }
         
         flx newpn = (flx){.nil=a.nil, a.pt, pn->gen + 1};
