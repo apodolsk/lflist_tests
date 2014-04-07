@@ -51,7 +51,6 @@ err lflist_enq(flx a, type *t, lflist *l);
 
 #define LFLIST_TS flx, flanchor, lflist
 #define lflist_trace(f, as...) putrace(llprintf1, (flx, flanchor, lflist), f, as)
-/* #define lflist_add_before(a...) lflist_trace(lflist_add_before, a) */
 #define lflist_del(a...) lflist_trace(lflist_del, a)
-/* #define lflist_deq(a...) lflist_trace(lflist_deq, a) */
+#define lflist_deq(a...) lflist_trace(lflist_deq, a)
 #define lflist_enq(a...) lflist_trace(lflist_enq, a)

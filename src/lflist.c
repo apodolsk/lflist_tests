@@ -28,14 +28,18 @@ static inline flx atomic_readx(volatile flx *x){
     return cas2((flx){}, x, (flx){});
 }
 static inline bool atomic_eqx(volatile flx *a, flx *b, type *t){
-    flx old = *b;
-    *b = atomic_readx(a);
-    if(eq2(old, b))
-        return true;
-    if(flinref_up(*b, t))
-        *b = (flx){};
-    flinref_down(*b, t);
-    return false;
+    while(1){
+        flx old = *b;
+        *b = atomic_readx(a);
+        if(eq2(old, *b))
+            return true;
+        if(pt(old) == pt(*b))
+            return false;
+        if(!pt(*b) || !flinref_up(*b, t)){
+            flinref_down(old, t);
+            return false;
+        }
+    }
 }
 static inline flx casx(const char *f,
                        int l, flx n, volatile flx *a, flx e){
@@ -71,7 +75,7 @@ flx (flinref_read)(volatile flx *from, flx **held, type *t){
                 flinref_down(**h, t);
             **h = (flx){};
         }
-        if(reused || !pt(a) || flinref_up(a, t))
+        if(reused || !pt(a) || !flinref_up(a, t))
             return a;
     }
 }
@@ -221,6 +225,8 @@ flx (lflist_deq)(type *t, lflist *l){
     while(1){
         help_next(a, &n, &np, t);
         assert(pt(n));
+        if(n.nil)
+            return assert(&l->nil == pt(n)), (flx){};
         if(!lflist_del(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};
     }
