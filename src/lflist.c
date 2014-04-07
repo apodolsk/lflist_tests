@@ -111,7 +111,7 @@ err (lflist_del)(flx a, type *t){
             break;
         }
         if(casx_ok((flx){.nil=n.nil, 1, n.pt, n.gen + 1}, &pt(a)->n, n) &&
-           casx_ok((flx){n.mp, pn.gen + 1}, &pt(p)->n, pn)){
+           casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen + 1}, &pt(p)->n, pn)){
             n.locked = 1;
             casx((flx){.mp=p.mp, np.gen}, &pt(n)->p, np);
             break;
@@ -181,6 +181,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             goto newp;
         if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
             continue;
+        assert(!ppn.nil || !ppn.locked);
         
         flx new = (flx){a.mp, ppn.gen + 1};
         if(pt(ppn) == pt(a) || (!ppn.locked && casx_ok(new, &pt(pp)->n, ppn))){
@@ -223,9 +224,9 @@ err (lflist_enq)(flx a, type *t, lflist *l){
 }
 
 flx (lflist_deq)(type *t, lflist *l){
-    flx n = {}, np, a = (flx){.nil = 1, .pt = mpt(&l->nil)};
+    flx n = {}, np;
     while(1){
-        help_next(a, &n, &np, t);
+        help_next((flx){.nil = 1, .pt = mpt(&l->nil)}, &n, &np, t);
         assert(pt(n));
         if(n.nil)
             return assert(&l->nil == pt(n)), (flx){};
