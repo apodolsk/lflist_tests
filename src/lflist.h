@@ -21,6 +21,7 @@ struct flx{
     };
     uptr gen;
 } __attribute__((__aligned__(sizeof(dptr))));
+static inline uptr mpt(flanchor *f){ return (uptr) f >> 2; };
 
 struct flanchor{
     volatile flx n;
@@ -31,8 +32,8 @@ struct flanchor{
 typedef struct lflist{
     flanchor nil;
 } lflist;
-#define LFLIST(l) {{.n = {.nil=1, .pt=(uptr)&(l)->nil << 2},    \
-                    .p = {.nil=1, .pt=(uptr)&(l)->nil << 2}}}
+#define LFLIST(l) {{.n = {.nil=1, .pt=mpt(&(l)->nil)},          \
+                    .p = {.nil=1, .pt=mpt(&(l)->nil)}}}
 
 pudef(flx, "{%p:%d:%d, %ud}", (void *)(a->pt << 1), a->nil, a->locked, a->gen);
 pudef(flanchor, "n:%s, p:%s", pustr(a->n, flx), pustr(a->p, flx));

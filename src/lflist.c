@@ -15,7 +15,7 @@
 
 #ifndef FAKELOCKFREE
 
-static err flinref_read(flx *r, volatile flx *from, flx **held, type *t);
+static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx a, type *t);
 static void flinref_down(flx a, type *t);
 static err help_next(flx a, flx *n, flx *np, type *t);
@@ -60,20 +60,20 @@ static inline int casx_won(const char *f, int l,
 #define casx_won(as...) casx_won(__func__, __LINE__, as)
  
 static
-err (flinref_read)(flx *r, volatile flx *from, flx **held, type *t){
-    *r = atomic_readx(from);
-    flx *reused = NULL;
-    for(flx **h = held; *h; h++){
-        if(pt(*r) == pt(**h) && !reused)
-            reused = *h;
-        else if(pt(**h))
-            flinref_down(**h, t);
-        **h = (flx){};
+flx (flinref_read)(volatile flx *from, flx **held, type *t){
+    while(1){
+        flx a = atomic_readx(from);
+        flx *reused = NULL;
+        for(flx **h = held; *h; h++){
+            if(pt(a) == pt(**h) && !reused)
+                reused = *h;
+            else if(pt(**h))
+                flinref_down(**h, t);
+            **h = (flx){};
+        }
+        if(reused || !pt(a) || flinref_up(a, t))
+            return a;
     }
-    if(reused)
-        return 0;
-    if(!pt(*r) || !flinref_up(*r, t))
-        return -1;
 }
 
 static
@@ -131,7 +131,7 @@ err (lflist_del)(flx a, type *t){
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
     while(1){
-        flinref_read(n, &pt(a)->n, (flx*[]){n, NULL}, t);
+        *n = flinref_read(&pt(a)->n, (flx*[]){n, NULL}, t);
     newn:
         if(!pt(*n))
             return -1;
@@ -143,11 +143,11 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
                 return 0;
         }
         flx npp = atomic_readx(&pt(*np)->p);
-        if(!atomic_eqx(&pt(a)->n, *n, t))
+        if(!atomic_eqx(&pt(a)->n, n, t))
             goto newn;
         if(pt(npp) != pt(a))
             return -1;
-        if(casx_ok((flx){a.mp, np->gen}, &pt(n)->p, *np))
+        if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, *np))
             return 0;
     }
 }
@@ -158,44 +158,42 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
     while(1){
         *p = flinref_read(&pt(a)->p, (flx*[]){p, &pp, NULL}, t);
     newp:
-        if(!pt(*p) || (!a.nil && p.gen != a.gen))
+        if(!pt(*p) || (!a.nil && p->gen != a.gen))
             return -1;
 
-        *pn = atomic_readx(&pt(p)->n);
-        if(!atomic_eqx(&pt(a)->p, p))
+        *pn = atomic_readx(&pt(*p)->n);
+        if(!atomic_eqx(&pt(a)->p, p, t))
             goto newp;
         if(pt(*pn) != pt(a))
             return -1;
-    newpn:
         if(!pn->locked)
             return 0;
 
-        flinref_read(pp, &pt(p)->p, (flx*[]){pp, NULL}, t);
+        flinref_read(&pt(*p)->p, (flx*[]){&pp, NULL}, t);
         /* TODO: !pt(pp)? */
         flx ppn = atomic_readx(&pt(pp)->n);
-        if(pt(ppn) != pt(p))
+        if(pt(ppn) != pt(*p))
             continue;
         
         flx new = (flx){a.mp, ppn.gen + 1};
-        if(!ppn.locked && casx_ok(new, &pt(pp)->n, ppn) || pt(ppn) == pt(a)){
+        if((!ppn.locked && casx_ok(new, &pt(pp)->n, ppn)) || pt(ppn) == pt(a)){
             if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
                 continue;
-            flinref_down(*p);
+            flinref_down(*p, t);
             *p = pp;
-            if(ppn != pt(a))
+            if(pt(ppn) != pt(a))
                 return *pn = new, 0;
             *pn = ppn;
             goto newp;
         }
         
-        flx newpn = (flx){a.nil, a.pt, pn->gen + 1};
+        flx newpn = (flx){.nil=a.nil, a.pt, pn->gen + 1};
         if(casx_ok(newpn, &pt(*p)->n, *pn))
             return *pn = newpn, 0;
     }
 }
 
-static
-err lflist_enq(flx a, type *t, lflist *l){
+err (lflist_enq)(flx a, type *t, lflist *l){
     if(!casx_ok((flx){.gen = a.gen + 1}, &pt(a)->p, (flx){.gen = a.gen}))
         return -1;
     pt(a)->n.pt = mpt(&l->nil);
@@ -210,26 +208,26 @@ err lflist_enq(flx a, type *t, lflist *l){
         }
         
         pt(a)->p.mp = p.mp;
-        if(casx_ok((flx){.mp = a.mp, pn.gen, &pt(p)->n, pn}))
+        if(casx_ok((flx){.mp = a.mp, pn.gen}, &pt(p)->n, pn))
             break;
     }
 
     casx((flx){.mp = p.mp, .gen = p.gen + 1}, &l->nil.p, p);
+    return 0;
 }
 
-static
-err lflist_deq(type *t, lflist *l){
+flx (lflist_deq)(type *t, lflist *l){
     flx n = {}, np, a = (flx){.nil = 1, .pt = mpt(&l->nil)};
     while(1){
-        help_next(a, &n, &np);
-        assert(pt(*n));
-        if(!lflist_del((flx){n.mp, np.gen}, t))
-            return 0;
+        help_next(a, &n, &np, t);
+        assert(pt(n));
+        if(!lflist_del(((flx){n.mp, np.gen}), t))
+            return (flx){n.mp, np.gen};
     }
 }
 
 flanchor *flptr(flx a){
-    assert(!a.mp.is_nil);
+    assert(!a.nil);
     return pt(a);
 }
 
