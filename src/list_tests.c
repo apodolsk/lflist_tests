@@ -92,30 +92,30 @@ void *reinsert_kid(uint t){
             if(r < nalloc){
                 node *b = (node *) linalloc(node_h);
                 log((void *) b, r, nb, nalloc);
-                lflist_add_rear(flx_of(&b->flanc), &node_t, &priv);
+                lflist_enq(flx_of(&b->flanc), &node_t, &priv);
                 list_add_rear(&b->lanc, &perm);
             }
         }
 
         lflist *l = &shared[rand() % nlists];
         flx bx;
-        if(randpcnt(50) && flptr(bx = lflist_pop_front(&node_t, &priv))){
+        if(randpcnt(50) && flptr(bx = lflist_deq(&node_t, &priv))){
             log("Pushing", flptr(bx));
             assert(lmagics_valid(cof(flptr(bx), node, flanc)));
-            lflist_add_rear(bx, &node_t, l);
+            lflist_enq(bx, &node_t, l);
         }else{
-            bx = lflist_pop_front(&node_t, l);
+            bx = lflist_deq(&node_t, l);
             node *b = cof(flptr(bx), node, flanc);
             if(!b)
                 continue;
             log("Popped", flptr(bx));
             assert(lwrite_magics(b));
-            lflist_add_rear(bx, &node_t, &priv);
+            lflist_enq(bx, &node_t, &priv);
         }
     }
 
-    for(flx bx; flptr(bx = lflist_pop_front(&node_t, &priv));)
-        lflist_add_rear(bx, &node_t, &shared[0]);
+    for(flx bx; flptr(bx = lflist_deq(&node_t, &priv));)
+        lflist_enq(bx, &node_t, &shared[0]);
 
     pthread_mutex_lock(&all_lock);
     for(node *b; (b = cof(list_pop(&perm), node, lanc));)
@@ -142,7 +142,7 @@ void test_reinsert(){
         pthread_join(tids[i], NULL);
     list done = LIST(&done);
     for(uint i = 0; i < nlists; i++)
-        for(node *b; (b = cof(flptr(lflist_pop_front(&node_t, &shared[i])),
+        for(node *b; (b = cof(flptr(lflist_deq(&node_t, &shared[i])),
                               node, flanc)); nb--)
         {
             list_remove(&b->lanc, &all);

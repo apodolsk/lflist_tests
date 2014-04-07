@@ -15,26 +15,26 @@
 
 #ifndef FAKELOCKFREE
 
-static flx flinref_read(volatile flx *from, flx **held, type *t);
+static err flinref_read(flx *r, volatile flx *from, flx **held, type *t);
 static int flinref_up(flx a, type *t);
 static void flinref_down(flx a, type *t);
-static flx help_next(flx a, flx n, type *t);
-static flx help_prev(flx a, flx p, type *t);
+static err help_next(flx a, flx *n, flx *np, type *t);
+static err help_prev(flx a, flx *p, flx *pn, type *t);
 
 static inline flanchor *pt(flx a){
-    return (flanchor *) (a.mp.ptr << 1);
+    return (flanchor *) (a.pt << 2);
 }
 static inline flx atomic_readx(volatile flx *x){
     return cas2((flx){}, x, (flx){});
 }
-static inline bool atomic_eqx(volatile flx *a, flx *b){
+static inline bool atomic_eqx(volatile flx *a, flx *b, type *t){
     flx old = *b;
-    *b = atomic_readflx(a);
+    *b = atomic_readx(a);
     if(eq2(old, b))
         return true;
     if(flinref_up(*b, t))
         *b = (flx){};
-    flinref_down(b, t);
+    flinref_down(*b, t);
     return false;
 }
 static inline flx casx(const char *f,
@@ -57,33 +57,30 @@ static inline int casx_won(const char *f, int l,
 
 #define casx(as...) casx(__func__, __LINE__, as)
 #define casx_ok(as...) casx_ok(__func__, __LINE__, as)
+#define casx_won(as...) casx_won(__func__, __LINE__, as)
  
 static
 err (flinref_read)(flx *r, volatile flx *from, flx **held, type *t){
-    while(1){
-        *r = atomic_readflx(from);
-        flx *reused = NULL;
-        for(flx **h = held; *h; h++){
-            if(pt(*r) == pt(**h) && !reused)
-                reused = *h;
-            else if(pt(**h))
-                flinref_down(**h, t);
-            **h = (flx){};
-        }
-        if(reused)
-            return 0;
-        if(!pt(*r))
-            return 0;
-        if(!flinref_up(*r, t))
-            return 0;
+    *r = atomic_readx(from);
+    flx *reused = NULL;
+    for(flx **h = held; *h; h++){
+        if(pt(*r) == pt(**h) && !reused)
+            reused = *h;
+        else if(pt(**h))
+            flinref_down(**h, t);
+        **h = (flx){};
     }
+    if(reused)
+        return 0;
+    if(!pt(*r) || !flinref_up(*r, t))
+        return -1;
 }
 
 static
 int flinref_up(flx a, type *t){
     if(!pt(a))
         return -1;
-    if(a.mp.is_nil)
+    if(a.nil)
         return 0;
     return t->linref_up(pt(a), t);
 }
@@ -91,12 +88,12 @@ int flinref_up(flx a, type *t){
 static
 void flinref_down(flx a, type *t){
     assert(pt(a));
-    if(!a.mp.is_nil)
+    if(!a.nil)
         t->linref_down(pt(a));
 }
 
 
-err (lflist_remove)(flx a, type *t){
+err (lflist_del)(flx a, type *t){
     assert(!a.nil);
 
     flx n = {}, p = {}, pn, np;
@@ -109,7 +106,7 @@ err (lflist_remove)(flx a, type *t){
             RARITY("P abort");
             break;
         }
-        if(casx_ok((flx){n.nil, 1, n.pt, n.gen + 1}, &pt(a)->n, n) &&
+        if(casx_ok((flx){.nil=n.nil, 1, n.pt, n.gen + 1}, &pt(a)->n, n) &&
            casx_ok((flx){n.mp, pn.gen + 1}, &pt(p)->n, pn)){
             casx((flx){.mp=p.mp, np.gen}, &pt(n)->p, np);
             break;
@@ -134,16 +131,24 @@ err (lflist_remove)(flx a, type *t){
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
     while(1){
-        *n = flinref_read(&pt(a)->n, (flx*[]), t);
+        flinref_read(n, &pt(a)->n, (flx*[]){n, NULL}, t);
     newn:
         if(!pt(*n))
             return -1;
-        *np = atomic_readx(&pt(n)->p);
-        if(!atomic_eq(&pt(a)->n, n))
+        *np = atomic_readx(&pt(*n)->p);
+        if(pt(*np) == pt(a)){
+            if(!atomic_eqx(&pt(a)->n, n, t))
+                goto newn;
+            else
+                return 0;
+        }
+        flx npp = atomic_readx(&pt(*np)->p);
+        if(!atomic_eqx(&pt(a)->n, *n, t))
             goto newn;
-        if(pt(*np) == pt(a))
+        if(pt(npp) != pt(a))
+            return -1;
+        if(casx_ok((flx){a.mp, np->gen}, &pt(n)->p, *np))
             return 0;
-        flx npp = atomic_readx(&pt(*np)->p)
     }
 }
 
@@ -156,17 +161,18 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(!pt(*p) || (!a.nil && p.gen != a.gen))
             return -1;
 
-        *pn = atomic_readflx(&pt(p)->n);
+        *pn = atomic_readx(&pt(p)->n);
         if(!atomic_eqx(&pt(a)->p, p))
-                goto newp;
+            goto newp;
         if(pt(*pn) != pt(a))
             return -1;
     newpn:
         if(!pn->locked)
             return 0;
 
-        pp = flinref_read(&pt(p)->p, (flx*[]){pp, NULL}, t);
-        flx ppn = atomic_readflx(&pt(pp)->n);
+        flinref_read(pp, &pt(p)->p, (flx*[]){pp, NULL}, t);
+        /* TODO: !pt(pp)? */
+        flx ppn = atomic_readx(&pt(pp)->n);
         if(pt(ppn) != pt(p))
             continue;
         
@@ -189,7 +195,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 }
 
 static
-err lflist_enq(flx a, lflist *l, type *t){
+err lflist_enq(flx a, type *t, lflist *l){
     if(!casx_ok((flx){.gen = a.gen + 1}, &pt(a)->p, (flx){.gen = a.gen}))
         return -1;
     pt(a)->n.pt = mpt(&l->nil);
@@ -212,10 +218,13 @@ err lflist_enq(flx a, lflist *l, type *t){
 }
 
 static
-err lflist_deq(lflist *l, type *t){
-    flx n = {}, np;
+err lflist_deq(type *t, lflist *l){
+    flx n = {}, np, a = (flx){.nil = 1, .pt = mpt(&l->nil)};
     while(1){
-        help_next((flx){.nil = 1, .pt = mpt(&l->nil)}, &n, &np);
+        help_next(a, &n, &np);
+        assert(pt(*n));
+        if(!lflist_del((flx){n.mp, np.gen}, t))
+            return 0;
     }
 }
 

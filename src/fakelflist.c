@@ -1,9 +1,7 @@
-#include <lflist.h>
+#include <fakelflist.h>
 #include <list.h>
 #include <atomics.h>
 #include <global.h>
-
-#ifdef FAKELOCKFREE
 
 #include <pthread.h>
 
@@ -40,7 +38,7 @@ err lflist_add_before(flx a, flx n, type *h, lflist *l){
     return 0;
 }
 
-err lflist_remove(flx a, type *h, lflist *l){
+err fklflist_del(flx a, type *h, lflist *l){
     (void) h;
     lock_world();
     if(a.a->gen != a.gen || !a.a->lanc.n || ((uptr) a.a->lanc.n & 1))
@@ -50,7 +48,7 @@ err lflist_remove(flx a, type *h, lflist *l){
     return 0;
 }
 
-flx lflist_pop_front(type *h, lflist *l){
+flx fklflist_deq(type *h, lflist *l){
     (void) h;
     lock_world();
     flx rlx = (flx){};
@@ -61,7 +59,7 @@ flx lflist_pop_front(type *h, lflist *l){
     return rlx;
 }
 
-err lflist_add_rear(flx a, type *h, lflist *l){
+err fklflist_enq(flx a, type *h, lflist *l){
     (void) h;
     lock_world();
     if(!cas_ok(a.gen + 2, &a.a->gen, a.gen) || a.a->lanc.n)
@@ -70,7 +68,4 @@ err lflist_add_rear(flx a, type *h, lflist *l){
     unlock_world();
     return 0;
 }
-
-
-#endif
  
