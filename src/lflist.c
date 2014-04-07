@@ -140,9 +140,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         *np = atomic_readx(&pt(n)->p);
         if(!atomic_eq(&pt(a)->n, n))
             goto newn;
-        if(n->nil && pt(*np)){
-            
-        }
+        if(pt(np) != pt(a))
         
         if(n->nil){
             if(
