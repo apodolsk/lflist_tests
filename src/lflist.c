@@ -34,6 +34,7 @@ static inline bool atomic_eqx(volatile flx *a, flx *b){
         return true;
     if(flinref_up(*b, t))
         *b = (flx){};
+    flinref_down(b, t);
     return false;
 }
 static inline flx casx(const char *f,
@@ -129,8 +130,31 @@ static
 err (help_next)(flx a, flx *n, flx *np, type *t){
     while(1){
         *n = flinref_read(&pt(a)->n, (flx*[]), t);
-        assert(pt(n));
+    newn:
+        if(!pt(*n))
+            return -1;
+        *np = atomic_readx(&pt(n)->p);
+        if(!atomic_eq(&pt(a)->n, n))
+            continue;
+        if(n->nil && pt(*np)){
+            
+        }
+        return -1;
 
+
+        }
+        
+            
+        
+        if(n->nil){
+            if(
+               
+        }
+        else{
+            
+
+        }
+        *np = atomic_readx(&pt(n)->p);
     }
 }
 
@@ -149,19 +173,22 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 goto newp;
             return -1;
         }
+    newgoodpn:
         if(!pn->locked)
             return 0;
 
+        
         pp = flinref_read(&pt(p)->p, (flx*[]){pp, NULL}, t);
         flx ppn = atomic_readflx(&pt(pp)->n);
-        if(!ppn.locked && (pt(ppn) == pt(a) || pt(ppn) == pt(p))){
+        if(pt(ppn) == pt(a) || (pt(ppn) == pt(p) && !ppn.locked)){
+            flinref_down(*p);
             *p = pp;
             *pn = ppn;
-            return 0;
+            goto newgoodpn;
         }
-
+        
         flx newpn = (flx){a.nil, a.pt, pn->gen + 1};
-        if(casx_ok(newpn, &pt(p)->n, *pn)){
+        if(casx_ok(newpn, &pt(*p)->n, *pn)){
             *pn = newpn;
             return 0;
         }
@@ -178,11 +205,11 @@ err lflist_enq(flx a, lflist *l, type *t){
     flx p = {}, pn;
     while(1){
         if(help_prev((flx){.nil = 1, .pt = mpt(&l->nil)}, &p, &pn, t)){
-            if(!pt(pn))
+            if(pt(pn))
                 casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, p);
             continue;
         }
-
+        
         pt(a)->p.mp = p.mp;
         if(casx_ok((flx){.mp = a.mp, pn.gen, &pt(p)->n, pn}))
             break;
