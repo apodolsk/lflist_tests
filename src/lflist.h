@@ -35,7 +35,7 @@ typedef struct lflist{
 #define LFLIST(l) {{.n = {.nil=1, .pt=mpt(&(l)->nil)},          \
                     .p = {.nil=1, .pt=mpt(&(l)->nil)}}}
 
-pudef(flx, "{%p:%d:%d, %ud}", (void *)(a->pt << 1), a->nil, a->locked, a->gen);
+pudef(flx, "{%p:%d:%d, %u}", (void *)(a->pt << 2), a->nil, a->locked, a->gen);
 pudef(flanchor, "n:%s, p:%s", pustr(a->n, flx), pustr(a->p, flx));
 pudef(lflist, "LIST(%s)", pustr(a->nil, flanchor));
 

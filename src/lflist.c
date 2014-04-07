@@ -112,6 +112,7 @@ err (lflist_del)(flx a, type *t){
         }
         if(casx_ok((flx){.nil=n.nil, 1, n.pt, n.gen + 1}, &pt(a)->n, n) &&
            casx_ok((flx){n.mp, pn.gen + 1}, &pt(p)->n, pn)){
+            n.locked = 1;
             casx((flx){.mp=p.mp, np.gen}, &pt(n)->p, np);
             break;
         }
@@ -120,9 +121,8 @@ err (lflist_del)(flx a, type *t){
     int ret = -1;
     if(!pt(n) || p.gen != a.gen || !n.locked)
         RARITY("%s", str(p));
-    else if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p)){
+    else if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p))
         ret = 0;
-    }
 
     if(pt(n))
         flinref_down(n, t);
@@ -200,8 +200,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 err (lflist_enq)(flx a, type *t, lflist *l){
     if(!casx_ok((flx){.gen = a.gen + 1}, &pt(a)->p, (flx){.gen = a.gen}))
         return -1;
-    pt(a)->n.pt = mpt(&l->nil);
-    pt(a)->n.gen++;
+    pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
     flx p = {}, pn;
     while(1){
@@ -212,11 +211,11 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         }
         
         pt(a)->p.mp = p.mp;
-        if(casx_ok((flx){.mp = a.mp, pn.gen}, &pt(p)->n, pn))
+        if(casx_won((flx){.mp = a.mp, pn.gen}, &pt(p)->n, pn))
             break;
     }
 
-    casx((flx){.mp = p.mp, .gen = p.gen + 1}, &l->nil.p, p);
+    casx((flx){.mp = a.mp, .gen = p.gen + 1}, &l->nil.p, p);
     return 0;
 }
 
