@@ -105,20 +105,21 @@ err (lflist_remove)(flx a, type *t){
             RARITY("N abort");
             break;
         }
-        if(help_prev(a, &p, &pn, t)){
+        if(help_prev(a, &p, &pn, t) || p.gen != a.gen){
             RARITY("P abort");
             break;
         }
-        
-        if(casx_ok(newn, &pt(a)->n, n) && casx_ok(n, &pt(p)->n, a))
+        if(casx_ok((flx){n.nil, 1, n.pt, n.gen + 1}, &pt(a)->n, n) &&
+           casx_ok((flx){n.mp, pn.gen + 1}, &pt(p)->n, pn)){
+            casx((flx){.mp=p.mp, np.gen}, &pt(n)->p, np);
             break;
+        }
     }
 
     int ret = -1;
     if(!pt(n) || p.gen != a.gen || !n.locked)
         RARITY("%s", str(p));
     else if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p)){
-        casx((flx){.mp=p.mp, n.gen}, &pt(n)->p, a);
         ret = 0;
     }
 
@@ -140,17 +141,9 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         *np = atomic_readx(&pt(n)->p);
         if(!atomic_eq(&pt(a)->n, n))
             goto newn;
-        if(pt(np) != pt(a))
-            
-        if(n->nil){
-            if(
-               
-        }
-        else{
-            
-
-        }
-        *np = atomic_readx(&pt(n)->p);
+        if(pt(*np) == pt(a))
+            return 0;
+        flx npp = atomic_readx(&pt(*np)->p)
     }
 }
 
@@ -164,11 +157,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             return -1;
 
         *pn = atomic_readflx(&pt(p)->n);
-        if(pt(*pn) != pt(a)){
-            if(!atomic_eqx(&pt(a)->p, p))
+        if(!atomic_eqx(&pt(a)->p, p))
                 goto newp;
+        if(pt(*pn) != pt(a))
             return -1;
-        }
     newpn:
         if(!pn->locked)
             return 0;
