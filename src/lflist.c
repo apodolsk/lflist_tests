@@ -122,16 +122,18 @@ err (lflist_del)(flx a, type *t){
         
         lock = (flx){.nil=n.nil, 1, n.pt, n.gen + 1};
         enum howok r = casx_ok(lock, &pt(a)->n, n);
-        if(r != WON)
-            lock = (flx){};
-        if(r && casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen + 1}, &pt(p)->n, pn))
+        if(r) n = lock;
+        if(r != WON) lock = (flx){};
+        if(r &&
+           casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen + 1}, &pt(p)->n, pn))
             break;
     }
 
     int ret = -1;
-    if(lock.mp && lock.gen == n.gen + 1){
+    if(lock.mp && n.gen == lock.gen){
         assert(p.gen == a.gen);
-        casx((flx){p.mp, np.gen}, &pt(n)->p, np);
+        if(pt(np) == pt(a))
+            casx((flx){p.mp, np.gen}, &pt(n)->p, np);
         if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p))
             ret = 0;
     }
