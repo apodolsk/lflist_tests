@@ -117,16 +117,18 @@ err (lflist_del)(flx a, type *t){
         }
         if(help_prev(a, &p, &pn, t) || p.gen != a.gen){
             RARITY("P abort");
+            n = pt(a)->n;
             break;
         }
         
         lock = (flx){.nil=n.nil, 1, n.pt, n.gen + 1};
         enum howok r = casx_ok(lock, &pt(a)->n, n);
-        if(r) n = lock;
-        if(r != WON) lock = (flx){};
-        if(r &&
-           casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen + 1}, &pt(p)->n, pn))
-            break;
+        if(r){
+            n = lock;            
+            if(r != WON) lock = (flx){};
+            if(casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen+1}, &pt(p)->n, pn))
+                break;
+        }
     }
 
     int ret = -1;
