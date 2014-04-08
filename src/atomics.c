@@ -3,8 +3,8 @@
 #include <prand.h>
 #include <global.h>
 
-#define ATOMIC_FUZZ 100000
-#define ATOMIC_FUZZ_PCNT 30
+#define ATOMIC_FUZZ 1000000
+#define ATOMIC_FUZZ_PCNT 0
 
 extern uptr xadd(uptr s, volatile uptr *p);
 extern uptr xchg(uptr s, volatile uptr *p);

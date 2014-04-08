@@ -15,6 +15,9 @@
 
 #ifndef FAKELOCKFREE
 
+#define MAX_LOOP 10
+#define TEST_PROGRESS(c) ((void)(c++ > MAX_LOOP ? SUPER_RARITY("LOTTA LOOPS %d", c) : 0), 1)
+
 static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx a, type *t);
 static void flinref_down(flx a, type *t);
@@ -58,7 +61,7 @@ static inline flx atomic_readx(volatile flx *x){
     return cas2((flx){}, x, (flx){});
 }
 static inline bool atomic_eqx(volatile flx *a, flx *b, type *t){
-    while(1){
+    for(int c = 0; TEST_PROGRESS(c);){
         flx old = *b;
         *b = atomic_readx(a);
         if(eq2(old, *b))
@@ -73,7 +76,7 @@ static inline bool atomic_eqx(volatile flx *a, flx *b, type *t){
 }
 static
 flx (flinref_read)(volatile flx *from, flx **held, type *t){
-    while(1){
+    for(int c = 0; TEST_PROGRESS(c);){
         flx a = atomic_readx(from);
         flx *reused = NULL;
         for(flx **h = held; *h; h++){
@@ -104,13 +107,12 @@ void flinref_down(flx a, type *t){
         t->linref_down(pt(a));
 }
 
-
 err (lflist_del)(flx a, type *t){
     assert(!a.nil);
 
     flx n = {}, p = {}, pn, np;
     flx lock = {};
-    while(1){
+    for(int c = 0; TEST_PROGRESS(c);){
         if(help_next(a, &n, &np, t)){
             RARITY("N abort");
             break;
@@ -151,9 +153,10 @@ err (lflist_del)(flx a, type *t){
 
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
-    while(1){
+    for(int c = 0;;){
         *n = flinref_read(&pt(a)->n, (flx*[]){n, NULL}, t);
     newn:
+        assert(a.nil || (pt(*n) != pt(a)));
         if(!pt(*n))
             return assert(!a.nil), -1;
         *np = atomic_readx(&pt(*n)->p);
@@ -164,10 +167,9 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             else
                 return pt(*np) == pt(a) ? 0 : (assert(!a.nil), -1);
         }
+        TEST_PROGRESS(c);
         flx npp = atomic_readx(&pt(*np)->p);
         if(pt(npp) != pt(a)){
-            if(!atomic_eqx(&pt(a)->n, n, t))
-                goto newn;
             if(!eq2(*np, *np = atomic_readx(&pt(*n)->p)))
                 goto newnp;
             if(!atomic_eqx(&pt(a)->n, n, t))
@@ -186,9 +188,10 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
 static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
     flx pp = {};
-    while(1){
+    for(int c = 0;;){
         *p = flinref_read(&pt(a)->p, (flx*[]){p, &pp, NULL}, t);
     newp:
+        assert(a.nil || (pt(*p) != pt(a)));
         if(!pt(*p) || (!a.nil && p->gen != a.gen))
             return -1;
 
@@ -201,6 +204,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(!pn->locked)
             return 0;
 
+        TEST_PROGRESS(c);
         pp = flinref_read(&pt(*p)->p, (flx*[]){&pp, NULL}, t);
         if(!pt(pp))
             continue;
@@ -235,7 +239,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
     flx p = {}, pn = {};
-    while(1){
+    for(int c = 0; TEST_PROGRESS(c);){
         if(help_prev((flx){.nil = 1, .pt = mpt(&l->nil)}, &p, &pn, t)){
             if(pt(p))
                 casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, p);
@@ -253,8 +257,8 @@ err (lflist_enq)(flx a, type *t, lflist *l){
 }
 
 flx (lflist_deq)(type *t, lflist *l){
-    flx n = {}, np;
-    while(1){
+    flx n = {}, np = {};
+    for(int c = 0; TEST_PROGRESS(c);){
         if(help_next((flx){.nil = 1, .pt = mpt(&l->nil)}, &n, &np, t))
             EWTF();
         assert(pt(n));
