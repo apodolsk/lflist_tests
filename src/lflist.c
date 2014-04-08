@@ -38,11 +38,11 @@ static inline enum okr{
 } casx_ok(const char *f, int l,
                           flx n, volatile flx *a, flx e){
     flx r = casx(f, l, n, a, e);
-    if(rq2(r, e))
-        return OK;
-    if(eq2(e, n))
+    if(eq2(r, e))
         return WON;
-    return NOTK;
+    if(eq2(r, n))
+        return OK;
+    return NOT;
 }
 
 static inline int casx_won(const char *f, int l,
@@ -109,7 +109,7 @@ err (lflist_del)(flx a, type *t){
     assert(!a.nil);
 
     flx n = {}, p = {}, pn, np;
-    enum okr last_lock;
+    flx last_lock = {};
     while(1){
         if(help_next(a, &n, &np, t)){
             RARITY("N abort");
@@ -119,20 +119,24 @@ err (lflist_del)(flx a, type *t){
             RARITY("P abort");
             break;
         }
-        last_lock = casx_ok((flx){.nil=n.nil, 1, n.pt, n.gen + 1}, &pt(a)->n, n)
-        if(last_lock &&
-           casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen + 1}, &pt(p)->n, pn)){
+        last_lock = (flx){.nil=n.nil, 1, n.pt, n.gen + 1};
+        enum okr r = casx_ok(last_lock, &pt(a)->n, n);
+        if(r != WON)
+            last_lock = (flx){};
+        lprintf("r:%d", r);
+        if(r && casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen + 1}, &pt(p)->n, pn))
             break;
-        }
     }
 
     int ret = -1;
-    if(last_lock != WON || !n.locked || p.gen != a.gen)
-        RARITY("%s", str(p));
+    log(pt(a)->n.gen);
+    if(p.gen != a.gen || !last_lock.mp || pt(a)->n.gen != last_lock.gen)
+        RARITY("p:%s, ll:%s", str(p), str(last_lock));
     else{
         casx((flx){p.mp, np.gen}, &pt(n)->p, np);
-        if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p))
-            ret = 0;
+        if(!casx_won((flx){.gen = a.gen}, &pt(a)->p, p))
+            EWTF();
+        ret = 0;
     }
     
     if(pt(n))
