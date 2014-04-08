@@ -31,10 +31,18 @@ static inline flx casx(const char *f,
     llprintf1("%s - found:%s addr:%p", eq2(r,e)? "WON" : "LOST", str(r), a);
     return r;
 }
-static inline int casx_ok(const char *f, int l,
+static inline enum okr{
+    NOT = 0,
+    OK = 1,
+    WON = 2
+} casx_ok(const char *f, int l,
                           flx n, volatile flx *a, flx e){
     flx r = casx(f, l, n, a, e);
-    return eq2(r, e) || eq2(r, n);
+    if(rq2(r, e))
+        return OK;
+    if(eq2(e, n))
+        return WON;
+    return NOTK;
 }
 
 static inline int casx_won(const char *f, int l,
@@ -101,36 +109,36 @@ err (lflist_del)(flx a, type *t){
     assert(!a.nil);
 
     flx n = {}, p = {}, pn, np;
+    enum okr last_lock;
     while(1){
         if(help_next(a, &n, &np, t)){
             RARITY("N abort");
-            p = pt(a)->p;
             break;
         }
         if(help_prev(a, &p, &pn, t) || p.gen != a.gen){
             RARITY("P abort");
-            if(n.locked || !help_next(a, &n, &np, t))
-                casx((flx){.mp=p.mp, np.gen}, &pt(n)->p, np);
             break;
         }
-        if(casx_ok((flx){.nil=n.nil, 1, n.pt, n.gen + 1}, &pt(a)->n, n) &&
+        last_lock = casx_ok((flx){.nil=n.nil, 1, n.pt, n.gen + 1}, &pt(a)->n, n)
+        if(last_lock &&
            casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen + 1}, &pt(p)->n, pn)){
-            n.locked = 1;
-            casx((flx){.mp=p.mp, np.gen}, &pt(n)->p, np);
             break;
         }
     }
 
     int ret = -1;
-    if(!pt(n) || p.gen != a.gen || !n.locked)
+    if(last_lock != WON || !n.locked || p.gen != a.gen)
         RARITY("%s", str(p));
-    else if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p))
+    else{
+        casx((flx){p.mp, np.gen}, &pt(n)->p, np);
+        if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p))
             ret = 0;
+    }
+    
     if(pt(n))
         flinref_down(n, t);
     if(pt(p))
         flinref_down(p, t);
-    
     return ret;
 }
 
