@@ -267,8 +267,8 @@ flx (lflist_deq)(type *t, lflist *l){
             return assert(&l->nil == pt(n)), (flx){};
         if(!lflist_del(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};
-        /* if(atomic_eqx(*l->nil.n, n, t)) */
-        /*     return (flx){}; */
+        if(atomic_eqx(&l->nil.n, &n, t))
+            return (flx){};
     }
 }
 
