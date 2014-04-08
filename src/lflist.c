@@ -128,11 +128,11 @@ err (lflist_del)(flx a, type *t){
             if(r != WON) lock = (flx){};
             if(casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen+1}, &pt(p)->n, pn))
                 break;
-        }
+        }else lock = (flx){};
     }
 
     int ret = -1;
-    if(lock.mp && eq(n, lock)){
+    if(lock.mp && n.gen == lock.gen){
         assert(p.gen == a.gen);
         if(pt(np) == pt(a))
             casx((flx){p.mp, np.gen}, &pt(n)->p, np);
@@ -176,8 +176,10 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         }
         if(n->nil && !atomic_eqx(&pt(a)->n, n, t))
             goto newn;
-        if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, *np))
+        if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, *np)){
+            *np = (flx){a.mp, np->gen};
             return 0;
+        }
     }
 }
 
@@ -239,6 +241,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
                 casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, p);
             continue;
         }
+        assert(pn.nil);
         
         pt(a)->p.mp = p.mp;
         if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, pn))
@@ -255,6 +258,7 @@ flx (lflist_deq)(type *t, lflist *l){
         if(help_next((flx){.nil = 1, .pt = mpt(&l->nil)}, &n, &np, t))
             EWTF();
         assert(pt(n));
+        assert(np.nil);
         if(n.nil)
             return assert(&l->nil == pt(n)), (flx){};
         if(!lflist_del(((flx){n.mp, np.gen}), t))
