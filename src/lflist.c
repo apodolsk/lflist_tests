@@ -178,6 +178,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         }
         if(n->nil && !atomic_eqx(&pt(a)->n, n, t))
             goto newn;
+        RARITY("Swinging n:%s np:%s npp:%s", str(*n), str(*np), str(npp));
         if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, *np)){
             *np = (flx){a.mp, np->gen};
             return 0;

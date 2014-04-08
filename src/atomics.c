@@ -3,8 +3,9 @@
 #include <prand.h>
 #include <global.h>
 
-#define ATOMIC_FUZZ 1000000
-#define ATOMIC_FUZZ_PCNT 0
+#define FUZZ_NS 10000
+#define FUZZ_PCNT 60
+#define FUZZ_MOD 2
 
 extern uptr xadd(uptr s, volatile uptr *p);
 extern uptr xchg(uptr s, volatile uptr *p);
@@ -13,8 +14,8 @@ extern dptr cmpxchg2(dptr n, volatile dptr *p, dptr old);
     
 #include <time.h>
 static void fuzz_atomics(){
-    if(ATOMIC_FUZZ && randpcnt(ATOMIC_FUZZ_PCNT))
-        nanosleep(&(struct timespec){.tv_nsec = ATOMIC_FUZZ}, NULL);
+    if(FUZZ_NS && mod_pow2(_gettid(), FUZZ_MOD) && randpcnt(FUZZ_PCNT))
+        nanosleep(&(struct timespec){.tv_nsec = FUZZ_NS}, NULL);
 }
 
 uptr _xadd(uptr s, volatile uptr *p){
