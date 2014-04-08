@@ -132,7 +132,7 @@ err (lflist_del)(flx a, type *t){
     }
 
     int ret = -1;
-    if(lock.mp && n.gen == lock.gen){
+    if(lock.mp && eq(n, lock)){
         assert(p.gen == a.gen);
         if(pt(np) == pt(a))
             casx((flx){p.mp, np.gen}, &pt(n)->p, np);
