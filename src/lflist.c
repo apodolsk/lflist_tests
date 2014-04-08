@@ -124,7 +124,6 @@ err (lflist_del)(flx a, type *t){
         enum howok r = casx_ok(lock, &pt(a)->n, n);
         if(r != WON)
             lock = (flx){};
-        lprintf("r:%d", r);
         if(r && casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen + 1}, &pt(p)->n, pn))
             break;
     }

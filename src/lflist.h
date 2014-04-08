@@ -1,5 +1,4 @@
 #pragma once
-/* #define FAKELOCKFREE */
 #ifdef FAKELOCKFREE
 #include <fakelflist.h>
 #else
@@ -39,7 +38,7 @@ pudef(flx, "{%p:%d:%d, %u}", (void *)(a->pt << 2), a->nil, a->locked, a->gen);
 pudef(flanchor, "n:%s, p:%s", pustr(a->n, flx), pustr(a->p, flx));
 pudef(lflist, "LIST(%s)", pustr(a->nil, flanchor));
 
-#endif
+#endif  /* FAKELOCKFREE */
 
 flx flx_of(flanchor *a);
 flanchor *flptr(flx a);

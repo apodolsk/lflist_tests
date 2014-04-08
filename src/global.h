@@ -12,8 +12,6 @@
 #define TICKS_PER_SEC 3000
 /* #define TICKS_PER_SEC 100 */
 
-#define ATOMIC_FUZZ 100000
-#define ATOMIC_FUZZ_PCNT 30
 #define RUN_UNITESTS 1
 #define ENABLE_POOLS 0
 #define HEAP_DBG 0

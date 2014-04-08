@@ -24,7 +24,7 @@
 #define LOG_PEBRAND 0
 
 #define LOG_ATOMICS 0
-#define LOG_LISTM 0
+#define LOG_LISTM 1
 #define LOG_LFLISTM 1
 #define LOG_STACKM 0
 
