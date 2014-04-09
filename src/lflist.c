@@ -15,7 +15,7 @@
 
 #ifndef FAKELOCKFREE
 
-#define MAX_LOOP 10
+#define MAX_LOOP 20
 #define TEST_PROGRESS(c) ((void)(c++ > MAX_LOOP ? SUPER_RARITY("LOTTA LOOPS %d", c) : 0), 1)
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
@@ -154,33 +154,31 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
     for(int c = 0;;){
         *n = flinref_read(&pt(a)->n, (flx*[]){n, NULL}, t);
     newn:
-        assert(a.nil || (pt(*n) != pt(a)));
+        assert(a.nil || pt(*n) != pt(a));
         if(!pt(*n))
             return assert(!a.nil), -1;
+    newnp:
         *np = atomic_readx(&pt(*n)->p);
-    newnp:;
-        if(!pt(*np) || pt(*np) == pt(a)){
+        if(!pt(*np)){
             if(!atomic_eqx(&pt(a)->n, n, t))
                 goto newn;
-            else
-                return pt(*np) == pt(a) ? 0 : (assert(!a.nil), -1);
+            else return assert(!a.nil), -1;
         }
+        if(pt(*np) == pt(a))
+            return 0;
+        
         TEST_PROGRESS(c);
         flx npp = atomic_readx(&pt(*np)->p);
-        if(pt(npp) != pt(a)){
-            if(!eq2(*np, *np = atomic_readx(&pt(*n)->p)))
-                goto newnp;
-            if(!atomic_eqx(&pt(a)->n, n, t))
-                goto newn;
-            return assert(!a.nil), -1;
-        }
-        if(n->nil && !atomic_eqx(&pt(a)->n, n, t))
+        if(!atomic_eqx(&pt(a)->n, n, t))
             goto newn;
-        RARITY("Swinging n:%s np:%s npp:%s", str(*n), str(*np), str(npp));
-        if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, *np)){
-            *np = (flx){a.mp, np->gen};
-            return 0;
+        if(pt(npp) != pt(a)){
+            if(!eq2(*np, atomic_readx(&pt(*n)->p)))
+                goto newnp;
+            else return assert(!a.nil), -1;
         }
+        RARITY("Swinging n:%s np:%s npp:%s", str(*n), str(*np), str(npp));
+        if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, *np))
+            return *np = (flx){a.mp, np->gen}, 0;
     }
 }
 
@@ -258,18 +256,17 @@ err (lflist_enq)(flx a, type *t, lflist *l){
 }
 
 flx (lflist_deq)(type *t, lflist *l){
-    flx n = {}, np = {};
+    flx n = {}, np = {}, oldn = {};
     for(int c = 0; TEST_PROGRESS(c);){
         if(help_next((flx){.nil = 1, .pt = mpt(&l->nil)}, &n, &np, t))
             EWTF();
-        assert(pt(n));
-        assert(np.nil);
         if(n.nil)
             return assert(&l->nil == pt(n)), (flx){};
+        if(eq2(oldn, n))
+            return (flx){};
         if(!lflist_del(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};
-        if(atomic_eqx(&l->nil.n, &n, t))
-            return (flx){};
+        oldn = n;
     }
 }
 
