@@ -159,13 +159,13 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             return assert(!a.nil), -1;
     newnp:
         *np = atomic_readx(&pt(*n)->p);
-        if(!pt(*np)){
+        if(pt(*np) == pt(a))
+            return 0;
+        if(!pt(*np) || np->nil){
             if(!atomic_eqx(&pt(a)->n, n, t))
                 goto newn;
             else return assert(!a.nil), -1;
         }
-        if(pt(*np) == pt(a))
-            return 0;
         
         TEST_PROGRESS(c);
         flx npp = atomic_readx(&pt(*np)->p);
