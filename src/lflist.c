@@ -27,8 +27,7 @@ static err help_prev(flx a, flx *p, flx *pn, type *t);
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.pt << 2);
 }
-static inline flx casx(const char *f,
-                       int l, flx n, volatile flx *a, flx e){
+static inline flx casx(const char *f, int l, flx n, volatile flx *a, flx e){
     llprintf1("CAS! %s:%d - %s if %s, addr:%p", f, l, str(n), str(e), a); 
     flx r = cas2(n, a, e);
     llprintf1("%s - found:%s addr:%p", eq2(r,e)? "WON" : "LOST", str(r), a);
@@ -38,8 +37,7 @@ static inline enum howok{
     NOT = 0,
     OK = 1,
     WON = 2
-} casx_ok(const char *f, int l,
-                          flx n, volatile flx *a, flx e){
+} casx_ok(const char *f, int l, flx n, volatile flx *a, flx e){
     flx r = casx(f, l, n, a, e);
     if(eq2(r, e))
         return WON;
@@ -217,7 +215,9 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         assert(!ppn.nil || !ppn.locked);
         
         flx new = (flx){a.mp, ppn.gen + 1};
-        if(pt(ppn) == pt(a) || (!ppn.locked && casx_ok(new, &pt(pp)->n, ppn))){
+        if(pt(ppn) == pt(a) || (!ppn.locked && casx_ok(new, &pt(pp)->n,
+                                                       ppn)))
+        {
             if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
                 continue;
             flinref_down(*p, t);
