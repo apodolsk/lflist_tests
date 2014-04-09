@@ -235,6 +235,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 err (lflist_enq)(flx a, type *t, lflist *l){
     if(!casx_won((flx){.gen = a.gen + 1}, &pt(a)->p, (flx){.gen = a.gen}))
         return -1;
+    flx oldn = pt(a)->n;
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
     flx p = {}, pn = {};
@@ -245,6 +246,10 @@ err (lflist_enq)(flx a, type *t, lflist *l){
             continue;
         }
         assert(pn.nil);
+        if(pt(p) == pt(a)){
+            casx((flx){.pt = oldn.pt, p.gen + 1}, &l->nil.p, p);
+            continue;
+        }
         
         pt(a)->p.mp = p.mp;
         if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, pn))
