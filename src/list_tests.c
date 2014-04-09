@@ -115,6 +115,8 @@ void *reinsert_kid(uint t){
         }
     }
 
+    lprintf("done!");
+
     for(flx bx; flptr(bx = lflist_deq(&node_t, &priv));)
         lflist_enq(bx, &node_t, &shared[0]);
 
