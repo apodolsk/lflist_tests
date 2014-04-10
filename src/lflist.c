@@ -136,8 +136,18 @@ err (lflist_del)(flx a, type *t){
         assert(p.gen == a.gen);
         if(pt(np) == pt(a))
             casx((flx){p.mp, np.gen}, &pt(n)->p, np);
-        if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p))
+        if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p)){
+            if(pt(np) == pt(a)){
+                flx nn = pt(n)->n;
+                if(nn.nil && !flinref_up(nn, t)){
+                    flx nnp = pt(nn)->p;
+                    if(pt(nnp) == pt(a))
+                        casx((flx){n.mp, nnp.gen + 1}, &pt(nn)->p, nnp);
+                    flinref_down(nn, t);
+                }
+            }
             ret = 0;
+        }
     }
     else
         RARITY("p:%s, n:%s, l:%s", str(p), str(n), str(lock));
@@ -156,7 +166,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
     newn:
         assert(a.nil || pt(*n) != pt(a));
         if(!pt(*n))
-            return assert(!a.nil), -1;
+            return assert(!a.nil), *np = (flx){}, -1;
     newnp:
         *np = atomic_readx(&pt(*n)->p);
         if(pt(*np) == pt(a))
@@ -190,7 +200,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
     newp:
         assert(a.nil || (pt(*p) != pt(a)));
         if(!pt(*p) || (!a.nil && p->gen != a.gen))
-            return -1;
+            return *pn = (flx){}, -1;
 
         *pn = atomic_readx(&pt(*p)->n);
         if(!atomic_eqx(&pt(a)->p, p, t))
@@ -235,21 +245,16 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 err (lflist_enq)(flx a, type *t, lflist *l){
     if(!casx_won((flx){.gen = a.gen + 1}, &pt(a)->p, (flx){.gen = a.gen}))
         return -1;
-    flx oldn = pt(a)->n;
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
     flx p = {}, pn = {};
     for(int c = 0; TEST_PROGRESS(c);){
         if(help_prev((flx){.nil = 1, .pt = mpt(&l->nil)}, &p, &pn, t)){
-            if(pt(p))
-                casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, p);
+            assert(pt(p));
+            casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, p);
             continue;
         }
         assert(pn.nil);
-        if(pt(p) == pt(a)){
-            casx((flx){.pt = oldn.pt, p.gen + 1}, &l->nil.p, p);
-            continue;
-        }
         
         pt(a)->p.mp = p.mp;
         if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, pn))
