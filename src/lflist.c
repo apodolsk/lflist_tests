@@ -236,7 +236,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             goto newpn;
         }
         
-        flx newpn = (flx){.nil=a.nil, a.pt, pn->gen + 1};
+        flx newpn = (flx){.nil=a.nil, .pt=a.pt, pn->gen + 1};
         if(casx_ok(newpn, &pt(*p)->n, *pn))
             return *pn = newpn, 0;
     }
