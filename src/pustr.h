@@ -28,8 +28,6 @@
    array type (such as typeof("hi")). Otherwise, you'd have to add
    char[1], char[2], etc clauses. It also strips volatile and const away.
 */
-#define _v volatile
-#define _c const
 #define pustr(a, ts...)                                                 \
     _Generic((0, a),                                                    \
              MAP(pu_ref, (typeof((0, a))[]){a}, DEFAULT_TYPES, ##ts),   \
@@ -92,7 +90,11 @@
 #define putrace(print, ts, fun, as...)                              \
     ({                                                              \
         typeof(fun(as)) __pu_ret = putracev(print, ts, fun, as);    \
-        print("-- End %s ret: %s", #fun, _call_pustr(__pu_ret, ts, _)); \
+        print("-- End %s = %s(" STRLIT(MAP(PU_STRFMT, _, as)) ") in %s:%d", \
+              _call_pustr(__pu_ret, ts, _),                            \
+              #fun COMMAPFX_IF_NZ(MAP2(_call_pustr, ts, as)),           \
+              __func__, __LINE__);                                      \
+                                                                \
         __pu_ret;                                                   \
     })
 

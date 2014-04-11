@@ -15,8 +15,9 @@
 
 #ifndef FAKELOCKFREE
 
-#define MAX_LOOP 20
-#define TEST_PROGRESS(c) ((void)(c++ > MAX_LOOP ? SUPER_RARITY("LOTTA LOOPS %d", c) : 0), 1)
+#define MAX_LOOP 30
+#define TEST_PROGRESS(...)
+/* #define TEST_PROGRESS(c) ((void)(c++ > MAX_LOOP ? SUPER_RARITY("LOTTA LOOPS %d", c) : 0), 1) */
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx a, type *t);
@@ -30,7 +31,7 @@ static inline flanchor *pt(flx a){
 static inline flx casx(const char *f, int l, flx n, volatile flx *a, flx e){
     llprintf1("CAS! %s:%d - %s if %s, addr:%p", f, l, str(n), str(e), a); 
     flx r = cas2(n, a, e);
-    llprintf1("%s - found:%s addr:%p", eq2(r,e)? "WON" : "LOST", str(r), a);
+    llprintf1("%s %s:%d- found:%s addr:%p", eq2(r,e)? "WON" : "LOST", f, l, str(r), a);
     return r;
 }
 static inline enum howok{
@@ -216,15 +217,15 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(!pt(pp))
             continue;
         flx ppn = atomic_readx(&pt(pp)->n);
-        if(!atomic_eqx(&pt(a)->p, p, t))
-            goto newp;
         if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
             continue;
+        if(!atomic_eqx(&pt(a)->p, p, t))
+            goto newp;
         assert(!ppn.nil || !ppn.locked);
         
         flx new = (flx){a.mp, ppn.gen + 1};
-        if(pt(ppn) == pt(a) || (!ppn.locked && casx_ok(new, &pt(pp)->n,
-                                                       ppn)))
+        if(pt(ppn) == pt(a) ||
+           (!ppn.locked && casx_ok(new, &pt(pp)->n, ppn)))
         {
             if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
                 continue;
@@ -235,7 +236,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             *pn = ppn;
             goto newpn;
         }
-        
+        if(!atomic_eqx(&pt(a)->p, p, t))
+            goto newp;
+
+        log(a, p, pp, ppn);
         flx newpn = (flx){.nil=a.nil, .pt=a.pt, pn->gen + 1};
         if(casx_ok(newpn, &pt(*p)->n, *pn))
             return *pn = newpn, 0;
@@ -255,6 +259,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
             continue;
         }
         assert(pn.nil);
+        log(p, pn);
         
         pt(a)->p.mp = p.mp;
         if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, pn))

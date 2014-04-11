@@ -87,7 +87,6 @@ void *reinsert_kid(uint t){
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        lprintf("%d", i);
         if(randpcnt(10)){
             uptr r = condxadd(&nb, nalloc);
             if(r < nalloc){
