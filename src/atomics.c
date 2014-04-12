@@ -53,3 +53,7 @@ dptr _cmpxchg2(dptr n, volatile dptr *p, dptr old){
     return cmpxchg2(n, p, old);
 }
 
+uptr _atomic_read(volatile uptr *p){
+    fuzz_atomics();
+    return *p;
+}

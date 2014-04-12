@@ -9,6 +9,11 @@ uptr _xchg2(dptr s, volatile dptr *p);
 uptr _cmpxchg(uptr n, volatile uptr *p, uptr old);
 dptr _cmpxchg2(dptr n, volatile dptr *p, dptr old);
 
+uptr _atomic_read(volatile uptr *p);
+
+#define atomic_read(p)                          \
+    PUN(typeof(*p), _atomic_read((uptr *) p))   \
+
 #define xadd(s, d)                              \
     PUN(typeof(*d),                             \
         _xadd(PUN(uptr, s), (uptr *) d))

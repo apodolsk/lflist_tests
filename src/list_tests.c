@@ -68,8 +68,15 @@ void node_init(node *b){
     assert(lwrite_magics(b));
 }
 
+err succeed(){
+    return 0;
+}
+
 lfstack hot_slabs = LFSTACK;
-type node_t = {sizeof(node), linref_up, linref_down};
+/* type node_t = {sizeof(node), linref_up, linref_down}; */
+type node_t = {sizeof(node),
+               (err (*)(volatile void *, const type *)) succeed,
+               (void (*)(volatile void *)) succeed};
 heritage *node_hs;
 
 volatile dptr nb;

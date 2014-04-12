@@ -57,13 +57,17 @@ static inline int casx_won(const char *f, int l,
 #define casx_ok(as...) casx_ok(__func__, __LINE__, as)
 #define casx_won(as...) casx_won(__func__, __LINE__, as)
 
-static inline flx atomic_readx(volatile flx *x){
-    return cas2((flx){}, x, (flx){});
+static inline flx readx(volatile flx *x){
+    flx r = (flx){.gen = atomic_read(&x->gen), .mp = atomic_read(&x->mp)};
+    return r;
+    /* return cas2((flx){}, x, (flx){}); */
 }
-static inline bool atomic_eqx(volatile flx *a, flx *b, type *t){
+static inline bool eqx(volatile flx *a, flx *b, type *t){
     for(int c = 0; TEST_PROGRESS(c);){
         flx old = *b;
-        *b = atomic_readx(a);
+        /* *b = readx(a); */
+        b->mp = atomic_read(&a->mp);
+        b->gen = atomic_read(&a->gen);
         if(eq2(old, *b))
             return true;
         if(pt(old) == pt(*b))
@@ -77,7 +81,7 @@ static inline bool atomic_eqx(volatile flx *a, flx *b, type *t){
 static
 flx (flinref_read)(volatile flx *from, flx **held, type *t){
     for(int c = 0; TEST_PROGRESS(c);){
-        flx a = atomic_readx(from);
+        flx a = readx(from);
         flx *reused = NULL;
         for(flx **h = held; *h; h++){
             if(pt(a) == pt(**h) && !reused)
@@ -170,21 +174,21 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         if(!pt(*n))
             return assert(!a.nil), *np = (flx){}, -1;
     newnp:
-        *np = atomic_readx(&pt(*n)->p);
+        *np = readx(&pt(*n)->p);
         if(pt(*np) == pt(a))
             return 0;
         if(!pt(*np) || np->nil){
-            if(!atomic_eqx(&pt(a)->n, n, t))
+            if(!eqx(&pt(a)->n, n, t))
                 goto newn;
             else return assert(!a.nil), -1;
         }
         
         TEST_PROGRESS(c);
-        flx npp = atomic_readx(&pt(*np)->p);
-        if(!atomic_eqx(&pt(a)->n, n, t))
+        flx npp = readx(&pt(*np)->p);
+        if(!eqx(&pt(a)->n, n, t))
             goto newn;
         if(pt(npp) != pt(a)){
-            if(!eq2(*np, atomic_readx(&pt(*n)->p)))
+            if(!eq2(*np, readx(&pt(*n)->p)))
                 goto newnp;
             else return assert(!a.nil), -1;
         }
@@ -204,8 +208,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(!pt(*p) || (!a.nil && p->gen != a.gen))
             return *pn = (flx){}, -1;
 
-        *pn = atomic_readx(&pt(*p)->n);
-        if(!atomic_eqx(&pt(a)->p, p, t))
+        *pn = readx(&pt(*p)->n);
+        if(!eqx(&pt(a)->p, p, t))
             goto newp;
         if(pt(*pn) != pt(a))
             return -1;
@@ -217,10 +221,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         pp = flinref_read(&pt(*p)->p, (flx*[]){&pp, NULL}, t);
         if(!pt(pp))
             continue;
-        flx ppn = atomic_readx(&pt(pp)->n);
+        flx ppn = readx(&pt(pp)->n);
         if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
             continue;
-        if(!atomic_eqx(&pt(a)->p, p, t))
+        if(!eqx(&pt(a)->p, p, t))
             goto newp;
         assert(!ppn.nil || !ppn.locked);
         
@@ -237,7 +241,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             *pn = ppn;
             goto newpn;
         }
-        if(!atomic_eqx(&pt(a)->p, p, t))
+        if(!eqx(&pt(a)->p, p, t))
             goto newp;
 
         log(a, p, pp, ppn);
