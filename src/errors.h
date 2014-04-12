@@ -8,7 +8,7 @@
 
 /* Default break, print, and dbg levels. */
 #define BRK 4
-#define PRNT 2
+#define PRNT 3
 #define DBG 1
 
 #define E_NALLOC DBG, BRK, PRNT

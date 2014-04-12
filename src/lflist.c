@@ -29,28 +29,30 @@ __attribute__((pure))
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.pt << 2);
 }
-static inline flx casx(const char *f, int l, flx n, volatile flx *a, flx e){
-    llprintf1("CAS! %s:%d - %s if %s, addr:%p", f, l, str(n), str(e), a); 
-    flx r = cas2(n, a, e);
-    llprintf1("%s %s:%d- found:%s addr:%p", eq2(r,e)? "WON" : "LOST", f, l, str(r), a);
-    return r;
+static inline flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
+    llprintf1("CAS! %s:%d - %s if %s, addr:%p", f, l, str(n), str(e), a);
+    flx oe = *e;
+    *e = cas2(n, a, oe);
+    llprintf1("%s %s:%d- found:%s addr:%p", eq2(*e, oe)? "WON" : "LOST", f, l, str(*e), a);
+    return *e;
 }
 static inline enum howok{
     NOT = 0,
     OK = 1,
     WON = 2
-} casx_ok(const char *f, int l, flx n, volatile flx *a, flx e){
-    flx r = casx(f, l, n, a, e);
-    if(eq2(r, e))
+} casx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
+    flx oe = *e;
+    casx(f, l, n, a, e);
+    if(eq2(*e, oe))
         return WON;
-    if(eq2(r, n))
+    if(eq2(*e, n))
         return OK;
     return NOT;
 }
 
 static inline int casx_won(const char *f, int l,
-                           flx n, volatile flx *a, flx e){
-    return eq2(casx(f, l, n, a, e), e);
+                           flx n, volatile flx *a, flx *e){
+    return eq2(*e, casx(f, l, n, a, e));
 }
 
 #define casx(as...) casx(__func__, __LINE__, as)
@@ -114,8 +116,8 @@ void flinref_down(flx a, type *t){
 err (lflist_del)(flx a, type *t){
     assert(!a.nil);
 
-    flx n = {}, p = {}, pn, np;
-    flx lock = {};
+    flx lock = {}, pn, np, p = {};
+    flx n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
     for(int c = 0; TEST_PROGRESS(c);){
         if(help_next(a, &n, &np, t)){
             RARITY("N abort");
@@ -128,11 +130,11 @@ err (lflist_del)(flx a, type *t){
         }
         
         lock = (flx){.nil=n.nil, 1, n.pt, n.gen + 1};
-        enum howok r = casx_ok(lock, &pt(a)->n, n);
+        enum howok r = casx_ok(lock, &pt(a)->n, &n);
         if(r){
             n = lock;            
             if(r != WON) lock = (flx){};
-            if(casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen+1}, &pt(p)->n, pn))
+            if(casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen+1}, &pt(p)->n, &pn))
                 break;
         }else lock = (flx){};
     }
@@ -141,14 +143,14 @@ err (lflist_del)(flx a, type *t){
     if(lock.mp && n.gen == lock.gen){
         assert(p.gen == a.gen);
         if(pt(np) == pt(a))
-            casx((flx){p.mp, np.gen}, &pt(n)->p, np);
-        if(casx_won((flx){.gen = a.gen}, &pt(a)->p, p)){
+            casx((flx){p.mp, np.gen}, &pt(n)->p, &np);
+        if(casx_won((flx){.gen = a.gen}, &pt(a)->p, &p)){
             if(pt(np) == pt(a)){
                 flx nn = pt(n)->n;
                 if(nn.nil && !flinref_up(nn, t)){
                     flx nnp = pt(nn)->p;
                     if(pt(nnp) == pt(a))
-                        casx((flx){n.mp, nnp.gen + 1}, &pt(nn)->p, nnp);
+                        casx((flx){n.mp, nnp.gen + 1}, &pt(nn)->p, &nnp);
                     flinref_down(nn, t);
                 }
             }
@@ -168,11 +170,9 @@ err (lflist_del)(flx a, type *t){
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
     for(int c = 0;;){
-        *n = flinref_read(&pt(a)->n, (flx*[]){n, NULL}, t);
     newn:
         assert(a.nil || pt(*n) != pt(a));
-        if(!pt(*n))
-            return assert(!a.nil), *np = (flx){}, -1;
+        assert(pt(*n));
     newnp:
         *np = readx(&pt(*n)->p);
         if(pt(*np) == pt(a))
@@ -193,8 +193,9 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             else return assert(!a.nil), -1;
         }
         RARITY("Swinging n:%s np:%s npp:%s", str(*n), str(*np), str(npp));
-        if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, *np))
+        if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, np))
             return *np = (flx){a.mp, np->gen}, 0;
+        *n = flinref_read(&pt(a)->n, (flx*[]){n, NULL}, t);
     }
 }
 
@@ -230,10 +231,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         
         flx new = (flx){a.mp, ppn.gen + 1};
         if(pt(ppn) == pt(a) ||
-           (!ppn.locked && casx_ok(new, &pt(pp)->n, ppn)))
+           (!ppn.locked && casx_ok(new, &pt(pp)->n, &ppn)))
         {
-            if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, *p))
-                continue;
+            if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, p))
+                goto newp;
             flinref_down(*p, t);
             *p = (flx){pp.mp, p->gen};
             if(pt(ppn) != pt(a))
@@ -246,13 +247,13 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 
         log(a, p, pp, ppn);
         flx newpn = (flx){.nil=a.nil, .pt=a.pt, pn->gen + 1};
-        if(casx_ok(newpn, &pt(*p)->n, *pn))
+        if(casx_ok(newpn, &pt(*p)->n, pn))
             return *pn = newpn, 0;
     }
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
-    if(!casx_won((flx){.gen = a.gen + 1}, &pt(a)->p, (flx){.gen = a.gen}))
+    if(!casx_won((flx){.gen = a.gen + 1}, &pt(a)->p, &(flx){.gen = a.gen}))
         return -1;
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
@@ -260,23 +261,24 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     for(int c = 0; TEST_PROGRESS(c);){
         if(help_prev((flx){.nil = 1, .pt = mpt(&l->nil)}, &p, &pn, t)){
             assert(pt(p));
-            casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, p);
+            casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, &p);
             continue;
         }
         assert(pn.nil);
         log(p, pn);
         
         pt(a)->p.mp = p.mp;
-        if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, pn))
+        if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, &pn))
             break;
     }
 
-    casx((flx){.mp = a.mp, .gen = p.gen + 1}, &l->nil.p, p);
+    casx((flx){.mp = a.mp, .gen = p.gen + 1}, &l->nil.p, &p);
     return 0;
 }
 
 flx (lflist_deq)(type *t, lflist *l){
-    flx n = {}, np = {}, oldn = {};
+    flx np, oldn = {};
+    flx n = flinref_read(&l->nil.n, (flx*[]){NULL}, t);
     for(int c = 0; TEST_PROGRESS(c);){
         if(help_next((flx){.nil = 1, .pt = mpt(&l->nil)}, &n, &np, t))
             EWTF();
