@@ -25,6 +25,7 @@ static void flinref_down(flx a, type *t);
 static err help_next(flx a, flx *n, flx *np, type *t);
 static err help_prev(flx a, flx *p, flx *pn, type *t);
 
+__attribute__((pure))
 static inline flanchor *pt(flx a){
     return (flanchor *) (a.pt << 2);
 }

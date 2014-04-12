@@ -16,7 +16,7 @@
 
 #define TS LFLIST_TS
 
-uint nlists = 2;
+uint nlists = 1;
 uint nthreads = 2;
 uint niter = 1000;
 uint nalloc = 100;
