@@ -189,6 +189,10 @@ void (linref_down)(volatile void *l){
     slab_ref_down(slab_of((void *) l));
 }
 
+err (heritage_destroy)(heritage *h){
+    
+}
+
 static
 unsigned int slab_max_blocks(slab *s){
     return (SLAB_SIZE - offsetof(slab, blocks)) / s->tx.her->t->size;
@@ -198,13 +202,6 @@ static
 cnt slab_num_priv_blocks(slab *s){
     return s->free_blocks.size + s->cold_blocks;
 }
-
-/* static */
-/* bool slab_full(slab *s){ */
-/*     return &s->blocks[s->block_size * (slab_num_priv_blocks(s) + */
-/*                                        s->wayward_blocks.size)] == */
-/*         (void *)&s[1]; */
-/* } */
 
 static
 slab *slab_of(block *b){

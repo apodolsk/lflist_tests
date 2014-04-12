@@ -60,16 +60,18 @@ static inline int casx_won(const char *f, int l,
 #define casx_won(as...) casx_won(__func__, __LINE__, as)
 
 static inline flx readx(volatile flx *x){
-    flx r = (flx){.gen = atomic_read(&x->gen), .mp = atomic_read(&x->mp)};
-    return r;
-    /* return cas2((flx){}, x, (flx){}); */
+    if(!aligned_pow2(x, sizeof(dptr)))
+        return (flx){};
+    /* flx r = (flx){.gen = atomic_read(&x->gen), .mp = atomic_read(&x->mp)}; */
+    /* return r; */
+    return cas2((flx){}, x, (flx){});
 }
 static inline bool eqx(volatile flx *a, flx *b, type *t){
     for(int c = 0; TEST_PROGRESS(c);){
         flx old = *b;
-        /* *b = readx(a); */
-        b->mp = atomic_read(&a->mp);
-        b->gen = atomic_read(&a->gen);
+        *b = readx(a);
+        /* b->mp = atomic_read(&a->mp); */
+        /* b->gen = atomic_read(&a->gen); */
         if(eq2(old, *b))
             return true;
         if(pt(old) == pt(*b))
