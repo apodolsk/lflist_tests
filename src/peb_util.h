@@ -69,22 +69,23 @@ static inline void *subtract_if_not_null(void *ptr, size s){
     })                                                                  \
 
 #include <sys/time.h>
-#define TOD_GETTIME(expr)                                               \
-    ({                                                                  \
-       struct timeval _start;                                         \
-       gettimeofday(&_start, NULL);                                   \
-       expr;                                                            \
-       struct timeval _end;                                           \
-       gettimeofday(&_end, NULL);                                     \
-       1000 * (_end.tv_sec - _start.tv_sec) +                       \
-           (double) (_end.tv_usec - _start.tv_usec) / 1000.0;       \
-       })
+#define TOD_GETTIME(expr)                                       \
+    ({                                                          \
+        struct timeval _start;                                  \
+        gettimeofday(&_start, NULL);                            \
+        expr;                                                   \
+        struct timeval _end;                                    \
+        gettimeofday(&_end, NULL);                              \
+        1000 * (_end.tv_sec - _start.tv_sec) +                  \
+            (double) (_end.tv_usec - _start.tv_usec) / 1000.0;  \
+    })
 
 
 #define GETTIME(expr) TOD_GETTIME(expr)
 #define TIME(expr)                                                      \
     do{                                                                 \
-        log(#expr ": %f ms", GETTIME((expr)));                          \
+        float __TIMERET = GETTIME(expr);                                \
+        lprintf(#expr ": %f ms", __TIMERET);                            \
     }while(0)                                                           \
 
 

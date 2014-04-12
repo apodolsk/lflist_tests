@@ -8,17 +8,21 @@
 
 #include <pthread.h>
 
-pthread_mutex_t *mut = &((pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER);
+static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 static
-void lock_world(void){
-    pthread_mutex_lock(mut);
+void lock_lflist(lflist *l){
+    (void) l;
+    pthread_mutex_lock(&l->mut);
+    /* pthread_mutex_lock(&mut); */
     /* disable_interrupts(); */
 }
 
 static
-void unlock_world(void){
-    pthread_mutex_unlock(mut);
+void unlock_lflist(lflist *l){
+    (void) l;
+    pthread_mutex_unlock(&l->mut);
+    /* pthread_mutex_unlock(&mut); */
     /* enable_interrupts(); */
 }
 
@@ -30,45 +34,49 @@ flanchor *flptr(flx a){
     return a.a;
 }
 
-err lflist_add_before(flx a, flx n, type *h, lflist *l){
+err (lflist_del)(flx a, type *h){
     (void) h;
-    lock_world();
-    assert(!(a.a->gen & 1));
-    if(!cas_ok(a.gen + 2, &a.a->gen, a.gen) || a.a->lanc.n)
-        return unlock_world(), -1;
-    list_add_before(&a.a->lanc, &n.a->lanc, &l->l);
-    unlock_world();
-    return 0;
-}
-
-err lflist_del(flx a, type *h, lflist *l){
-    (void) h;
-    lock_world();
+    lflist *l;
+    while(1){
+        l = a.a->host;
+        if(!l)
+            return -1;
+        lock_lflist(l);
+        if(a.a->host == l)
+            break;
+        unlock_lflist(l);
+    }
     if(a.a->gen != a.gen || !a.a->lanc.n || ((uptr) a.a->lanc.n & 1))
-        return unlock_world(), -1;
+        return unlock_lflist(l), -1;
     list_remove(&a.a->lanc, &l->l);
-    unlock_world();
+    a.a->lanc = (lanchor) LANCHOR;
+    a.a->host = NULL;
+    unlock_lflist(l);
     return 0;
 }
 
-flx lflist_deq(type *h, lflist *l){
+flx (lflist_deq)(type *h, lflist *l){
     (void) h;
-    lock_world();
+    lock_lflist(l);
     flx rlx = (flx){};
     flanchor *r = cof(list_pop(&l->l), flanchor, lanc);
-    if(r)
+    if(r){
         rlx = (flx){r, r->gen};
-    unlock_world();
+        r->lanc = (lanchor) LANCHOR;
+        r->host = NULL;
+    }
+    unlock_lflist(l);
     return rlx;
 }
 
-err lflist_enq(flx a, type *h, lflist *l){
+err (lflist_enq)(flx a, type *h, lflist *l){
     (void) h;
-    lock_world();
+    lock_lflist(l);
     if(!cas_ok(a.gen + 2, &a.a->gen, a.gen) || a.a->lanc.n)
-        return unlock_world(), -1;
+        return unlock_lflist(l), -1;
+    a.a->host = l; 
     list_add_rear(&a.a->lanc, &l->l);
-    unlock_world();
+    unlock_lflist(l);
     return 0;
 }
  

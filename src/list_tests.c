@@ -16,7 +16,7 @@
 
 #define TS LFLIST_TS
 
-uint nlists = 1;
+uint nlists = 2;
 uint nthreads = 2;
 uint niter = 1000;
 uint nalloc = 100;
@@ -209,7 +209,7 @@ int main(int argc, char **argv){
     if(do_malloc)
         return malloc_test_main(program);
     
-    test_reinsert();
+    TIME(test_reinsert());
 
     assert(!nb);
     return 0;
