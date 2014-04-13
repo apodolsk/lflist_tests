@@ -59,7 +59,7 @@ flx (lflist_deq)(type *h, lflist *l){
     (void) h;
     lock_lflist(l);
     flx rlx = (flx){};
-    flanchor *r = cof(list_pop(&l->l), flanchor, lanc);
+    flanchor *r = cof(list_deq(&l->l), flanchor, lanc);
     if(r){
         rlx = (flx){r, r->gen};
         r->lanc = (lanchor) LANCHOR;
@@ -75,7 +75,7 @@ err (lflist_enq)(flx a, type *h, lflist *l){
     if(!cas_ok(a.gen + 2, &a.a->gen, a.gen) || a.a->lanc.n)
         return unlock_lflist(l), -1;
     a.a->host = l; 
-    list_add_rear(&a.a->lanc, &l->l);
+    list_enq(&a.a->lanc, &l->l);
     unlock_lflist(l);
     return 0;
 }

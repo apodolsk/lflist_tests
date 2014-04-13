@@ -43,9 +43,9 @@
     static inline int CONCAT(pu_snprint, t)                             \
     (char *b, size_t l, int is_really_ptr, t *a){                       \
         if(is_really_ptr)                                               \
-            return snprintf(b, l, "%p:&"fmt, a, as);                    \
+            return snprintf(b, l, "%p:&"fmt, a, ##as);                  \
         else                                                            \
-            return snprintf(b, l, fmt, as);                             \
+            return snprintf(b, l, fmt, ##as);                             \
     }
 
 #define aasprintf(snprint, ispt, a)                     \

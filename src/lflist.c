@@ -15,7 +15,7 @@
 
 #ifndef FAKELOCKFREE
 
-#define MAX_LOOP 30
+#define MAX_LOOP 100
 #define TEST_PROGRESS(...)
 /* #define TEST_PROGRESS(c) ((void)(c++ > MAX_LOOP ? SUPER_RARITY("LOTTA LOOPS %d", c) : 0), 1) */
 
@@ -122,7 +122,7 @@ err (lflist_del)(flx a, type *t){
     flx n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
     for(int c = 0; TEST_PROGRESS(c);){
         if(help_next(a, &n, &np, t)){
-            RARITY("N abort");
+            RARITY("N abort n:%s np:%s", str(n), str(np));
             break;
         }
         if(help_prev(a, &p, &pn, t) || p.gen != a.gen){

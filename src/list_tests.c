@@ -20,95 +20,76 @@ uint nlists = 1;
 uint nthreads = 2;
 uint niter = 1000;
 uint nalloc = 100;
-uint nwrites = 0;
+uint nwrites = 8;
 
 /* GDB starts counting child threads at 2. Urgh. */
 const uint firstborn = 2;
 
-#define MAXWRITE 100
+#define MAXWRITE 8
 
 static sem_t parent_done;
+
+static err succeed();
 
 typedef union{
     lineage lin;
     struct{
         lanchor lanc;
         flanchor flanc;
-        pthread_t magics[MAXWRITE];
     };
 } node;
-
-int lwrite_magics(node *b){
-    assert(nwrites <= MAXWRITE);
-    for(uint i = 0; i < nwrites; i++)
-        b->magics[i] = pthread_self();
-    return 1;
-}
-
-int lmagics_valid(node *b){
-    for(uint i = 0; i < nwrites; i++)
-        assert(b->magics[i] == pthread_self());
-    return 1;
-}
-
-dptr condxadd(volatile dptr *d, dptr max){
-    dptr r, f = *d;
-    do{
-        r = f;
-        if(r >= max)
-            return r;
-        f = cas2(r + 1, d, r);
-    }while(f != r);
-    return r;
-}
-
-void node_init(node *b){
-    b->flanc = (flanchor) FLANCHOR;
-    b->lanc = (lanchor) LANCHOR;
-    assert(lwrite_magics(b));
-}
-
-err succeed(){
-    return 0;
-}
-
-lfstack hot_slabs = LFSTACK;
-type *node_t = &{sizeof(node), linref_up, linref_down};
-type *perm_node_t = &{sizeof(node),
+type *node_t = &(type){sizeof(node), linref_up, linref_down};
+type *perm_node_t = &(type){sizeof(node),
                     (err (*)(volatile void *, const type *)) succeed,
                     (void (*)(volatile void *)) succeed};
-heritage *node_hs;
 
-volatile dptr nb;
+volatile uptr nb;
 static lflist *shared;
 static list all = LIST(&all);
 static pthread_mutex_t all_lock = PTHREAD_MUTEX_INITIALIZER;
 
-void *test_reinsert(uint t){
+static dptr condxadd(volatile uptr *d, uptr max){
+    uptr r, f = *d;
+    do{
+        r = f;
+        if(r >= max)
+            return r;
+        f = cas(r + 1, d, r);
+    }while(f != r);
+    return r;
+}
+
+static void node_init(node *b){
+    b->flanc = (flanchor) FLANCHOR;
+    b->lanc = (lanchor) LANCHOR;
+}
+
+static err succeed(){
+    return 0;
+}
+
+static void *test_reinsert(uint t){
     lflist priv = LFLIST(&priv);
     list perm = LIST(&perm);
     tid_ = t + firstborn;
-    heritage *node_h = &node_hs[t];
+    heritage *node_h =
+        &(heritage)POSIX_HERITAGE(node_t, 16, 16, (void (*)(void *)) node_init);
 
     rand_init();
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        if(randpcnt(10)){
-            uptr r = condxadd(&nb, nalloc);
-            if(r < nalloc){
-                node *b = (node *) linalloc(node_h);
-                log((void *) b, r, nb, nalloc);
-                lflist_enq(flx_of(&b->flanc), perm_node_t, &priv);
-                list_add_rear(&b->lanc, &perm);
-            }
+        if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
+            node *b = (node *) linalloc(node_h);
+            log((void *) b);
+            lflist_enq(flx_of(&b->flanc), perm_node_t, &priv);
+            list_enq(&b->lanc, &perm);
         }
 
         lflist *l = &shared[rand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
             log("Pushing", flptr(bx));
-            assert(lmagics_valid(cof(flptr(bx), node, flanc)));
             lflist_enq(bx, perm_node_t, l);
         }else{
             bx = lflist_deq(perm_node_t, l);
@@ -116,7 +97,6 @@ void *test_reinsert(uint t){
             if(!b)
                 continue;
             log("Popped", flptr(bx));
-            assert(lwrite_magics(b));
             lflist_enq(bx, perm_node_t, &priv);
         }
     }
@@ -127,64 +107,151 @@ void *test_reinsert(uint t){
         lflist_enq(bx, perm_node_t, &shared[0]);
 
     pthread_mutex_lock(&all_lock);
-    for(node *b; (b = cof(list_pop(&perm), node, lanc));)
-        list_add_rear(&b->lanc, &all);
+    for(node *b; (b = cof(list_deq(&perm), node, lanc));)
+        list_enq(&b->lanc, &all);
     pthread_mutex_unlock(&all_lock);
 
     return NULL;
 }
 
-void *test_lin_reinsert(uint t){
-    lflist priv = LFLIST(&priv);
+static void *test_del(uint t){
+    lflist semipriv = LFLIST(&semipriv);
     list perm = LIST(&perm);
     tid_ = t + firstborn;
-    heritage *node_h = &node_hs[t];
+    heritage *node_h =
+        &(heritage)POSIX_HERITAGE(node_t, 16, 16, (void (*)(void *)) node_init);
 
     rand_init();
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        if(randpcnt(10)){
-            uptr r = condxadd(&nb, nalloc);
-            if(r < nalloc){
-                node *b = (node *) linalloc(node_h);
-                log((void *) b, r, nb, nalloc);
-                lflist_enq(flx_of(&b->flanc), node_t, &priv);
-                list_add_rear(&b->lanc, &perm);
-            }
+        if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
+            node *b = (node *) linalloc(node_h);
+            log((void *) b);
+            lflist_enq(flx_of(&b->flanc), perm_node_t, &semipriv);
+            list_enq(&b->lanc, &perm);
         }
 
         lflist *l = &shared[rand() % nlists];
         flx bx;
-        if(randpcnt(50) && flptr(bx = lflist_deq(node_t, &priv))){
+        if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &semipriv))){
             log("Pushing", flptr(bx));
-            assert(lmagics_valid(cof(flptr(bx), node, flanc)));
-            lflist_enq(bx, node_t, l);
+            lflist_enq(bx, perm_node_t, l);
         }else{
-            bx = lflist_deq(node_t, l);
-            node *b = cof(flptr(bx), node, flanc);
+            node *b = cof(list_deq(&perm), node, lanc);
             if(!b)
                 continue;
-            log("Popped", flptr(bx));
-            assert(lwrite_magics(b));
-            lflist_enq(bx, node_t, &priv);
+            list_enq(&b->lanc, &perm);
+            bx = flx_of(&b->flanc);
+            if(lflist_del(bx, perm_node_t))
+                continue;
+            log("Popped", (void *) flptr(bx));
+            lflist_enq(bx, perm_node_t, &semipriv);
         }
     }
 
     lprintf("done!");
 
-    for(flx bx; flptr(bx = lflist_deq(node_t, &priv));)
-        lflist_enq(bx, node_t, &shared[0]);
+    for(flx bx; flptr(bx = lflist_deq(perm_node_t, &semipriv));)
+        lflist_enq(bx, perm_node_t, &shared[0]);
 
     pthread_mutex_lock(&all_lock);
-    for(node *b; (b = cof(list_pop(&perm), node, lanc));)
-        list_add_rear(&b->lanc, &all);
+    for(node *b; (b = cof(list_deq(&perm), node, lanc));)
+        list_enq(&b->lanc, &all);
     pthread_mutex_unlock(&all_lock);
 
     return NULL;
 }
 
-void launch_test(void *test(void *)){
+typedef union{
+    lineage lin;
+    struct{
+        lanchor lanc;
+        pthread_t magics[MAXWRITE];
+    };
+} notnode;
+
+static int write_magics(notnode *b){
+    assert(nwrites <= MAXWRITE);
+    for(uint i = 0; i < nwrites; i++)
+        b->magics[i] = pthread_self();
+    return 1;
+}
+
+static int magics_valid(notnode *b){
+    for(uint i = 0; i < nwrites; i++)
+        assert(b->magics[i] == pthread_self());
+    return 1;
+}
+
+
+static void *test_lin_reinsert(uint t){
+    lflist priv = LFLIST(&priv);
+    list perm = LIST(&perm);
+    tid_ = t + firstborn;
+    heritage *node_h =
+        &(heritage)POSIX_HERITAGE(node_t, 1, 1,
+                                  (void (*)(void *)) node_init);
+
+    list privnn = LIST(&privnn);
+
+    rand_init();
+    sem_wait(&parent_done);
+
+    for(uint i = 0; i < niter; i++){
+        if(randpcnt(20) && (condxadd(&nb, nalloc) < nalloc)){
+            notnode *b = (notnode *) malloc(sizeof(notnode));
+            write_magics(b);
+            list_enq(&b->lanc, &privnn);
+        }
+
+        notnode *nn;
+        if(randpcnt(10) && (nn = cof(list_deq(&privnn), notnode, lanc))){
+            assert(magics_valid(nn));
+            free(nn);
+            xadd(-1, &nb);
+        }
+        
+        if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
+            node *b = (node *) linalloc(node_h);
+            log((void *) b);
+            lflist_enq(flx_of(&b->flanc), perm_node_t, &priv);
+            list_enq(&b->lanc, &perm);
+        }
+
+        lflist *l = &shared[rand() % nlists];
+        flx bx;
+        if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
+            log("Pushing", flptr(bx));
+            lflist_enq(bx, perm_node_t, l);
+        }else{
+            bx = lflist_deq(perm_node_t, l);
+            node *b = cof(flptr(bx), node, flanc);
+            if(!b)
+                continue;
+            log("Popped", flptr(bx));
+            lflist_enq(bx, perm_node_t, &priv);
+        }
+    }
+
+    lprintf("done!");
+
+    for(flx bx; flptr(bx = lflist_deq(perm_node_t, &priv));)
+        lflist_enq(bx, perm_node_t, &shared[0]);
+
+    for(notnode *nn; (nn = cof(list_deq(&privnn), notnode, lanc));)
+        xadd(-1, &nb);
+
+    pthread_mutex_lock(&all_lock);
+    for(node *b; (b = cof(list_deq(&perm), node, lanc));)
+        list_enq(&b->lanc, &all);
+    pthread_mutex_unlock(&all_lock);
+
+    return NULL;
+}
+
+
+static void launch_test(void *test(void *)){
     sem_t parent_dead;
     if(sem_init(&parent_dead, 0, 0))
         EWTF();
@@ -204,13 +271,13 @@ void launch_test(void *test(void *)){
                               node, flanc)); nb--)
         {
             list_remove(&b->lanc, &all);
-            list_add_rear(&b->lanc, &done);
+            list_enq(&b->lanc, &done);
         }
 
     assert(!list_size(&all));
     assert(!nb);
 
-    for(node *b; (b = cof(list_pop(&done), node, lanc));)
+    for(node *b; (b = cof(list_deq(&done), node, lanc));)
         linfree(&b->lin);
 }
 
@@ -247,13 +314,6 @@ int main(int argc, char **argv){
                 MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0)
            != MAP_FAILED);
 
-
-    heritage hs[nthreads];
-    for(uint i = 0; i < nthreads; i++)
-        hs[i] = (heritage) POSIX_HERITAGE(node_t, &hot_slabs,
-                                          (void (*)(void *)) node_init);
-    node_hs = hs;
-
     lflist lists[nlists];
     for(uint i = 0; i < nlists; i++)
         lists[i] = (lflist) LFLIST(&lists[i]);
@@ -263,8 +323,18 @@ int main(int argc, char **argv){
 
     if(do_malloc)
         return malloc_test_main(program);
-    
-    TIME(launch_test((void *(*)(void *))test_reinsert));
+
+    switch(program){
+    case 1:
+        TIME(launch_test((void *(*)(void *))test_reinsert));
+        break;
+    case 2:
+        TIME(launch_test((void *(*)(void *))test_lin_reinsert));
+        break;
+    case 3:
+        TIME(launch_test((void *(*)(void *))test_del));
+        break;
+    }
 
     assert(!nb);
     return 0;

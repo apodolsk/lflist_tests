@@ -28,14 +28,17 @@ typedef const struct type{
 typedef struct{
     lfstack slabs;
     lfstack *hot_slabs;
+    cnt max_slabs;
+    cnt slab_alloc_batch;
     type *t;
     void (*block_init)(void *b);
     slab *(*new_slabs)(cnt nslabs);
 } heritage;
-#define POSIX_HERITAGE(t, hs, bi) {LFSTACK, hs, t, bi, mmap_slabs}
-#define POSIX_POLY_HERITAGE(t, bi) {LFSTACK, &hot_kslabs, t, bi, mmap_slabs}
+#define POSIX_HERITAGE(t, ms, sab, bi)              \
+    {LFSTACK, &hot_slabs, ms, sab, t, bi, mmap_slabs}
 /* #define KERN_HERITAGE(, bi) HERITAGE(, &hot_kern_slabs, bi, new_kern_slabs) */
 
+extern lfstack hot_slabs;
 
 #define smalloc _smalloc
 #define sfree _sfree

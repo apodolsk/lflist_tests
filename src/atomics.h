@@ -14,9 +14,7 @@ uptr _atomic_read(volatile uptr *p);
 #define atomic_read(p)                          \
     PUN(typeof(*p), _atomic_read((uptr *) p))   \
 
-#define xadd(s, d)                              \
-    PUN(typeof(*d),                             \
-        _xadd(PUN(uptr, s), (uptr *) d))
+#define xadd(as...) _xadd(as)
 
 #define xchg2(s, d)                             \
     PUN(typeof(*d),                             \

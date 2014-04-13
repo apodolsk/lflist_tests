@@ -5,7 +5,7 @@
 #include <pustr.h>
 
 /* 0 to disable non-VIP logging. */
-#define LOG_MASTER 0
+#define LOG_MASTER 1
 #define DYNAMIC_LOG 0
 
 /* 1 enables mute_log() and unmute_log(). */
@@ -24,7 +24,7 @@
 #define LOG_PEBRAND 0
 
 #define LOG_ATOMICS 0
-#define LOG_LISTM 1
+#define LOG_LISTM 0
 #define LOG_LFLISTM 1
 #define LOG_STACKM 0
 

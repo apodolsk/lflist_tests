@@ -5,17 +5,12 @@
 #define lprintf(s, ...) printf("T:%d " s "\n", _gettid(), ##__VA_ARGS__)
 
 
-/* Timer driver reads this. 9000 is still slow enough for the raw kernel code,
-   and I ran it this way for most of development. But logging with interrupts
-   off becomes dangerous above 7000. */
+/* Timer driver reads this. 9000 is still slow enough for the raw kernel
+   code, and I ran it this way for most of development. But logging with
+   interrupts off becomes dangerous above 7000. */
 /* #define TICKS_PER_SEC 7000 */
 #define TICKS_PER_SEC 3000
 /* #define TICKS_PER_SEC 100 */
-
-#define RUN_UNITESTS 1
-#define ENABLE_POOLS 0
-#define HEAP_DBG 0
-#define ARENA_DBG 0
 
 /* How often will the frame and memory allocators play dead? And if we let
    them play dead, will we also let them emulate overcommit errors?

@@ -21,11 +21,11 @@ void list_add_after(lanchor *a, lanchor *p, list *l){
     l->size++;
 }
 
-void list_add_front(lanchor *a, list *l){
+void list_push(lanchor *a, list *l){
     list_add_after(a, &l->nil, l);
 }
 
-void list_add_rear(lanchor *a, list *l){
+void list_enq(lanchor *a, list *l){
     list_add_before(a, &l->nil, l);
 }
 
@@ -65,7 +65,7 @@ lanchor *list_peek(list *l){
     return head == &l->nil ? NULL : head;
 }
 
-lanchor *list_pop(list *l){
+lanchor *list_deq(list *l){
     lanchor *a = list_peek(l);
     if(a)
         list_remove(a, l);

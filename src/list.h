@@ -16,8 +16,8 @@ typedef struct{
 #define LIST_FOR_EACH(cur, list)                                    \
     for(cur = list->nil.n; cur != &list->nil; cur = cur->n)
 
-void list_add_front(lanchor *a, list *l);
-void list_add_rear(lanchor *a, list *l);
+void list_push(lanchor *a, list *l);
+void list_enq(lanchor *a, list *l);
 
 void list_add_before(lanchor *a, lanchor *beforehis, list *l);
 void list_add_after(lanchor *a, lanchor *afterhis, list *l);
@@ -30,7 +30,7 @@ lanchor *list_find(lcomp comparator, void *key, list *list);
 int list_contains(lanchor *anchor, list *list);
 lanchor *list_nth(unsigned int n, list *list);
 
-lanchor *list_pop(list *l);
+lanchor *list_deq(list *l);
 lanchor *list_peek(list *l);
 
 uptr list_size(list *list);

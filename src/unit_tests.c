@@ -170,9 +170,9 @@ void mt_child_rand(int parentid){
             *cur_block = (struct tblock)
                 { . size = size, .lanc = LANCHOR };
             write_magics(cur_block, tid);
-            list_add_rear(&cur_block->lanc, blocks);
+            list_enq(&cur_block->lanc, blocks);
         }else if(blocks->size){
-            cur_block = cof(list_pop(blocks), struct tblock, lanc);
+            cur_block = cof(list_deq(blocks), struct tblock, lanc);
             if(!cur_block)
                 continue;
             check_magics(cur_block, tid);
@@ -182,7 +182,7 @@ void mt_child_rand(int parentid){
 
     for(uint i = 0; i < NUM_LISTS; i++){
         list *blocks = &block_lists[i];
-        while((cur_block = cof(list_pop(blocks), struct tblock, lanc)))
+        while((cur_block = cof(list_deq(blocks), struct tblock, lanc)))
             wsfree(cur_block, cur_block->size);
     }
 
@@ -252,11 +252,11 @@ void mt_sharing_child(struct child_args *shared){
             log2("Claiming: %p", cur_block);
             write_magics(cur_block, tid);
             cur_block->lanc = (lanchor) LANCHOR;
-            list_add_front(&cur_block->lanc, &priv_blocks[prand() % NUM_LISTS]);
+            list_enq(&cur_block->lanc, &priv_blocks[prand() % NUM_LISTS]);
         }
 
         if(rand_percent(2 * (100 - malloc_prob))){
-            cur_block = cof(list_pop(&priv_blocks[prand() % NUM_LISTS]),
+            cur_block = cof(list_deq(&priv_blocks[prand() % NUM_LISTS]),
                             struct tblock, lanc);
             if(!cur_block)
                 continue;
