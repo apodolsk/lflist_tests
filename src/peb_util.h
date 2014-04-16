@@ -40,58 +40,6 @@ static inline void *subtract_if_not_null(void *ptr, size s){
 
 #define eq2(a, b) ({ typeof(b) __eq2a = a; (PUN(dptr, __eq2a) == PUN(dptr, b)); })
 
-/* Aladdin system doesn't have librt installed. I'm sick of wrangling with the
-   loader. */
-#include <time.h>
-#define CLOCK_GETTIME(expr)                                             \
-    ({                                                                  \
-        struct timespec _start;                                       \
-        clock_gettime(CLOCK_MONOTONIC, &_start);                      \
-        (expr);                                                         \
-        struct timespec _end;                                         \
-        clock_gettime(CLOCK_MONOTONIC, &_end);                        \
-        1000 * (_end.tv_sec - _start.tv_sec) +                      \
-            (double) (_end.tv_nsec - _start.tv_nsec) / 1000000.0;   \
-    })                                                                  \
-
-#include <time.h>
-#include <sys/resource.h>
-#define RUSG_GETTIME(expr)                                              \
-    ({                                                                  \
-       struct rusage r;                                                 \
-       getrusage(RUSAGE_SELF, &r);                                      \
-       struct timeval _start = r.ru_utime;                            \
-       expr;                                                            \
-       getrusage(RUSAGE_SELF, &r);                                      \
-       struct timeval _end = r.ru_utime;                              \
-       1000 * (_end.tv_sec - _start.tv_sec) +                       \
-           (double) (_end.tv_usec - _start.tv_usec) / 1000.0;    \
-    })                                                                  \
-
-#include <sys/time.h>
-#define TOD_GETTIME(expr)                                       \
-    ({                                                          \
-        struct timeval _start;                                  \
-        gettimeofday(&_start, NULL);                            \
-        expr;                                                   \
-        struct timeval _end;                                    \
-        gettimeofday(&_end, NULL);                              \
-        1000 * (_end.tv_sec - _start.tv_sec) +                  \
-            (double) (_end.tv_usec - _start.tv_usec) / 1000.0;  \
-    })
-
-
-#define GETTIME(expr) TOD_GETTIME(expr)
-#define TIME(expr)                                                      \
-    do{                                                                 \
-        float __TIMERET = GETTIME(expr);                                \
-        lprintf(#expr ": %f ms", __TIMERET);                            \
-    }while(0)                                                           \
-
-
-#define printf_ln(...)                                                  \
-    printf(FIRST_ARG(__VA_ARGS__) "\n" COMMA_AND_TAIL_ARGS(__VA_ARGS__))
-
 #define is_power_of_2(num)                      \
     (num && !(num & (num - 1)))                 \
 
@@ -146,8 +94,3 @@ static inline uptr ualign_up(uptr addr, size size){
 
 #define aligned_pow2(n, size)                   \
     (mod_pow2(n, size) == 0)
-
-char *peb_stpcpy(char *dest, const char *src);
-void report_err();
-void no_op();
-
