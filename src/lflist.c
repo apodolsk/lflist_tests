@@ -144,19 +144,22 @@ err (lflist_del)(flx a, type *t){
     int ret = -1;
     if(lock.mp && n.gen == lock.gen){
         assert(p.gen == a.gen);
-        if(pt(np) == pt(a))
-            casx((flx){p.mp, np.gen}, &pt(n)->p, &np);
-        if(casx_won((flx){.gen = a.gen}, &pt(a)->p, &p)){
-            if(pt(np) == pt(a)){
-                flx nn = pt(n)->n;
-                if(nn.nil && !flinref_up(nn, t)){
-                    flx nnp = pt(nn)->p;
-                    if(pt(nnp) == pt(a))
-                        casx((flx){n.mp, nnp.gen + 1}, &pt(nn)->p, &nnp);
-                    flinref_down(nn, t);
+        p = pt(a)->p;
+        if(p.gen == a.gen){
+            if(pt(np) == pt(a))
+                casx((flx){p.mp, np.gen}, &pt(n)->p, &np);
+            if(casx_won((flx){.gen = a.gen}, &pt(a)->p, &p)){
+                if(pt(np) == pt(a)){
+                    flx nn = pt(n)->n;
+                    if(nn.nil && !flinref_up(nn, t)){
+                        flx nnp = pt(nn)->p;
+                        if(pt(nnp) == pt(a))
+                            casx((flx){n.mp, nnp.gen + 1}, &pt(nn)->p, &nnp);
+                        flinref_down(nn, t);
+                    }
                 }
+                ret = 0;
             }
-            ret = 0;
         }
     }
     else

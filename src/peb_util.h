@@ -94,3 +94,6 @@ static inline uptr ualign_up(uptr addr, size size){
 
 #define aligned_pow2(n, size)                   \
     (mod_pow2(n, size) == 0)
+
+static inline void no_op(){
+}

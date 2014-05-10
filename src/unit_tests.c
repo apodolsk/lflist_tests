@@ -19,6 +19,7 @@
 #include <atomics.h>
 #include <global.h>
 #include <unistd.h>
+#include <timing.h>
 
 #define TS
 

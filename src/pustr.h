@@ -35,8 +35,12 @@
              void *: _pu_ref_bod(void, 0, *(void **)(typeof(a)[]){a}),  \
     default: "<>")
 #define pu_ref(t, a, _)                                                 \
-    typeof( (0, *(t[1]){}) ) : _pu_ref_bod(t, 0, (t *) a),             \
-    typeof( (0, *(t[1]){}) ) *: _pu_ref_bod(t, 1, *(t **)a)
+    typeof( (0, *(t[1]){}) ) : _pu_ref_bod(t, 0, (t *) a),              \
+    volatile typeof( (0, *(t[1]){}) ) : _pu_ref_bod(t, 0, (t *) a), \
+    const typeof( (0, *(t[1]){}) ) : _pu_ref_bod(t, 0, (t *) a),    \
+    typeof( (0, *(t[1]){}) ) *: _pu_ref_bod(t, 1, *(t **)a),        \
+    volatile typeof( (0, *(t[1]){}) ) *: _pu_ref_bod(t, 1, *(t **)a), \
+    const typeof( (0, *(t[1]){}) ) *: _pu_ref_bod(t, 1, *(t **)a)
 #define _pu_ref_bod(t, isptr, a) aasprintf(CONCAT(pu_snprint, t), isptr, a)
 
 #define pudef(t, fmt, as...)                                            \

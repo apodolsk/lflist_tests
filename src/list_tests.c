@@ -13,6 +13,7 @@
 #include <global.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <timing.h>
 
 #define TS LFLIST_TS
 
@@ -48,7 +49,7 @@ static lflist *shared;
 static list all = LIST(&all);
 static pthread_mutex_t all_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static dptr condxadd(volatile uptr *d, uptr max){
+static uptr condxadd(volatile uptr *d, uptr max){
     uptr r, f = *d;
     do{
         r = f;
@@ -222,14 +223,12 @@ static void *test_lin_reinsert(uint t){
         lflist *l = &shared[rand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
-            log("Pushing", flptr(bx));
             lflist_enq(bx, perm_node_t, l);
         }else{
             bx = lflist_deq(perm_node_t, l);
             node *b = cof(flptr(bx), node, flanc);
             if(!b)
                 continue;
-            log("Popped", flptr(bx));
             lflist_enq(bx, perm_node_t, &priv);
         }
     }
@@ -274,7 +273,10 @@ static void launch_test(void *test(void *)){
             list_enq(&b->lanc, &done);
         }
 
-    assert(!list_size(&all));
+    cnt all_size = list_size(&all);
+    for(node *n; (n = cof(list_deq(&all), node, lanc));)
+        log(&n->flanc);
+    assert(!all_size);
     assert(!nb);
 
     for(node *b; (b = cof(list_deq(&done), node, lanc));)
@@ -319,7 +321,6 @@ int main(int argc, char **argv){
         lists[i] = (lflist) LFLIST(&lists[i]);
     shared = lists;
     log(shared);
-
 
     if(do_malloc)
         return malloc_test_main(program);

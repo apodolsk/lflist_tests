@@ -1,7 +1,8 @@
 #pragma once
 
 /* Used by assertions and errors instead of panic(). */
-#define BREAK asm volatile ("int3")
+/* #define BREAK asm volatile ("int3") */
+#define BREAK __assert_fail("", "", 0, "");
 #define lprintf(s, ...) printf("T:%d " s "\n", _gettid(), ##__VA_ARGS__)
 
 
@@ -35,8 +36,8 @@ extern int kernel_booted;
 #include <stdio.h>
 #include <peb_util.h>
 #include <pthread.h>
-#include <peb_assert.h>
 #include <errors.h>
+#include <peb_assert.h>
 #include <stdbool.h>
 
 extern __thread uint tid_;
