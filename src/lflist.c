@@ -232,6 +232,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             continue;
         if(!eqx(&pt(a)->p, p, t))
             goto newp;
+        if(!eqx(&pt(p)->n, &pn, t))
+            goto newpn;
         assert(!ppn.nil || !ppn.locked);
         
         flx new = (flx){a.mp, ppn.gen + 1};
