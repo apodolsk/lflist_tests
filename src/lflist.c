@@ -15,9 +15,9 @@
 
 #ifndef FAKELOCKFREE
 
-#define MAX_LOOP 100
-#define TEST_PROGRESS(...)
-/* #define TEST_PROGRESS(c) ((void)(c++ > MAX_LOOP ? SUPER_RARITY("LOTTA LOOPS %d", c) : 0), 1) */
+#define MAX_LOOP 32
+/* #define TEST_PROGRESS(...) */
+#define TEST_PROGRESS(c) ((void)(c++ > MAX_LOOP ? SUPER_RARITY("LOTTA LOOPS %d", c) : 0), 1)
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx a, type *t);
@@ -27,10 +27,10 @@ static err help_prev(flx a, flx *p, flx *pn, type *t);
 
 __attribute__((pure))
 static inline flanchor *pt(flx a){
-    return (flanchor *) (a.pt << 2);
+    return (flanchor *) (a.pt << 3);
 }
 static inline flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
-    llprintf1("CAS! %s:%d - %s if %s, addr:%p", f, l, str(n), str(e), a);
+    llprintf1("CAS! %s:%d - %s if %s, addr:%p", f, l, str(n), str(*e), a);
     flx oe = *e;
     *e = cas2(n, a, oe);
     llprintf1("%s %s:%d- found:%s addr:%p", eq2(*e, oe)? "WON" : "LOST", f, l, str(*e), a);
@@ -70,8 +70,6 @@ static inline bool eqx(volatile flx *a, flx *b, type *t){
     for(int c = 0; TEST_PROGRESS(c);){
         flx old = *b;
         *b = readx(a);
-        /* b->mp = atomic_read(&a->mp); */
-        /* b->gen = atomic_read(&a->gen); */
         if(eq2(old, *b))
             return true;
         if(pt(old) == pt(*b))
@@ -126,50 +124,56 @@ err (lflist_del)(flx a, type *t){
             break;
         }
         if(help_prev(a, &p, &pn, t) || p.gen != a.gen){
-            RARITY("P abort");
-            n = pt(a)->n;
+            RARITY("P abort p:%s pn:%s", str(p), str(pn));
+            n = flinref_read(&pt(a)->n, (flx*[]){&n, &p, NULL}, t);
+            np = readx(&pt(n)->p);
             break;
         }
         
-        lock = (flx){.nil=n.nil, 1, n.pt, n.gen + 1};
+        lock = (flx){.nil=n.nil, 1, 0, n.pt, n.gen + 1};
         enum howok r = casx_ok(lock, &pt(a)->n, &n);
-        if(r){
+        if(r != NOT){
             n = lock;            
             if(r != WON) lock = (flx){};
-            if(casx_ok((flx){.nil=n.nil, 0, n.pt, pn.gen+1}, &pt(p)->n, &pn))
+            if(casx_ok((flx){.nil=n.nil, 0, 0, n.pt, pn.gen+1},
+                       &pt(p)->n, &pn))
                 break;
         }else lock = (flx){};
     }
 
-    int ret = -1;
-    if(lock.mp && n.gen == lock.gen){
-        assert(p.gen == a.gen);
-        p = pt(a)->p;
-        if(p.gen == a.gen){
-            if(pt(np) == pt(a))
-                casx((flx){p.mp, np.gen}, &pt(n)->p, &np);
-            if(casx_won((flx){.gen = a.gen}, &pt(a)->p, &p)){
-                if(pt(np) == pt(a)){
-                    flx nn = pt(n)->n;
-                    if(nn.nil && !flinref_up(nn, t)){
-                        flx nnp = pt(nn)->p;
-                        if(pt(nnp) == pt(a))
-                            casx((flx){n.mp, nnp.gen + 1}, &pt(nn)->p, &nnp);
-                        flinref_down(nn, t);
-                    }
+    err e = -1;
+    if(p.gen == a.gen && p.mp &&
+       ((lock.mp && n.gen == lock.gen) || n.helped))
+    {
+        if(n.helped)
+            p = pt(a)->p;
+        if(p.gen != a.gen || !p.mp)
+            goto cleanup;
+        casx((flx){p.mp, np.gen}, &pt(n)->p, &np);
+        if(casx_won((flx){.gen = a.gen}, &pt(a)->p, &p)){
+            e = 0;
+            /* Clean up after an interrupted add of 'n'. In this case,
+               a->n is the only reference to 'n', and we should finish the
+               add before clearing it. */
+            if(pt(np) == pt(a)){
+                flx nn = pt(n)->n;
+                if(nn.nil && !flinref_up(nn, t)){
+                    flx nnp = pt(nn)->p;
+                    if(pt(nnp) == pt(a))
+                        casx((flx){n.mp, nnp.gen + 1}, &pt(nn)->p, &nnp);
+                    flinref_down(nn, t);
                 }
-                ret = 0;
             }
         }
     }
     else
         RARITY("p:%s, n:%s, l:%s", str(p), str(n), str(lock));
-    
+cleanup:    
     if(pt(n))
         flinref_down(n, t);
     if(pt(p))
         flinref_down(p, t);
-    return ret;
+    return e;
 }
 
 static
@@ -180,6 +184,8 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         assert(pt(*n));
     newnp:
         *np = readx(&pt(*n)->p);
+        if(n->helped)
+            return assert(!a.nil), -1;
         if(pt(*np) == pt(a))
             return 0;
         if(!pt(*np) || np->nil){
@@ -232,20 +238,20 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             continue;
         if(!eqx(&pt(a)->p, p, t))
             goto newp;
-        if(!eqx(&pt(p)->n, &pn, t))
-            goto newpn;
         assert(!ppn.nil || !ppn.locked);
         
-        flx new = (flx){a.mp, ppn.gen + 1};
         if(pt(ppn) == pt(a) ||
-           (!ppn.locked && casx_ok(new, &pt(pp)->n, &ppn)))
+           (!ppn.locked &&
+            (casx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1},
+                     &pt(*p)->n, pn) ?: ({goto newpn;0;})) &&
+            casx_ok((flx){a.mp, ppn.gen + 1}, &pt(pp)->n, &ppn)))
         {
             if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, p))
-                goto newp;
+                 goto newp;
             flinref_down(*p, t);
             *p = (flx){pp.mp, p->gen};
             if(pt(ppn) != pt(a))
-                return *pn = new, 0;
+                return *pn = (flx){pp.mp, p->gen}, 0;
             *pn = ppn;
             goto newpn;
         }
@@ -253,7 +259,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             goto newp;
 
         log(a, p, pp, ppn);
-        flx newpn = (flx){.nil=a.nil, .pt=a.pt, pn->gen + 1};
+        flx newpn = (flx){.nil=a.nil, 0, 0, a.pt, pn->gen + 1};
         if(casx_ok(newpn, &pt(*p)->n, pn))
             return *pn = newpn, 0;
     }
