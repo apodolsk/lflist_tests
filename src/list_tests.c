@@ -274,8 +274,8 @@ static void launch_test(void *test(void *)){
         }
 
     cnt all_size = list_size(&all);
-    for(node *n; (n = cof(list_deq(&all), node, lanc));)
-        log(&n->flanc);
+    for(node *lost; (lost = cof(list_deq(&all), node, lanc));)
+        log(&lost->flanc);
     assert(!all_size);
     assert(!nb);
 

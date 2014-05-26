@@ -230,6 +230,7 @@ void (slab_ref_down)(slab *s, lfstack *hot_slabs){
 }
 
 err (linref_up)(volatile void *l, type *t){
+    assert(l);
     slab *s = slab_of((void *) l);
     while(1){
         tyx tx = s->tx;
@@ -242,6 +243,7 @@ err (linref_up)(volatile void *l, type *t){
 }
 
 void (linref_down)(volatile void *l){
+    assert(l);
     slab_ref_down(slab_of((void *) l), &hot_slabs);
 }
 
