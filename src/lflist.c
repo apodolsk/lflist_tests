@@ -125,7 +125,6 @@ err (lflist_del)(flx a, type *t){
             break;
         }
 
-        log(p);
         lock = (flx){.nil=n.nil, 1, 0, n.pt, n.gen + 1};
         enum howok r = casx_ok(lock, &pt(a)->n, &n);
         if(r != NOT){
@@ -148,6 +147,7 @@ err (lflist_del)(flx a, type *t){
                 goto cleanup;
             }
         }
+        assert(!p.locked && !p.helped);
         if(n.helped && pt(n = flinref_read(&pt(a)->n, (flx*[]){&n, NULL},t)))
             np = readx(&pt(n)->p);
         if(pt(np) == pt(a)){
@@ -247,10 +247,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                      &pt(*p)->n, pn) ?: ({goto newpn;0;})) &&
             casx_ok((flx){a.mp, ppn.gen + 1}, &pt(pp)->n, &ppn)))
         {
-            if(!casx_ok((flx){pp.mp, p->gen}, &pt(a)->p, p))
-                 goto newp;
             flinref_down(*p, t);
-            *p = (flx){pp.mp, p->gen};
+            if(!casx_ok((*p = (flx){.nil=pp.nil, .pt=pp.pt, p->gen}),
+                        &pt(a)->p, p))
+                 goto newp;
             if(pt(ppn) != pt(a)){
                 *pn = (flx){a.mp, ppn.gen + 1};
                 return 0;
