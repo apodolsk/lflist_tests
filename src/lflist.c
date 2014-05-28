@@ -17,7 +17,7 @@
 
 #define MAX_LOOP 32
 #define TEST_PROGRESS(c)                                                \
-    ({ if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %d", c); })
+    ({ log(c); if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %d", c); })
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx a, type *t);
@@ -159,7 +159,7 @@ err (lflist_del)(flx a, type *t){
             if(nn.nil){
                 flx nnp = pt(nn)->p;
                 if(pt(nnp) == pt(a))
-                    casx((flx){n.mp, nnp.gen + 1}, &pt(nn)->p, &nnp);
+                    casx((flx){.pt=n.pt, nnp.gen + 1}, &pt(nn)->p, &nnp);
             }
         }
 
@@ -186,6 +186,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             return assert(!a.nil), -1;
         *np = readx(&pt(*n)->p);
     newnp:
+        TEST_PROGRESS(c);
         if(pt(*np) == pt(a))
             return 0;
         if(!pt(*np) || np->locked || np->nil){
@@ -193,14 +194,18 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
                 goto newn;
             else return assert(!a.nil), -1;
         }
-        TEST_PROGRESS(c);
         
         flx npp = readx(&pt(*np)->p);
-        if(!eqx(&pt(a)->n, n, t))
+        log(*n, *np, npp);
+        if(!eqx(&pt(a)->n, n, t)){
+            lprintf("n changed");
             goto newn;
+        }
         if(pt(npp) != pt(a)){
-            if(!eq2(*np, readx(&pt(*n)->p)))
+            if(!eq2(*np, (*np = readx(&pt(*n)->p)))){
+                lprintf("np changed");
                 goto newnp;
+            }
             else return assert(!a.nil), -1;
         }
         
@@ -227,10 +232,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(pt(*pn) != pt(a))
             return -1;
     newpn:
+        TEST_PROGRESS(c);
         if(!pn->locked)
             return 0;
-        TEST_PROGRESS(c);
-
+        
         pp = flinref_read(&pt(*p)->p, (flx*[]){&pp, NULL}, t);
         if(!pt(pp))
             continue;
@@ -248,9 +253,9 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             casx_ok((flx){a.mp, ppn.gen + 1}, &pt(pp)->n, &ppn)))
         {
             flinref_down(*p, t);
-            if(!casx_ok((*p = (flx){.nil=pp.nil, .pt=pp.pt, p->gen}),
-                        &pt(a)->p, p))
+            if(!casx_ok((flx){.nil=pp.nil, .pt=pp.pt, p->gen}, &pt(a)->p, p))
                  goto newp;
+            *p = (flx){.nil=pp.nil, .pt=pp.pt, p->gen};
             if(pt(ppn) != pt(a)){
                 *pn = (flx){a.mp, ppn.gen + 1};
                 return 0;
@@ -277,6 +282,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     for(int c = 0;;TEST_PROGRESS(c)){
         if(help_prev((flx){.nil = 1, .pt = mpt(&l->nil)}, &p, &pn, t)){
             assert(pt(p));
+            assert(pt(pn));
             casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, &p);
             continue;
         }
