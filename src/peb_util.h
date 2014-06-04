@@ -13,7 +13,7 @@
 #define cof container_of
 #define container_of(member_ptr, container_type, field_name)        \
     ((container_type *)                                             \
-     subtract_if_not_null((void *) member_ptr,                      \
+     subtract_if_not_null((void *) (member_ptr),                    \
                           offsetof(container_type, field_name)))
 
 /* Used to do a NULL check without expanding member_ptr twice. */

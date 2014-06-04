@@ -52,8 +52,8 @@ flx lflist_deq(type *t, lflist *l);
 err lflist_enq(flx a, type *t, lflist *l);
 
 #define LFLIST_TS flx, flanchor, lflist
-#define lflist_trace(f, as...) trace(LFLISTM, (LFLIST_TS), f, as...)
+#define lflist_trace(f, as...) trace(LFLISTM, (LFLIST_TS), f, as)
 /* #define lflist_del(as...) lflist_trace(lflist_del, as) */
-#define lflist_del(as...) putrace(puprintf, (), lflist_del, as)
 /* #define lflist_deq(as...) lflist_trace(lflist_deq, as) */
+#define lflist_deq(as...) putrace(puprintf, (), lflist_deq, as)
 /* #define lflist_enq(as...) lflist_trace(lflist_enq, as) */
