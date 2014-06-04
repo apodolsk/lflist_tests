@@ -8,7 +8,8 @@
 struct thread;
 
 #define BREAK() abort()
+#define C pthread_self()
 
 struct slab *new_slabs(cnt batch);
 extern uint itid(void);
-extern uint tid_;
+extern __thread uint tid_;

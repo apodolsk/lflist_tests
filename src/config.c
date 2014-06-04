@@ -5,7 +5,7 @@ struct slab *new_slabs(cnt batch){
                    MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0);
     return s == MAP_FAILED ? EWTF(), NULL : s;
 }
-__thread static uint tid;
+__thread uint tid_;
 uint itid(void){
     return tid_;
 }

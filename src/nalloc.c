@@ -68,6 +68,7 @@ struct __attribute__((__aligned__(SLAB_SIZE))) slab{
 #define SLAB {.free_blocks = STACK}
 CASSERT(sizeof(slab) == SLAB_SIZE);
 CASSERT(sizeof(((slab[]){})[0].owner) == sizeof(uptr));
+CASSERT(MAX_BLOCK == SLAB_SIZE - offsetof(slab, blocks));
 
 static slab *slab_new(heritage *h);
 static block *alloc_from_slab(slab *s, heritage *h);

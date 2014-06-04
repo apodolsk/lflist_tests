@@ -2,7 +2,7 @@
 .global xchg
 .global cmpxchg
 .global cmpxchg2
-    
+
 ## xadd:
 ##     lock xadd %edi, (%rsi)
 ##     mov %edi, %eax

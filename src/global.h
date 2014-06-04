@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef ASSEMBLER
+#ifndef __ASSEMBLER__
 
 #define pure __attribute__((pure))
 #define constfun __attribute__((const))
