@@ -57,7 +57,7 @@ static inline size_t puvsnprintf(char *b, size_t max, char *fmt, va_list args){
                   DEFAULT_TYPES COMMAPFX_IF_NZ ts),                     \
              void *:                                                    \
              &(pu_arg){(typeof((0,a))[1]){a},                           \
-                     0, (typed_snprint) pusnprint_ptr}, \
+                     0, (typed_snprint) pusnprint_ptr},                 \
     default: &(pu_arg){(typeof((0,a))[1]){a}, 0, pusnprint_dflt})
 
 #define pu_arg_typed(t, a, _)                                           \
