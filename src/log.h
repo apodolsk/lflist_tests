@@ -41,26 +41,23 @@
 #define unmute_log()
 #endif
 
-#if LOG_MASTER
-#define log(as...) pulog(llprintf1, (TS), as)
-#define logt(ts, as...) pulog(llprintf1, ts, as)
-#define log2(ts, as...) pulog(llprintf1, (), as)
-#define trace(ts, f, as...) putrace(llprintf1, ts, as)
-#else
-#define log(...)
-#define log2(...)
-#define trace(ts, f, as...) f(as)
-#endif
+#define TS ()
 
-#define llprintf1(a...) llprintf(1, a)
+#define tlprintf(ts, fmt, as...) puprintf(ts, "T:%d "fmt"\n", itid(), ##as)
+#define lprintf(fmt, as...) puprintf(TS, "T:%d "fmt"\n", itid(), ##as)
+#define log(fmt, as...) (can_log(MODULE, 1) ? lprintf(fmt, ##as) : 0)
+#define log2(fmt, as...) (can_log(MODULE, 2) ? lprintf(fmt, ##as) : 0)
 
-#define llprintf(need_lvl, s, ...)                              \
-    (can_log(LOG_LVL, need_lvl) ? lprintf(s, ##__VA_ARGS__) : 0)
-        
+#define NAMEFMT(a, _, __) #a":%"
+#define pp(as...) log(MAP(NAMEFMT, _, as), ##as)
 
-#define can_log(log_lvl, needed)                        \
-    ((LOG_MASTER && log_lvl >= needed && !mute_flag)    \
-     ||                                                 \
+#define trace(module, ts, f, as...) putrace(puprintf, ts, f, ##as)
+/* #define trace(module, ts, f, as...)                                     \ */
+/*     (can_log(module, 1) ? putrace(tlprintf, ts, f, ##as) : f(as)) */
+
+#define can_log(module, needed)                                     \
+    ((LOG_MASTER && CONCAT(LOG_, MODULE) >= needed && !mute_flag)   \
+     ||                                                             \
      (VIP_MODE && VIP_VERBOSITY >= needed && fun_is_vip(__func__)))
 
     

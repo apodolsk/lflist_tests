@@ -41,5 +41,5 @@ lanchor *circlist_prev(lanchor *a, list *l);
 int lanchor_unused(lanchor *a);
 int lanchor_valid(lanchor *a, list *list);
 
-pudef(lanchor, "{n:%p, p:%p}", a->n, a->p);
-pudef(list, "LIST{%s:%s}", pustr(a->nil, lanchor), pustr(a->size));
+pudef(lanchor, (), "{n:%, p:%}", a->n, a->p);
+pudef(list, (lanchor), "LIST{%, sz=%}", a->nil, a->size);

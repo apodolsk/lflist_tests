@@ -17,11 +17,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <atomics.h>
-#include <global.h>
 #include <unistd.h>
 #include <timing.h>
-
-#define TS
 
 typedef void *(entrypoint)(void *);
 
@@ -134,7 +131,7 @@ void mallocest_randsize(){
     pthread_t kids[numhreads];
     for(uint i = 0; i < numhreads; i++)
         assert(!kfork((entrypoint *) mt_child_rand,
-                      (void *) _gettid(), KERN_ONLY));
+                      (void *) itid(), KERN_ONLY));
     
     rdy = true;
 
@@ -145,7 +142,7 @@ void mallocest_randsize(){
 void mt_child_rand(int parentid){
     struct tblock *cur_block;
     list block_lists[NUM_LISTS];
-    int tid = _gettid();
+    int tid = itid();
 
     prand_init();
     for(uint i = 0; i < NUM_LISTS; i++)
@@ -195,7 +192,7 @@ void mt_sharing_child();
 
 void mallocest_sharing(){
     struct child_args shared;
-    shared.parentid = _gettid();
+    shared.parentid =itid();
     for(uint i = 0; i < NUM_STACKS; i++)
         shared.block_stacks[i].s = (lfstack) LFSTACK;
 
@@ -212,7 +209,7 @@ void mallocest_sharing(){
 
 void mt_sharing_child(struct child_args *shared){
     int parentid = shared->parentid;
-    int tid = _gettid();
+    int tid =itid();
     struct tblock *cur_block;
     prand_init();
 
@@ -238,7 +235,7 @@ void mt_sharing_child(struct child_args *shared){
             cur_block = wsmalloc(size);
             if(!cur_block)
                 continue;
-            log2("Allocated: %p", cur_block);
+            log2("Allocated: %", cur_block);
             *cur_block = (struct tblock)
                 { .size = size, .sanc = SANCHOR };
             /* Try to trigger false sharing. */
@@ -250,7 +247,7 @@ void mt_sharing_child(struct child_args *shared){
                 cof(lfstack_pop(blocks), struct tblock, sanc);
             if(!cur_block)
                 continue;
-            log2("Claiming: %p", cur_block);
+            log2("Claiming: %", cur_block);
             write_magics(cur_block, tid);
             cur_block->lanc = (lanchor) LANCHOR;
             list_enq(&cur_block->lanc, &priv_blocks[prand() % NUM_LISTS]);
@@ -261,7 +258,7 @@ void mt_sharing_child(struct child_args *shared){
                             struct tblock, lanc);
             if(!cur_block)
                 continue;
-            log2("Freeing priv: %p", cur_block);
+            log2("Freeing priv: %", cur_block);
             check_magics(cur_block, tid);
             wsfree(cur_block, cur_block->size);
             num_blocks--;
@@ -276,7 +273,7 @@ void produce(struct child_args *shared);
 
 void producerest(void){
     struct child_args shared;
-    shared.parentid = _gettid();
+    shared.parentid =itid();
     for(uint i = 0; i < NUM_STACKS; i++)
         shared.block_stacks[i].s = (lfstack) LFSTACK;
 
@@ -301,7 +298,7 @@ void producerest(void){
 }
 
 void produce(struct child_args *shared){
-    int tid = _gettid();
+    int tid =itid();
     prand_init();
 
     stack priv_blocks = (stack) STACK;
@@ -354,7 +351,7 @@ void produce(struct child_args *shared){
 
 void consumer_child(struct child_args *shared){
     int parentid = shared->parentid;
-    int tid = _gettid();
+    int tid =itid();
     struct tblock *cur_block;
     prand_init();
 
@@ -376,7 +373,7 @@ void consumer_child(struct child_args *shared){
                 cof(stack_pop(&priv_blocks), struct tblock, sanc);
             if(!cur_block)
                 continue;
-            log2("Freeing priv: %p", cur_block);
+            log2("Freeing priv: %", cur_block);
             check_magics(cur_block, tid);
             wsfree(cur_block, cur_block->size);
             num_blocks--;
@@ -385,7 +382,7 @@ void consumer_child(struct child_args *shared){
                 cof(lfstack_pop(blocks), struct tblock, sanc);
             if(!cur_block)
                 continue;
-            log2("Claiming: %p", cur_block);
+            log2("Claiming: %", cur_block);
             write_magics(cur_block, tid);
             stack_push(&cur_block->sanc, &priv_blocks);
             num_blocks++;
@@ -431,8 +428,6 @@ void cas_update(void){
 
 int malloc_test_main(int program){
     unmute_log();
-
-    log("HI");
 
     extern int nthreads;
     extern int nalloc;

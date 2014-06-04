@@ -36,9 +36,10 @@ typedef struct lflist{
 #define LFLIST(l) {{.n = {.nil=1, .pt=mpt(&(l)->nil)},          \
                     .p = {.nil=1, .pt=mpt(&(l)->nil)}}}
 
-pudef(flx, "{%p:%d:%d:%d, %u}", (void *)(a->pt << 3), a->nil, a->locked, a->helped, a->gen);
-pudef(flanchor, "n:%s, p:%s", pustr(a->n, flx), pustr(a->p, flx));
-pudef(lflist, "LIST(%s)", pustr(a->nil, flanchor));
+pudef(flx, (), "{%:%:%:%, %}", (void *)(a->pt << 3), a->nil,
+      a->locked, a->helped, a->gen);
+pudef(flanchor, (flx), "n:%, p:%", a->n, a->p);
+pudef(lflist, (flanchor), "LIST(%s)", a->nil);
 
 #endif  /* FAKELOCKFREE */
 
@@ -51,7 +52,8 @@ flx lflist_deq(type *t, lflist *l);
 err lflist_enq(flx a, type *t, lflist *l);
 
 #define LFLIST_TS flx, flanchor, lflist
-#define lflist_trace(f, as...) putrace(llprintf1, (flx, flanchor, lflist), f, as)
-#define lflist_del(a...) lflist_trace(lflist_del, a)
-#define lflist_deq(a...) lflist_trace(lflist_deq, a)
-#define lflist_enq(a...) lflist_trace(lflist_enq, a)
+#define lflist_trace(f, as...) trace(LFLISTM, (LFLIST_TS), f, as...)
+/* #define lflist_del(as...) lflist_trace(lflist_del, as) */
+#define lflist_del(as...) putrace(puprintf, (), lflist_del, as)
+/* #define lflist_deq(as...) lflist_trace(lflist_deq, as) */
+/* #define lflist_enq(as...) lflist_trace(lflist_enq, as) */

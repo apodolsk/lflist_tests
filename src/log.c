@@ -1,8 +1,9 @@
 #include <peb_util.h>
 #include <string.h>
 
+#undef mute_flag
+
 __thread int mute_flag;
-__thread uint tid_;
 
 const char *vip_list[] = {
     "casx", "casx_ok"

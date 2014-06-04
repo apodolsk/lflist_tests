@@ -36,8 +36,7 @@
  * TODO: remember why the indirection matters. HINT: constructing
  * invocations from tuples. It's probably not just the ##.
  */
-#define NUM_ARGS(a...) _NUM_ARGS(a...)
-#define _NUM_ARGS(...)                                                  \
+#define NUM_ARGS(...)                                                  \
     GET_41ST(                                                           \
         _, ##__VA_ARGS__, 39, 38, 37, 36, 35,                           \
         34, 33, 32, 31, 30, 29, 28, 27, 26, 25,                         \

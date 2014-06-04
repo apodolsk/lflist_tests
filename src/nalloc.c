@@ -60,7 +60,7 @@ struct __attribute__((__aligned__(SLAB_SIZE))) slab{
     cnt cold_blocks;
     pthread_t owner;
     heritage *her;
-    __attribute__((__aligned__(CACHE_SIZE)))
+    __attribute__((__aligned__(CACHELINE_SIZE)))
     lfstack wayward_blocks;
     __attribute__((__aligned__(MIN_ALIGNMENT)))
     u8 blocks[];

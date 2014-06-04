@@ -41,5 +41,5 @@
 #define TIME(expr)                                                      \
     do{                                                                 \
         float __TIMERET = GETTIME(expr);                                \
-        lprintf(#expr ": %f ms", __TIMERET);                            \
+        lprintf( #expr ": %f ms", __TIMERET);                           \
     }while(0)                                                           \

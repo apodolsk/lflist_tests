@@ -15,7 +15,8 @@
 #include <unistd.h>
 #include <timing.h>
 
-#define TS LFLIST_TS
+#undef TS
+#define TS (LFLIST_TS)
 
 uint nlists = 1;
 uint nthreads = 2;
@@ -82,7 +83,7 @@ static void *test_reinsert(uint t){
     for(uint i = 0; i < niter; i++){
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
-            log((void *) b);
+            pp((void *) b);
             lflist_enq(flx_of(&b->flanc), perm_node_t, &priv);
             list_enq(&b->lanc, &perm);
         }
@@ -90,14 +91,14 @@ static void *test_reinsert(uint t){
         lflist *l = &shared[rand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
-            log("Pushing", flptr(bx));
+            log("Pushing %", flptr(bx));
             lflist_enq(bx, perm_node_t, l);
         }else{
             bx = lflist_deq(perm_node_t, l);
             node *b = cof(flptr(bx), node, flanc);
             if(!b)
                 continue;
-            log("Popped", flptr(bx));
+            log("Popped %", flptr(bx));
             lflist_enq(bx, perm_node_t, &priv);
         }
     }
@@ -128,7 +129,7 @@ static void *test_del(uint t){
     for(uint i = 0; i < niter; i++){
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
-            log((void *) b);
+            pp((void *) b);
             lflist_enq(flx_of(&b->flanc), perm_node_t, &semipriv);
             list_enq(&b->lanc, &perm);
         }
@@ -193,7 +194,7 @@ static void *test_lin_reinsert(uint t){
     heritage *node_h =
         &(heritage)POSIX_HERITAGE(node_t, 1, 1,
                                   (void (*)(void *)) node_init);
-
+    
     list privnn = LIST(&privnn);
 
     rand_init();
@@ -215,7 +216,7 @@ static void *test_lin_reinsert(uint t){
         
         if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
-            log((void *) b);
+            pp((void *) b);
             lflist_enq(flx_of(&b->flanc), perm_node_t, &priv);
             list_enq(&b->lanc, &perm);
         }
@@ -275,7 +276,7 @@ static void launch_test(void *test(void *)){
 
     cnt all_size = list_size(&all);
     for(node *lost; (lost = cof(list_deq(&all), node, lanc));)
-        log(&lost->flanc);
+        pp(&lost->flanc);
     assert(!all_size);
     assert(!nb);
 
@@ -320,7 +321,7 @@ int main(int argc, char **argv){
     for(uint i = 0; i < nlists; i++)
         lists[i] = (lflist) LFLIST(&lists[i]);
     shared = lists;
-    log(shared);
+    pp(shared);
 
     if(do_malloc)
         return malloc_test_main(program);

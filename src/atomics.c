@@ -15,7 +15,7 @@ extern dptr cmpxchg2(dptr n, volatile dptr *p, dptr old);
     
 #include <time.h>
 static void fuzz_atomics(){
-    if(FUZZ_NS && (0 == mod_pow2(_gettid(), FUZZ_MOD))
+    if(FUZZ_NS && (0 == mod_pow2(itid(), FUZZ_MOD))
        && randpcnt(FUZZ_PCNT))
         nanosleep(&(struct timespec){.tv_nsec = FUZZ_NS}, NULL);
 }

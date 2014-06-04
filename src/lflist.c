@@ -10,14 +10,14 @@
 
 #include <global.h>
 
-#define TS LFLIST_TS
-#define str(a) pustr(a, TS)
+#undef TS
+#define TS (LFLIST_TS)
 
 #ifndef FAKELOCKFREE
 
 #define MAX_LOOP 32
 #define TEST_PROGRESS(c)                                                \
-    ({ log(c); if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %d", c); })
+    ({ pp(c); if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %d", c); })
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx a, type *t);
@@ -29,10 +29,10 @@ static inline flanchor *pt(flx a){
     return (flanchor *) (a.pt << 3);
 }
 static inline flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
-    llprintf1("CAS! %s:%d - %s if %s, addr:%p", f, l, str(n), str(*e), a);
+    lprintf("CAS! %:% - % if %, addr:%", f, l, n, *e, a);
     flx oe = *e;
     *e = cas2(n, a, oe);
-    llprintf1("%s %s:%d- found:%s addr:%p", eq2(*e, oe)? "WON" : "LOST", f, l, str(*e), a);
+    lprintf("% %:%- found:% addr:%", eq2(*e, oe)? "WON" : "LOST", f, l, *e, a);
     return *e;
 }
 static inline enum howok{
@@ -116,14 +116,15 @@ err (lflist_del)(flx a, type *t){
     flx n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
     for(int c = 0;; TEST_PROGRESS(c)){
         if(help_next(a, &n, &np, t)){
-            RARITY("N abort n:%s np:%s", str(n), str(np));
+            RARITY("N abort n:% np:%", n, np);
             break;
         }
         if(help_prev(a, &p, &pn, t) || p.gen != a.gen){
-            RARITY("P abort p:%s pn:%s", str(p), str(pn));
+            RARITY("P abort p:% pn:%", p, pn);
             n = readx(&pt(a)->n);
             break;
         }
+        assert(!pn.locked);
 
         lock = (flx){.nil=n.nil, 1, 0, n.pt, n.gen + 1};
         enum howok r = casx_ok(lock, &pt(a)->n, &n);
@@ -167,7 +168,7 @@ err (lflist_del)(flx a, type *t){
         e = 0;
     }
     else
-        RARITY("p:%s, n:%s, l:%s", str(p), str(n), str(lock));
+        RARITY("p:%, n:%, l:%", p, n, lock);
 cleanup:    
     if(pt(n))
         flinref_down(n, t);
@@ -196,7 +197,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         }
         
         flx npp = readx(&pt(*np)->p);
-        log(*n, *np, npp);
+        pp(*n, *np, npp);
         if(!eqx(&pt(a)->n, n, t)){
             lprintf("n changed");
             goto newn;
@@ -209,7 +210,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             else return assert(!a.nil), -1;
         }
         
-        RARITY("Swinging n:%s np:%s npp:%s", str(*n), str(*np), str(npp));
+        RARITY("Swinging n:% np:% npp:%", *n, *np, npp);
         if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, np))
             return *np = (flx){a.mp, np->gen}, 0;
         *n = flinref_read(&pt(a)->n, (flx*[]){n, NULL}, t);
@@ -266,7 +267,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(!eqx(&pt(a)->p, p, t))
             goto newp;
 
-        log(a, p, pp, ppn);
+        pp(a, p, pp, ppn);
         flx newpn = (flx){.nil=a.nil, 0, 0, a.pt, pn->gen + 1};
         if(casx_ok(newpn, &pt(*p)->n, pn))
             return *pn = newpn, 0;
@@ -286,8 +287,9 @@ err (lflist_enq)(flx a, type *t, lflist *l){
             casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, &p);
             continue;
         }
+        assert(!pn.locked);
         assert(pn.nil);
-        log(p, pn);
+        pp(p, pn);
         
         pt(a)->p.mp = p.mp;
         if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, &pn))

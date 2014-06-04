@@ -7,11 +7,16 @@
 
 typedef unsigned int uint;
 typedef uintptr_t uptr;
+/* Counts any set of objects simultaneously in memory. */
 typedef uptr cnt;
 typedef intptr_t iptr;
 typedef size_t size;
 typedef ptrdiff_t ptrdiff;
-typedef int err;
+typedef enum{
+    EOK = 0,
+    EARG = -1,
+    EOOR = -2
+} err;
 
 typedef uint8_t u8;
 typedef uint16_t u16;
