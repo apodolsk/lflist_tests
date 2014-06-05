@@ -5,7 +5,7 @@
 #include <pustr.h>
 
 /* 0 to disable non-VIP logging. */
-#define LOG_MASTER 1
+#define LOG_MASTER 0
 #define DYNAMIC_LOG 0
 
 /* 1 enables mute_log() and unmute_log(). */
@@ -45,6 +45,15 @@
 
 #define tlprintf(ts, fmt, as...) puprintf(ts, "T:% "fmt"\n", itid(), ##as)
 #define lprintf(fmt, as...) puprintf(TS, "T:% "fmt"\n", itid(), ##as)
+
+#if !LOG_MASTER
+#define log(...)
+#define log2(...)
+#define pp(...)
+#define trace(module, ts, f, as...) f(as)
+
+#else
+
 #define log(fmt, as...) (can_log(MODULE, 1) ? lprintf(fmt, ##as) : 0)
 #define log2(fmt, as...) (can_log(MODULE, 2) ? lprintf(fmt, ##as) : 0)
 
@@ -59,4 +68,4 @@
      ||                                                             \
      (VIP_MODE && VIP_VERBOSITY >= needed && fun_is_vip(__func__)))
 
-    
+#endif    

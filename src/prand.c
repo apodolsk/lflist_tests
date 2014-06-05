@@ -11,6 +11,8 @@ void rand_init(void){
         EWTF();
 }
 
+extern void *readfs();
 uint randpcnt(uint per_centum){
+    assert(&seed != (void*) 0xffffffffffffffe8); 
     return (uint) rand_r(&seed) % 100 <= umin(per_centum, 100);
 }

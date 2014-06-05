@@ -29,10 +29,10 @@ static inline flanchor *pt(flx a){
     return (flanchor *) (a.pt << 3);
 }
 static inline flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
-    lprintf("CAS! %:% - % if %, addr:%", f, l, n, *e, a);
+    log("CAS! %:% - % if %, addr:%", f, l, n, *e, a);
     flx oe = *e;
     *e = cas2(n, a, oe);
-    lprintf("% %:%- found:% addr:%", eq2(*e, oe)? "WON" : "LOST", f, l, *e, a);
+    log("% %:%- found:% addr:%", eq2(*e, oe)? "WON" : "LOST", f, l, *e, a);
     return *e;
 }
 static inline enum howok{

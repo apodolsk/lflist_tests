@@ -6,7 +6,7 @@
 #define FUZZ_NS 1000
 /* #define FUZZ_NS 0 */
 #define FUZZ_PCNT 30
-#define FUZZ_MOD 1
+#define FUZZ_MOD 3
 
 extern uptr xadd(uptr s, volatile uptr *p);
 extern uptr xchg(uptr s, volatile uptr *p);
