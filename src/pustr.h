@@ -124,7 +124,7 @@ static inline size_t _puprintf(char *fmt, ...){
               __func__, __LINE__);                                    \
         typeof(fun(as)) __pu_ret = fun(MAP(PU_REF, _, as));         \
         print(ts, "-- End % = %(" STRLIT(MAP(PU_STRFMT, _, as))         \
-              ") in %:%\n", __pu_ret, #fun                              \
+              ") in %:%", __pu_ret, #fun                              \
               COMMAPFX_IF_NZ(MAP3(PU_REF, _, as)),                      \
               __func__, __LINE__);                                      \
         __pu_ret;                                                   \
