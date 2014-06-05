@@ -183,8 +183,6 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
     newn:
         assert(a.nil || pt(*n) != pt(a));
         assert(pt(*n));
-        if(n->helped)
-            return assert(!a.nil), -1;
         *np = readx(&pt(*n)->p);
     newnp:
         TEST_PROGRESS(c);
@@ -198,15 +196,11 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         
         flx npp = readx(&pt(*np)->p);
         pp(*n, *np, npp);
-        if(!eqx(&pt(a)->n, n, t)){
-            lprintf("n changed");
+        if(!eqx(&pt(a)->n, n, t))
             goto newn;
-        }
         if(pt(npp) != pt(a)){
-            if(!eq2(*np, (*np = readx(&pt(*n)->p)))){
-                lprintf("np changed");
+            if(!eq2(*np, (*np = readx(&pt(*n)->p))))
                 goto newnp;
-            }
             else return assert(!a.nil), -1;
         }
         
