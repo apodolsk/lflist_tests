@@ -17,7 +17,7 @@
 
 #define MAX_LOOP 32
 #define TEST_PROGRESS(c)                                                \
-    ({ pp(c); if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %d", c); })
+    ({ pp(c); if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %", c); })
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx a, type *t);

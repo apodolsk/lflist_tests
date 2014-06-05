@@ -51,7 +51,7 @@
 
 #define EWTF(fmt, as...)                            \
     ({                                              \
-        elog(1, "This can't be. %s:%s:%d. " fmt     \
+        elog(1, "This can't be. %:%:%. " fmt     \
              , __FILE__ ,__func__, __LINE__, ##as); \
         BREAK();                                    \
         -1;                                         \
@@ -59,7 +59,7 @@
 
 #define TODO(fmt, as...)                                        \
     ({                                                          \
-        elog(1, "My creator has abandoned me. %s:%s:%d. " fmt   \
+        elog(1, "My creator has abandoned me. %:%:%. " fmt   \
              , __FILE__ , __func__ , __LINE__, ##as);           \
         BREAK();                                                \
     })                                            
@@ -70,7 +70,7 @@
 /* Sequel to EARG on the NES. */
 #define SUPER_EARG(fmt, as...)                          \
     ({                                                  \
-        elog(1, "Super bad input error. %s:%s:%d. "fmt, \
+        elog(1, "Super bad input error. %:%:%. "fmt, \
              __FILE__, __func__, __LINE__, ##as);       \
         ebreak(1);                                      \
         -1;                                             \
@@ -78,7 +78,7 @@
 
 #define OVERCOMMIT_ERROR(fmt, as...)                    \
     ({                                                  \
-        elog(2,"Overcommit error. %s:%s:%d. "            \
+        elog(2,"Overcommit error. %:%:%. "            \
               fmt, __FILE__, __func__, __LINE__, ##as); \
         ebreak(2);                                      \
         -1;                                             \
@@ -86,7 +86,7 @@
 
 #define SUPER_RARITY(fmt, as...)                        \
     ({                                                  \
-        elog(2,"Super rare event. %s:%s:%d. "            \
+        elog(2,"Super rare event. %:%:%. "            \
               fmt, __FILE__, __func__, __LINE__, ##as); \
         ebreak(2);                                      \
         -1;                                             \
@@ -94,7 +94,7 @@
 
 #define EOOR(fmt, as...)                            \
     ({                                              \
-        elog(2,"Out of resources. %s:%s:%d. " fmt   \
+        elog(2,"Out of resources. %:%:%. " fmt   \
             , __FILE__, __func__, __LINE__, ##as);  \
       ebreak(3);                                    \
       -1;                                           \
@@ -102,14 +102,14 @@
 
 #define RARITY(fmt, as...)                              \
     ({                                                  \
-      elog(3, "Rarity. %s:%s:%d. "                        \
+      elog(3, "Rarity. %:%:%. "                        \
             fmt, __FILE__, __func__, __LINE__, ##as);   \
       ebreak(5);                                        \
     })                                                  \
         
 #define EARG(fmt, as...)                                \
     ({                                                  \
-        elog(4, "Input error. %s:%s:%d. " fmt           \
+        elog(4, "Input error. %:%:%. " fmt           \
               , __FILE__, __func__, __LINE__, ##as);    \
         ebreak(6);                                      \
         -1;                                             \
@@ -126,14 +126,14 @@
 /* TODO: macro-expansion into multiple macro args not happening. Same old
    shit. */
 #define KERNPTR_MSG(addr)                                   \
-    /* "Forbidden pointer to kern memory: %p", (void *) addr */
+    /* "Forbidden pointer to kern memory: %", (void *) addr */
 
 #define BADWRITE_MSG(addr)                      \
-    /* "Failed to write to %p", (void *) addr */
+    /* "Failed to write to %", (void *) addr */
 
 #define BADREAD_MSG(addr)                       \
-    /* "Failed to read from: %p", (void *) addr      */
+    /* "Failed to read from: %", (void *) addr      */
 
 #define BADMEM_MSG(addr)                                     \
-    /* "Unreadable or unwriteable memory: %p.", (void *) addr    */
+    /* "Unreadable or unwriteable memory: %.", (void *) addr    */
 

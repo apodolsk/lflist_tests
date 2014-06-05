@@ -24,7 +24,7 @@ uint niter = 1000;
 uint nalloc = 100;
 uint nwrites = 8;
 
-/* GDB starts counting child threads at 2. Urgh. */
+/* GDB starts counting threads at 1, so the first child is 2. Urgh. */
 const uint firstborn = 2;
 
 #define MAXWRITE 8

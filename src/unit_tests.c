@@ -318,7 +318,7 @@ void produce(struct child_args *shared){
             cur_block = wsmalloc(size);
             if(!cur_block)
                 continue;
-            log2("Allocated: %p", cur_block);
+            log2("Allocated: %", cur_block);
             *cur_block = (struct tblock)
                 { .size = size, .sanc = SANCHOR };
             /* Try to trigger false sharing. */
@@ -330,7 +330,7 @@ void produce(struct child_args *shared){
                 cof(lfstack_pop(blocks), struct tblock, sanc);
             if(!cur_block)
                 continue;
-            log2("Claiming: %p", cur_block);
+            log2("Claiming: %", cur_block);
             write_magics(cur_block, tid);
             stack_push(&cur_block->sanc, &priv_blocks);
             num_blocks--;
@@ -341,7 +341,7 @@ void produce(struct child_args *shared){
                 cof(stack_pop(&priv_blocks), struct tblock, sanc);
             if(!cur_block)
                 continue;
-            log2("Freeing priv: %p", cur_block);
+            log2("Freeing priv: %", cur_block);
             check_magics(cur_block, tid);
             wsfree(cur_block, cur_block->size);
         }

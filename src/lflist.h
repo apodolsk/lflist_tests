@@ -39,7 +39,7 @@ typedef struct lflist{
 pudef(flx, (), "{%:%:%:%, %}", (void *)(a->pt << 3), a->nil,
       a->locked, a->helped, a->gen);
 pudef(flanchor, (flx), "n:%, p:%", a->n, a->p);
-pudef(lflist, (flanchor), "LIST(%s)", a->nil);
+pudef(lflist, (flanchor), "LIST(%)", a->nil);
 
 #endif  /* FAKELOCKFREE */
 

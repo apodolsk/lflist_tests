@@ -43,8 +43,8 @@
 
 #define TS ()
 
-#define tlprintf(ts, fmt, as...) puprintf(ts, "T:%d "fmt"\n", itid(), ##as)
-#define lprintf(fmt, as...) puprintf(TS, "T:%d "fmt"\n", itid(), ##as)
+#define tlprintf(ts, fmt, as...) puprintf(ts, "T:% "fmt"\n", itid(), ##as)
+#define lprintf(fmt, as...) puprintf(TS, "T:% "fmt"\n", itid(), ##as)
 #define log(fmt, as...) (can_log(MODULE, 1) ? lprintf(fmt, ##as) : 0)
 #define log2(fmt, as...) (can_log(MODULE, 2) ? lprintf(fmt, ##as) : 0)
 
