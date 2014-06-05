@@ -87,7 +87,7 @@
 #define MAP_1(f, g, arg) f(arg, g, 0)
 #define MAP_0(f, g, arg)
 
-/* This is here because MAP() can't be used inside an expansion of
+/* This is here because MAP() won't be expanded inside an expansion of
    MAP() - ie the preprocessor doesn't allow recursion. */
 #define MAP2(FUNC, global, ...) CONCAT(MAP2_ , NUM_ARGS(__VA_ARGS__)) \
     (FUNC, global, __VA_ARGS__)

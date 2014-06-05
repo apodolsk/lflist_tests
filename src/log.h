@@ -48,8 +48,8 @@
 #define log(fmt, as...) (can_log(MODULE, 1) ? lprintf(fmt, ##as) : 0)
 #define log2(fmt, as...) (can_log(MODULE, 2) ? lprintf(fmt, ##as) : 0)
 
-#define NAMEFMT(a, _, __) #a":%"
-#define pp(as...) log(MAP(NAMEFMT, _, as), ##as)
+#define NAMEFMT(a, _, __) a:%
+#define pp(as...) log(STRLIT(MAP(NAMEFMT, _, as)), ##as)
 
 #define trace(module, ts, f, as...)                                     \
     (can_log(module, 1) ? putrace(tlprintf, ts, f, ##as) : f(as))

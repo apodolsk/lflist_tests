@@ -104,7 +104,6 @@ static inline size_t _puprintf(char *fmt, ...){
 #define PU_REF(arg, _, i) CONCAT(__pu_arg, i)
 #define PU_STRFMT(_, __, ___) %
 
-
 #define putracev(print, ts, fun, as...)                                 \
         ({                                                              \
             MAP_NOCOMMA(PU_STORE, _, as);                               \
