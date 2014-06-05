@@ -228,11 +228,11 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             return *pn = (flx){}, -1;
 
         *pn = readx(&pt(*p)->n);
+    newpn:
         if(!eqx(&pt(a)->p, p, t))
             goto newp;
         if(pt(*pn) != pt(a))
             return -1;
-    newpn:
         TEST_PROGRESS(c);
         if(!pn->locked)
             return 0;

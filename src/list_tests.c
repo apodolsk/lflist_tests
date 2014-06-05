@@ -285,10 +285,6 @@ static void launch_test(void *test(void *)){
 }
 
 int main(int argc, char **argv){
-    pp(argc, argv);
-    pp(1);
-    return 0;
-    
     int malloc_test_main(int program);
     int program = 1, opt, do_malloc = 0;
     while( (opt = getopt(argc, argv, "t:l:a:i:p:w:m")) != -1 ){
