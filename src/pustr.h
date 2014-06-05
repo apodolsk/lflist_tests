@@ -132,7 +132,7 @@ static inline size_t _puprintf(char *fmt, ...){
 
 #define DEFAULT_TYPES                           \
     int8_t, int16_t, int32_t, int64_t,          \
-        uint8_t, uint16_t, uint32_t, uint64_t, char
+        uint8_t, uint16_t, uint32_t, uint64_t, char, double
 
 #define pudef_dflt(t, fmt)                                              \
     static inline size_t CONCAT(pusnprint_, t)                          \
@@ -151,6 +151,7 @@ pudef_dflt(uint8_t, "%"PRIu8);
 pudef_dflt(uint16_t,  "%"PRIu16);
 pudef_dflt(uint32_t, "%"PRIu32);
 pudef_dflt(uint64_t, "%"PRIu64);
+pudef_dflt(double, "%f");
 
 static inline
 size_t pusnprint_ptr(char *b, size_t l, int _, volatile const void **a){

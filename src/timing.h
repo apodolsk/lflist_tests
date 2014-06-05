@@ -40,6 +40,6 @@
 #define GETTIME(expr) TOD_GETTIME(expr)
 #define TIME(expr)                                                      \
     do{                                                                 \
-        float __TIMERET = GETTIME(expr);                                \
-        lprintf( #expr ": %f ms", __TIMERET);                           \
+        double __TIMERET = GETTIME(expr);                                \
+        lprintf( #expr ": % ms", __TIMERET);                            \
     }while(0)                                                           \
