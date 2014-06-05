@@ -51,9 +51,8 @@
 #define NAMEFMT(a, _, __) #a":%"
 #define pp(as...) log(MAP(NAMEFMT, _, as), ##as)
 
-#define trace(module, ts, f, as...) putrace(puprintf, ts, f, ##as)
-/* #define trace(module, ts, f, as...)                                     \ */
-/*     (can_log(module, 1) ? putrace(tlprintf, ts, f, ##as) : f(as)) */
+#define trace(module, ts, f, as...)                                     \
+    (can_log(module, 1) ? putrace(tlprintf, ts, f, ##as) : f(as))
 
 #define can_log(module, needed)                                     \
     ((LOG_MASTER && CONCAT(LOG_, MODULE) >= needed && !mute_flag)   \
