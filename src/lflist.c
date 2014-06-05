@@ -137,7 +137,7 @@ err (lflist_del)(flx a, type *t){
     }
 
     err e = -1;
-    if(p.gen == a.gen && p.mp &&
+    if(!p.locked && p.mp && p.gen == a.gen &&
        ((lock.mp && n.gen == lock.gen) || n.helped))
     {
         if(!casx_won((flx){.nil=p.nil,1,0,p.pt,p.gen}, &pt(a)->p, &p)){
