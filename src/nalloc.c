@@ -199,7 +199,7 @@ void linfree(lineage *ptr){
     *b = (block){SANCHOR};
 
     /* TODO: what if sizeof(pthread_t) != sizeof(uptr) */
-    if(s->owner == C && cas_ok(NULL, s->owner, C)){
+    if(s->owner == C && cas_ok(NULL, &s->owner, C)){
         assert(h);
         dealloc_from_slab(b, s);
         if(h->slabs.size < CACHE_MAX)
