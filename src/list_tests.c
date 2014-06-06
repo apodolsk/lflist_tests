@@ -77,20 +77,20 @@ static void *test_reinsert(uint t){
     heritage *node_h =
         &(heritage)POSIX_HERITAGE(node_t, 16, 16, (void (*)(void *)) node_init);
 
-    rand_init();
+    prand_init();
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
+        if(prandpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             pp((void *) b);
             lflist_enq(flx_of(&b->flanc), perm_node_t, &priv);
             list_enq(&b->lanc, &perm);
         }
 
-        lflist *l = &shared[rand() % nlists];
+        lflist *l = &shared[prand() % nlists];
         flx bx;
-        if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
+        if(prandpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
             log("Pushing %", flptr(bx));
             lflist_enq(bx, perm_node_t, l);
         }else{
@@ -123,20 +123,20 @@ static void *test_del(uint t){
     heritage *node_h =
         &(heritage)POSIX_HERITAGE(node_t, 16, 16, (void (*)(void *)) node_init);
 
-    rand_init();
+    prand_init();
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
+        if(prandpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             pp((void *) b);
             lflist_enq(flx_of(&b->flanc), perm_node_t, &semipriv);
             list_enq(&b->lanc, &perm);
         }
 
-        lflist *l = &shared[rand() % nlists];
+        lflist *l = &shared[prand() % nlists];
         flx bx;
-        if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &semipriv))){
+        if(prandpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &semipriv))){
             log("Pushing", flptr(bx));
             lflist_enq(bx, perm_node_t, l);
         }else{
@@ -197,33 +197,33 @@ static void *test_lin_reinsert(uint t){
     
     list privnn = LIST(&privnn);
 
-    rand_init();
+    prand_init();
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        if(randpcnt(20) && (condxadd(&nb, nalloc) < nalloc)){
+        if(prandpcnt(20) && (condxadd(&nb, nalloc) < nalloc)){
             notnode *b = (notnode *) malloc(sizeof(notnode));
             write_magics(b);
             list_enq(&b->lanc, &privnn);
         }
 
         notnode *nn;
-        if(randpcnt(10) && (nn = cof(list_deq(&privnn), notnode, lanc))){
+        if(prandpcnt(10) && (nn = cof(list_deq(&privnn), notnode, lanc))){
             assert(magics_valid(nn));
             free(nn);
             xadd(-1, &nb);
         }
         
-        if(randpcnt(10) && condxadd(&nb, nalloc) < nalloc){
+        if(prandpcnt(10) && condxadd(&nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             pp((void *) b);
             lflist_enq(flx_of(&b->flanc), perm_node_t, &priv);
             list_enq(&b->lanc, &perm);
         }
 
-        lflist *l = &shared[rand() % nlists];
+        lflist *l = &shared[prand() % nlists];
         flx bx;
-        if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
+        if(prandpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
             lflist_enq(bx, perm_node_t, l);
         }else{
             bx = lflist_deq(perm_node_t, l);
@@ -313,6 +313,7 @@ int main(int argc, char **argv){
         }
     }
 
+    assert(0);
     assert(mmap(NULL, SLAB_SIZE * 8, PROT_WRITE | PROT_WRITE,
                 MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0)
            != MAP_FAILED);

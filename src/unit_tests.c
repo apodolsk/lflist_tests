@@ -18,6 +18,7 @@
 #include <time.h>
 #include <atomics.h>
 #include <unistd.h>
+#include <prand.h>
 #include <timing.h>
 
 typedef void *(entrypoint)(void *);
@@ -69,18 +70,6 @@ struct child_args{
    if(0){expression;} generates an ASM branch that's never called. Nice job,
    GCC! */
 static volatile int rdy;
-
-static __thread unsigned int seed;
-void prand_init(void){
-    assert(read(open("/dev/urandom", O_RDONLY), &seed, sizeof(seed)) ==
-           sizeof(seed));
-}
-long int prand(void){
-    return rand_r(&seed);
-}
-uint rand_percent(int per_centum){
-    return (uint) prand() % 100 <= umin(per_centum, 100);
-}
 
 void write_magics(struct tblock *b, int tid){
     size max = umin(b->size - sizeof(*b), max_writes) / sizeof(b->magics[0]);
@@ -160,7 +149,7 @@ void mt_child_rand(int parentid){
             blocks->size < num_allocations * 2 ? 25 :
             0;
         
-        if(rand_percent(malloc_prob)){
+        if(prandpcnt(malloc_prob)){
             size = umax(MIN_SIZE, prand() % (MAX_SIZE));
             cur_block = wsmalloc(size);
             if(!cur_block)
@@ -230,7 +219,7 @@ void mt_sharing_child(struct child_args *shared){
             num_blocks < 2 * num_allocations ? 25 :
             0;
 
-        if(rand_percent(malloc_prob)){
+        if(prandpcnt(malloc_prob)){
             size = umax(MIN_SIZE, prand() % (MAX_SIZE));
             cur_block = wsmalloc(size);
             if(!cur_block)
@@ -253,7 +242,7 @@ void mt_sharing_child(struct child_args *shared){
             list_enq(&cur_block->lanc, &priv_blocks[prand() % NUM_LISTS]);
         }
 
-        if(rand_percent(2 * (100 - malloc_prob))){
+        if(prandpcnt(2 * (100 - malloc_prob))){
             cur_block = cof(list_deq(&priv_blocks[prand() % NUM_LISTS]),
                             struct tblock, lanc);
             if(!cur_block)
@@ -313,7 +302,7 @@ void produce(struct child_args *shared){
             num_blocks < numhreads * num_allocations * 2 ? 25 :
             0;
 
-        if(rand_percent(malloc_prob)){
+        if(prandpcnt(malloc_prob)){
             size = umax(MIN_SIZE, prand() % (MAX_SIZE));
             cur_block = wsmalloc(size);
             if(!cur_block)
@@ -336,7 +325,7 @@ void produce(struct child_args *shared){
             num_blocks--;
         }
 
-        if(rand_percent(100 - malloc_prob)){
+        if(prandpcnt(100 - malloc_prob)){
             cur_block =
                 cof(stack_pop(&priv_blocks), struct tblock, sanc);
             if(!cur_block)
@@ -368,7 +357,7 @@ void consumer_child(struct child_args *shared){
             num_blocks < num_allocations * 2 ? 75 :
             100;
 
-        if(rand_percent(free_prob)){
+        if(prandpcnt(free_prob)){
             cur_block =
                 cof(stack_pop(&priv_blocks), struct tblock, sanc);
             if(!cur_block)
