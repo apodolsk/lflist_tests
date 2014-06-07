@@ -25,17 +25,19 @@ static void flinref_down(flx a, type *t);
 static err help_next(flx a, flx *n, flx *np, type *t);
 static err help_prev(flx a, flx *p, flx *pn, type *t);
 
-static inline flanchor *pt(flx a){
+static ainline
+flanchor *pt(flx a){
     return (flanchor *) (a.pt << 3);
 }
-static inline flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
+static ainline
+flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
     log("CAS! %:% - % if %, addr:%", f, l, n, *e, a);
     flx oe = *e;
     *e = cas2(n, a, oe);
     log("% %:%- found:% addr:%", eq2(*e, oe)? "WON" : "LOST", f, l, *e, a);
     return *e;
 }
-static inline enum howok{
+static ainline enum howok{
     NOT = 0,
     OK = 1,
     WON = 2
@@ -49,7 +51,7 @@ static inline enum howok{
     return NOT;
 }
 
-static inline int casx_won(const char *f, int l,
+static ainline int casx_won(const char *f, int l,
                            flx n, volatile flx *a, flx *e){
     return eq2(*e, casx(f, l, n, a, e));
 }
@@ -58,14 +60,14 @@ static inline int casx_won(const char *f, int l,
 #define casx_ok(as...) casx_ok(__func__, __LINE__, as)
 #define casx_won(as...) casx_won(__func__, __LINE__, as)
 
-static inline flx readx(volatile flx *x){
+static ainline flx readx(volatile flx *x){
     if(!aligned_pow2(x, sizeof(dptr)))
         return (flx){};
     /* flx r = (flx){.gen = atomic_read(&x->gen), .mp = atomic_read(&x->mp)}; */
     /* return r; */
     return cas2((flx){}, x, (flx){});
 }
-static inline bool eqx(volatile flx *a, flx *b, type *t){
+static ainline bool eqx(volatile flx *a, flx *b, type *t){
     for(int c = 0;; TEST_PROGRESS(c)){
         flx old = *b;
         *b = readx(a);

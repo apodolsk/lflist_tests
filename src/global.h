@@ -2,6 +2,7 @@
 
 #ifndef __ASSEMBLER__
 
+#define ainline __attribute__((always_inline))
 #define pure __attribute__((pure))
 #define constfun __attribute__((const))
 #define noreturn __attribute__((noreturn))
