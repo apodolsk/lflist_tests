@@ -15,7 +15,7 @@
 
 #ifndef FAKELOCKFREE
 
-#define MAX_LOOP 32
+#define MAX_LOOP 64
 #define TEST_PROGRESS(c)                                                 \
     ({ pp(c); if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %", c); })
 
@@ -61,11 +61,12 @@ static ainline int casx_won(const char *f, int l,
 #define casx_won(as...) casx_won(__func__, __LINE__, as)
 
 static ainline flx readx(volatile flx *x){
-    if(!aligned_pow2(x, sizeof(dptr)))
-        return (flx){};
-    /* flx r = (flx){.gen = atomic_read(&x->gen), .mp = atomic_read(&x->mp)}; */
-    /* return r; */
-    return cas2((flx){}, x, (flx){});
+    assert(aligned_pow2(x, sizeof(dptr)));
+    flx r;
+    r.gen = atomic_read(&x->gen);
+    r.mp = atomic_read(&x->mp);
+    return r;
+    /* return cas2((flx){}, x, (flx){}); */
 }
 static ainline bool eqx(volatile flx *a, flx *b, type *t){
     for(int c = 0;; TEST_PROGRESS(c)){
