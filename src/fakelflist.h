@@ -8,7 +8,8 @@ typedef struct{
     uptr gen;
     struct lflist *host;
 } flanchor;
-#define FLANCHOR {LANCHOR}
+#define FLANCHOR(list)                          \
+    {LANCHOR, .host = list}
 
 typedef struct {
     flanchor *a;
@@ -17,9 +18,10 @@ typedef struct {
 
 typedef struct lflist{
     list l;
-    pthread_mutex_t mut;
+    pthread_mutex mut;
 } lflist;
-#define LFLIST(self) {.l = LIST(&(self)->l),    \
+#define LFLIST(self, elem)                      \
+    {.l = LIST(&(self)->l, elem),               \
             .mut = PTHREAD_MUTEX_INITIALIZER}
 
 pudef(flx, (), "{%, %}", a->a, a->gen);

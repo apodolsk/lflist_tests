@@ -1,23 +1,14 @@
 #define MODULE LFLISTM
 
-#include <stdlib.h>
-#include <peb_util.h>
 #include <atomics.h>
-#include <stdbool.h>
 #include <lflist.h>
 #include <nalloc.h>
-#include <inttypes.h>
-
-#include <global.h>
-
-#undef TS
-#define TS (LFLIST_TS)
 
 #ifndef FAKELOCKFREE
 
 #define MAX_LOOP 64
 #define TEST_PROGRESS(c)                                                 \
-    ({ pp(c); if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %", c); })
+    ({ if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %", c); })
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx a, type *t);
@@ -25,23 +16,20 @@ static void flinref_down(flx a, type *t);
 static err help_next(flx a, flx *n, flx *np, type *t);
 static err help_prev(flx a, flx *p, flx *pn, type *t);
 
-static ainline
+static
 flanchor *pt(flx a){
     return (flanchor *) (a.pt << 3);
 }
-static ainline
+static
 flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
-    log("CAS! %:% - % if %, addr:%", f, l, n, *e, a);
+    log2("CAS! %:% - % if %, addr:%", f, l, n, *e, a);
     flx oe = *e;
     *e = cas2(n, a, oe);
-    log("% %:%- found:% addr:%", eq2(*e, oe)? "WON" : "LOST", f, l, *e, a);
+    log2("% %:%- found:% addr:%", eq2(*e, oe)? "WON" : "LOST", f, l, *e, a);
     return *e;
 }
-static ainline enum howok{
-    NOT = 0,
-    OK = 1,
-    WON = 2
-} casx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
+
+static howok casx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
     flx oe = *e;
     casx(f, l, n, a, e);
     if(eq2(*e, oe))
@@ -51,8 +39,8 @@ static ainline enum howok{
     return NOT;
 }
 
-static ainline int casx_won(const char *f, int l,
-                           flx n, volatile flx *a, flx *e){
+static int casx_won(const char *f, int l,
+                    flx n, volatile flx *a, flx *e){
     return eq2(*e, casx(f, l, n, a, e));
 }
 
@@ -60,7 +48,7 @@ static ainline int casx_won(const char *f, int l,
 #define casx_ok(as...) casx_ok(__func__, __LINE__, as)
 #define casx_won(as...) casx_won(__func__, __LINE__, as)
 
-static ainline flx readx(volatile flx *x){
+static flx readx(volatile flx *x){
     assert(aligned_pow2(x, sizeof(dptr)));
     flx r;
     r.gen = atomic_read(&x->gen);
@@ -68,7 +56,7 @@ static ainline flx readx(volatile flx *x){
     return r;
     /* return cas2((flx){}, x, (flx){}); */
 }
-static ainline bool eqx(volatile flx *a, flx *b, type *t){
+static bool eqx(volatile flx *a, flx *b, type *t){
     for(int c = 0;; TEST_PROGRESS(c)){
         flx old = *b;
         *b = readx(a);
@@ -130,7 +118,7 @@ err (lflist_del)(flx a, type *t){
         assert(!pn.locked);
 
         lock = (flx){.nil=n.nil, 1, 0, n.pt, n.gen + 1};
-        enum howok r = casx_ok(lock, &pt(a)->n, &n);
+        howok r = casx_ok(lock, &pt(a)->n, &n);
         if(r != NOT){
             n = lock;            
             if(r != WON) lock = (flx){};
@@ -311,6 +299,24 @@ flx (lflist_deq)(type *t, lflist *l){
             return (flx){n.mp, np.gen};
         oldn = n;
     }
+}
+
+flx (lflist_next)(flx p, lflist *l){
+    flx r, n;
+    do{
+        n = readx(&pt(p)->n);
+        if(n.nil)
+            return lflist_peek(l);
+        r = (flx){.pt = n.pt, pt(n)->p.gen};
+        if(pt(p)->p.gen != p.gen)
+            return lflist_peek(l);
+    }while(atomic_read(&pt(p)->n.gen) != n.gen);
+    return r;
+}
+
+flx (lflist_peek)(lflist *l){
+    flx n = l->nil.n;
+    return n.nil ? (flx){} : n;
 }
 
 flanchor *flptr(flx a){

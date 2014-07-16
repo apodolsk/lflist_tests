@@ -16,9 +16,10 @@
 
 #define assert(expr) _assert(1, expr)
 #define assert2(expr) _assert(2, expr)
+/* Not printing expr because of extremely long macro expansion :/ */
 #define _assert(lvl, expr, ...)                                         \
     ((void) ((DBG_LVL >= lvl && !(expr))                                \
-             ? EWTF("Failed assertion %.", #expr)                      \
+             ? EWTF("Failed assertion.")                                \
              : 0))                                                      \
 
 #define rassert(expr1, expr2, relation) _rassert(1, expr1, expr2, relation)

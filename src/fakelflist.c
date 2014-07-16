@@ -3,12 +3,10 @@
 #ifdef FAKELOCKFREE
 #include <list.h>
 #include <atomics.h>
-#include <global.h>
-
 
 #include <pthread.h>
 
-static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex mut = PTHREAD_MUTEX_INITIALIZER;
 
 static
 void lock_lflist(lflist *l){

@@ -2,8 +2,6 @@
 
 #include <list.h>
 #include <peb_util.h>
-#include <pthread.h>
-#include <global.h>
 
 void list_add_before(lanchor *a, lanchor *n, list *l){
     a->n = n;
@@ -36,10 +34,10 @@ void list_remove(lanchor *a, list *l){
     *a = (lanchor) LANCHOR;
 }
 
-lanchor *list_find(lcomp comparator, void *key, list *l){
+lanchor *list_find(lpred pred, void *key, list *l){
     lanchor *c;
     LIST_FOR_EACH(c, l)
-        if(comparator(c, key))
+        if(pred(c, key))
             return c;
     return NULL;
 }

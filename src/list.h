@@ -11,7 +11,8 @@ typedef struct{
     lanchor nil;
     uptr size;
 } list;
-#define LIST(l) { .nil = {&(l)->nil, &(l)->nil} }
+#define LIST(l, elem) {{(elem) ? (elem) : &(l)->nil ,   \
+                        (elem) ? (elem) : &(l)->nil}}
 
 #define LIST_FOR_EACH(cur, list)                                    \
     for(cur = list->nil.n; cur != &list->nil; cur = cur->n)
@@ -24,8 +25,8 @@ void list_add_after(lanchor *a, lanchor *afterhis, list *l);
 
 void list_remove(lanchor *a, list *l);
 
-typedef int (lcomp)(lanchor *to_compare, void *key);
-lanchor *list_find(lcomp comparator, void *key, list *list);
+typedef bool (* lpred)(lanchor *to_compare, void *key);
+lanchor *list_find(lpred pred, void *key, list *list);
 
 int list_contains(lanchor *anchor, list *list);
 lanchor *list_nth(unsigned int n, list *list);
@@ -41,5 +42,7 @@ lanchor *circlist_prev(lanchor *a, list *l);
 int lanchor_unused(lanchor *a);
 int lanchor_valid(lanchor *a, list *list);
 
-pudef(lanchor, (), "{n:%, p:%}", a->n, a->p);
-pudef(list, (lanchor), "LIST{%, sz=%}", a->nil, a->size);
+#define pudef (lanchor, "{%, %}", a->n, a->p)
+#include <pudef.h>
+#define pudef (list, "LIST{%, sz=%}", a->nil, a->size)
+#include <pudef.h>

@@ -1,5 +1,6 @@
 #pragma once
 #include <pumacros.h>
+#include <peb_assert.h>
 
 #define CASSERT(e) _Static_assert(e, #e)
 
@@ -13,11 +14,11 @@
 #define cof container_of
 #define container_of(member_ptr, container_type, field_name)        \
     ((container_type *)                                             \
-     subtract_if_not_null((void *) (member_ptr),                    \
+     subtract_if_not_null((void *) member_ptr,                      \
                           offsetof(container_type, field_name)))
 
 /* Used to do a NULL check without expanding member_ptr twice. */
-static inline void *subtract_if_not_null(void *ptr, size s){
+static inline const void *subtract_if_not_null(const void *ptr, cnt s){
     return ptr == NULL ? ptr : (void *)((u8 *)ptr - s);
 }
 
@@ -31,69 +32,83 @@ static inline void *subtract_if_not_null(void *ptr, size s){
 /*     (assert(sizeof(s) == sizeof(t)),                            \ */
 /*      ((union {__typeof__(s) str; t i;}) (s)).i) */
 
-/* #define PUN(t, s)                                               \ */
-/*     (((union {__typeof__(s) str; t i;}) (s)).i) */
+#define PUN(t, s)                                               \
+    (((union {__typeof__(s) str; t i;}) (s)).i)
 
-#define PUN(t, s) (*(t*)(typeof(s)[]){s})
+/* #define PUN(t, s) (*(t*)(typeof(s)[]){s}) */
 
-#define eq(a, b) ({ typeof(b) __eqa = a; (PUN(uptr, __eqa) == PUN(uptr, b)) })
+#define eq(a, b) ({ typeof(b) __eqa = a; (PUN(uptr, __eqa) == PUN(uptr, b)); })
 
 #define eq2(a, b) ({ typeof(b) __eq2a = a; (PUN(dptr, __eq2a) == PUN(dptr, b)); })
 
-#define is_power_of_2(num)                      \
-    (num && !(num & (num - 1)))                 \
+static inline void must(err e){
+    assert(!e);
+}
 
-static inline int max(int a, int b){
-    return a >= b ? a : b;
+static inline void *mustp(void *p){
+    assert(p);
+    return p;
 }
-static inline int min(int a, int b){
-    return a < b ? a : b;
+
+#define in_struct(p, s)                                         \
+    ((uptr) (p) >= (uptr) (s) && (uptr) (p) < (uptr)((s) + 1))  \
+
+#define is_pow2(n) ((n) && !((n) & ((n) - 1)))
+
+/* static inline bool is_pow2(uint n){ */
+/*     return n && !(n & (n - 1)); */
+/* } */
+
+static inline uint div_pow2(uint n, uint by){
+    if(!n)
+        return 0;
+    assert(is_pow2(by));
+    return n >> __builtin_ctz(by);
 }
-#define umax(a, b) _umax((uptr) (a),(uptr) (b))
-static inline uptr _umax(uptr (a), uptr (b)){
-    return a >= b ? a : b;
-}
-#define umin(a, b) _umin((uptr) (a),(uptr) (b))
-static inline uptr _umin(uptr a, uptr b){
-    return a < b ? a : b;
+
+static inline uint div_rup_pow2(uint n, uint by){
+    if(!n)
+        return 0;
+    assert(is_pow2(by));
+    uint q = n >> __builtin_ctz(by);
+    bool r_notzero = !!(n & (by - 1));
+    return q + r_notzero;
 }
 
 #define aligned(addr, size)                     \
     (((uptr)(addr) % (size)) == 0)
 
 #define align_down(addr, size)                              \
-    ualign_down((uptr) (addr), (size))
+    ((void *) ualign_down((uptr) (addr), (size)))
 static inline uptr ualign_down(uptr addr, size size){
     return addr - addr % size;
 }
 
 #define align_up(addr, size)                    \
-    (void *) ualign_up((uptr) (addr), (size))
-
+    ((void *) ualign_up((uptr) (addr), (size)))
 static inline uptr ualign_up(uptr addr, size size){
     return ualign_down(addr + size - 1, size);
 }
 
-
-#define const_align_down_pow2(n, size)          \
-    ((n) & ~((size) - 1))
-
-#define const_align_up_pow2(n, size)         \
-    (const_align_down_pow2((n) + (size) - 1, size))      
-
-#define align_down_pow2(n, size)       \
-    (({assert(is_power_of_2(size));}), \
+#define align_down_pow2(n, size)                \
+    (typeof (n)) (({assert(is_pow2(size));}),   \
      (uptr) (n) & ~((size) - 1))
 
-#define align_up_pow2(n, size)                  \
-    (({assert(is_power_of_2(size));}),          \
+#define align_up_pow2(n, size)                          \
+    (typeof (n)) (({assert(is_pow2(size));}),           \
      align_down_pow2((uptr) (n) + (size) - 1, size))      
 
 #define mod_pow2(n, mod)                        \
     ((uptr) (n) & ((mod) - 1))
 
 #define aligned_pow2(n, size)                   \
-    (mod_pow2(n, size) == 0)
+    (!mod_pow2(n, size))
 
-static inline void no_op(){
+static inline void no_op(){}
+static inline err zero(){return 0;}
+
+static inline bool ptr_overflow(const void *b, cnt off){
+    return 0 - (uptr) b < off;
 }
+
+char* stpcpy(char *dest, const char *src);
