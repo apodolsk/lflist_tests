@@ -164,6 +164,8 @@ slab *(slab_new)(heritage *h){
 
 void (free)(void *b){
     lineage *l = (lineage *) b;
+    if(!b)
+        return;
     linfree(l);
     assert(write_magics(l, slab_of(l)->tx.t->size));
 }

@@ -1,5 +1,5 @@
 #ifndef pudef
-#error "pudef ain't defined, yall."
+#error "pudef ain't defined, yall." __INCLUDE_LEVEL__
 #endif
 
 #ifndef NTYPES

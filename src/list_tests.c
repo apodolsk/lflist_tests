@@ -15,9 +15,6 @@
 #include <unistd.h>
 #include <timing.h>
 
-#undef TS
-#define TS (LFLIST_TS)
-
 uint nlists = 1;
 uint nthreads = 2;
 uint niter = 1000;

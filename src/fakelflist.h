@@ -24,6 +24,8 @@ typedef struct lflist{
     {.l = LIST(&(self)->l, elem),               \
             .mut = PTHREAD_MUTEX_INITIALIZER}
 
-pudef(flx, (), "{%, %}", a->a, a->gen);
-pudef(flanchor, (lanchor), "l:%, g:%", a->lanc, a->gen);
-pudef(lflist, (list), "list{%}", a->l);
+#define pudef(flx, "{%, %}", a->a, a->gen)
+#include <pudef.h>
+#define pudef (flanchor, "l:%, g:%", a->lanc, a->gen)
+#include <pudef.h>
+#define pudef (lflist, "list{%}", a->l)
