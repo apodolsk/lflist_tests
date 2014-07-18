@@ -18,7 +18,7 @@ bool fun_is_vip(const char *fun_name);
 
 #define LOG_UNITESTS 1
 #define LOG_NALLOC 1
-#define LOG_LFLISTM 1
+#define LOG_LFLISTM 2
 #define LOG_ATOMICS 0
 #define LOG_STACKM 1
 #define LOG_LIST_TESTSM 1

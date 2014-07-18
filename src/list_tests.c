@@ -61,7 +61,7 @@ static void *test_reinsert(uint t){
     list perm = LIST(&perm, NULL);
     tid_ = t + firstborn;
     heritage *node_h =
-        &(heritage)POSIX_HERITAGE(node_t, (void (*)(void *)) node_init);
+        &(heritage)POSIX_HERITAGE(perm_node_t, (void (*)(void *)) node_init);
 
     prand_init();
     sem_wait(&parent_done);
@@ -252,8 +252,9 @@ static void launch_test(void *test(void *)){
     for(uint i = 0; i < nthreads; i++)
         pthread_join(tids[i], NULL);
     list done = LIST(&done, NULL);
+    /* TODO: should use node_t for those tests which require it */
     for(uint i = 0; i < nlists; i++)
-        for(node *b; (b = cof(flptr(lflist_deq(node_t, &shared[i])),
+        for(node *b; (b = cof(flptr(lflist_deq(perm_node_t, &shared[i])),
                               node, flanc)); nb--)
         {
             list_remove(&b->lanc, &all);
@@ -298,11 +299,6 @@ int main(int argc, char **argv){
             break;
         }
     }
-
-    assert(0);
-    assert(mmap(NULL, SLAB_SIZE * 8, PROT_WRITE | PROT_WRITE,
-                MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0)
-           != MAP_FAILED);
 
     lflist lists[nlists];
     for(uint i = 0; i < nlists; i++)

@@ -6,9 +6,9 @@
 #define GCC_STACKTRACE 1
 
 /* Default break, print, and dbg levels. */
-#define BRK 4
+#define BRK 6
 #define PRNT 4
-#define DBG 0
+#define DBG 2
 
 #define E_NALLOC DBG, BRK, PRNT
 #define E_ERRORS DBG, BRK, PRNT
@@ -26,11 +26,6 @@
 #define E_LIST_TESTS DBG, BRK, PRNT
 
 #define LOOKUP CONCAT(E_, MODULE)
-
-#if NUM_ARGS(LOOKUP) != 3
-#undef LOOKUP
-#define LOOKUP DBG, BRK, PRNT
-#endif
 
 #define FIRST(as...) _FIRST(as)
 #define SECOND(as...) _SECOND(as)

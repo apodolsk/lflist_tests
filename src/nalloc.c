@@ -211,6 +211,7 @@ void (slab_ref_down)(slab *s, lfstack *hot_slabs){
 
 err (linref_up)(volatile void *l, type *t){
     slab *s = slab_of((void *) l);
+    pp(t);
     for(tyx tx = s->tx;;){
         if(tx.t != t)
             return EARG("Wrong type.");

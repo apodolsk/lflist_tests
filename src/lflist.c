@@ -16,6 +16,11 @@ static void flinref_down(flx a, type *t);
 static err help_next(flx a, flx *n, flx *np, type *t);
 static err help_prev(flx a, flx *p, flx *pn, type *t);
 
+#define flinref_up(as...) trace(LFLISTM, 3, flinref_up, as)
+#define flinref_down(as...) trace(LFLISTM, 3, flinref_down, as)
+/* #define help_next(as...) trace(LFLISTM, 3, help_next, as) */
+/* #define help_prev(as...) trace(LFLISTM, 3, help_prev, as) */
+
 static
 flanchor *pt(flx a){
     return (flanchor *) (a.pt << 3);
@@ -88,14 +93,14 @@ flx (flinref_read)(volatile flx *from, flx **held, type *t){
 }
 
 static
-int flinref_up(flx a, type *t){
+int (flinref_up)(flx a, type *t){
     if(a.nil)
         return 0;
     return t->linref_up(pt(a), t);
 }
 
 static
-void flinref_down(flx a, type *t){
+void (flinref_down)(flx a, type *t){
     if(!a.nil)
         t->linref_down(pt(a));
 }

@@ -63,7 +63,7 @@ err linref_up(volatile void *l, type *t);
 void dflt_linref_down(volatile void *l);
 void linref_down(volatile void *l);
 
-#define SLAB_SIZE (2 * PAGE_SIZE)
+#define SLAB_SIZE (PAGE_SIZE)
 #define MIN_ALIGNMENT (sizeof(dptr))
 
 typedef struct __attribute__((__aligned__(SLAB_SIZE))) slab{
