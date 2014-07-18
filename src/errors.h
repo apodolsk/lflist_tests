@@ -6,7 +6,7 @@
 #define GCC_STACKTRACE 1
 
 /* Default break, print, and dbg levels. */
-#define BRK 6
+#define BRK 1
 #define PRNT 4
 #define DBG 2
 

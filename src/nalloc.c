@@ -97,6 +97,8 @@ heritage *poly_heritage_of(size size){
 }
 
 void *(malloc)(size size){
+    if(!size)
+        return NULL;
     if(size > MAX_BLOCK)
         return RARITY(), NULL;
     block *b = linalloc(poly_heritage_of(size));
@@ -249,6 +251,21 @@ void (sfree)(void *b, size size){
     free(b);
 }
 
+void *calloc(size nb, size bs){
+    u8 *b = malloc(nb * bs);
+    if(b)
+        memset(b, 0, nb * bs);
+    return b;
+}
+
+void *realloc(void *o, size size){
+    u8 *b = malloc(size);
+    if(b && o)
+        memcpy(b, o, size);
+    free(o);
+    return b;
+}
+
 static
 int write_magics(block *b, size bytes){
     if(!HEAP_DBG)
@@ -268,4 +285,10 @@ int magics_valid(block *b, size bytes){
         rassert(magics[i], ==, NALLOC_MAGIC_INT);
     return 1;
 }
+
+int posix_memalign(void **mptr, size align, size sz){return -1;}
+void *memalign(size align, size sz){return NULL;}
+void *pvalloc(size sz){return NULL;}
+void *aligned_alloc(size align, size sz){return NULL;}
+void *valloc(size sz){ return NULL; }
 
