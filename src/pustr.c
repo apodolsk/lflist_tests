@@ -35,7 +35,7 @@ size_t _puprintf(char *fmt, ...){
         need = 1 + puvsnprintf(b, max, fmt, l);
         va_end(l);
         if(max >= need){
-            sim_puts(b);
+            puts(b);
             break;
         }
         max = need;

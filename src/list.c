@@ -31,7 +31,7 @@ void list_remove(lanchor *a, list *l){
     a->n->p = a->p;
     a->p->n = a->n;
     l->size--;
-    *a = (lanchor) LANCHOR;
+    *a = (lanchor) LANCHOR(NULL);
 }
 
 lanchor *list_find(lpred pred, void *key, list *l){

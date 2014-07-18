@@ -9,7 +9,7 @@ typedef struct{
     struct lflist *host;
 } flanchor;
 #define FLANCHOR(list)                          \
-    {LANCHOR, .host = list}
+    {LANCHOR(list), .host = list}
 
 typedef struct {
     flanchor *a;

@@ -5,7 +5,9 @@ typedef struct lanchor{
     struct lanchor *n;
     struct lanchor *p;
 } lanchor;
-#define LANCHOR {}
+#define LANCHOR(l) {                            \
+        (l) ? &((list *) (l))->nil : NULL,      \
+        (l) ? &((list *) (l))->nil : NULL}
 
 typedef struct{
     lanchor nil;

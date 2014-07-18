@@ -8,7 +8,7 @@
 #include <lflist.h>
 #include <list.h>
 #include <getopt.h>
-#include <prand.h>
+#include <wrand.h>
 #include <atomics.h>
 #include <global.h>
 #include <sys/mman.h>
@@ -40,30 +40,19 @@ typedef union{
         flanchor flanc;
     };
 } node;
-type *node_t = &(type){sizeof(node), linref_up, linref_down};
-type *perm_node_t = &(type){sizeof(node),
-                    (err (*)(volatile void *, const type *)) succeed,
-                    (void (*)(volatile void *)) succeed};
+type *node_t = &(type)TYPE(node, linref_up, linref_down);
+type *perm_node_t = &(type)TYPE(node,
+                                (err (*)(volatile void *, const type *)) succeed,
+                                (void (*)(volatile void *)) succeed);
 
 volatile uptr nb;
 static lflist *shared;
-static list all = LIST(&all);
+static list all = LIST(&all, NULL);
 static pthread_mutex_t all_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static uptr condxadd(volatile uptr *d, uptr max){
-    uptr r, f = *d;
-    do{
-        r = f;
-        if(r >= max)
-            return r;
-        f = cas(r + 1, d, r);
-    }while(f != r);
-    return r;
-}
-
 static void node_init(node *b){
-    b->flanc = (flanchor) FLANCHOR;
-    b->lanc = (lanchor) LANCHOR;
+    b->flanc = (flanchor) FLANCHOR(NULL);
+    b->lanc = (lanchor) LANCHOR(NULL);
 }
 
 static err succeed(){
@@ -71,17 +60,17 @@ static err succeed(){
 }
 
 static void *test_reinsert(uint t){
-    lflist priv = LFLIST(&priv);
-    list perm = LIST(&perm);
+    lflist priv = LFLIST(&priv, NULL);
+    list perm = LIST(&perm, NULL);
     tid_ = t + firstborn;
     heritage *node_h =
-        &(heritage)POSIX_HERITAGE(node_t, 16, 16, (void (*)(void *)) node_init);
+        &(heritage)POSIX_HERITAGE(node_t, (void (*)(void *)) node_init);
 
     prand_init();
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        if(prandpcnt(10) && condxadd(&nb, nalloc) < nalloc){
+        if(prandpcnt(10) && condxadd(1, &nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             pp((void *) b);
             lflist_enq(flx_of(&b->flanc), perm_node_t, &priv);
@@ -117,17 +106,17 @@ static void *test_reinsert(uint t){
 }
 
 static void *test_del(uint t){
-    lflist semipriv = LFLIST(&semipriv);
-    list perm = LIST(&perm);
+    lflist semipriv = LFLIST(&semipriv, NULL);
+    list perm = LIST(&perm, NULL);
     tid_ = t + firstborn;
     heritage *node_h =
-        &(heritage)POSIX_HERITAGE(node_t, 16, 16, (void (*)(void *)) node_init);
+        &(heritage)POSIX_HERITAGE(node_t, (void (*)(void *)) node_init);
 
     prand_init();
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        if(prandpcnt(10) && condxadd(&nb, nalloc) < nalloc){
+        if(prandpcnt(10) && condxadd(1, &nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             pp((void *) b);
             lflist_enq(flx_of(&b->flanc), perm_node_t, &semipriv);
@@ -188,20 +177,20 @@ static int magics_valid(notnode *b){
 
 
 static void *test_lin_reinsert(uint t){
-    lflist priv = LFLIST(&priv);
-    list perm = LIST(&perm);
+    lflist priv = LFLIST(&priv, NULL);
+    list perm = LIST(&perm, NULL);
     tid_ = t + firstborn;
     heritage *node_h =
-        &(heritage)POSIX_HERITAGE(node_t, 1, 1,
-                                  (void (*)(void *)) node_init);
+        &(heritage)HERITAGE(node_t, 1, 1,
+                            (void (*)(void *)) node_init, new_slabs);
     
-    list privnn = LIST(&privnn);
+    list privnn = LIST(&privnn, NULL);
 
     prand_init();
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        if(prandpcnt(20) && (condxadd(&nb, nalloc) < nalloc)){
+        if(prandpcnt(20) && (condxadd(1, &nb, nalloc) < nalloc)){
             notnode *b = (notnode *) malloc(sizeof(notnode));
             write_magics(b);
             list_enq(&b->lanc, &privnn);
@@ -214,7 +203,7 @@ static void *test_lin_reinsert(uint t){
             xadd(-1, &nb);
         }
         
-        if(prandpcnt(10) && condxadd(&nb, nalloc) < nalloc){
+        if(prandpcnt(10) && condxadd(1, &nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             pp((void *) b);
             lflist_enq(flx_of(&b->flanc), perm_node_t, &priv);
@@ -265,7 +254,7 @@ static void launch_test(void *test(void *)){
         sem_post(&parent_done);
     for(uint i = 0; i < nthreads; i++)
         pthread_join(tids[i], NULL);
-    list done = LIST(&done);
+    list done = LIST(&done, NULL);
     for(uint i = 0; i < nlists; i++)
         for(node *b; (b = cof(flptr(lflist_deq(node_t, &shared[i])),
                               node, flanc)); nb--)
@@ -320,7 +309,7 @@ int main(int argc, char **argv){
 
     lflist lists[nlists];
     for(uint i = 0; i < nlists; i++)
-        lists[i] = (lflist) LFLIST(&lists[i]);
+        lists[i] = (lflist) LFLIST(&lists[i], NULL);
     shared = lists;
     pp(shared);
 

@@ -41,6 +41,16 @@ static inline const void *subtract_if_not_null(const void *ptr, cnt s){
 
 #define eq2(a, b) ({ typeof(b) __eq2a = a; (PUN(dptr, __eq2a) == PUN(dptr, b)); })
 
+#define umin(a, b) _umin((uptr) a, (uptr) b)
+static inline uptr _umin(uptr a, uptr b){
+    return a < b ? a : b;
+}
+
+#define umax(a, b) _umax((uptr) a, (uptr) b)
+static inline uptr _umax(uptr a, uptr b){
+    return a < b ? b : a;
+}
+
 static inline void must(err e){
     assert(!e);
 }

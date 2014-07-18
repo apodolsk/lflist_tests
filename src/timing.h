@@ -42,4 +42,4 @@
     do{                                                                 \
         double __TIMERET = GETTIME(expr);                                \
         lprintf( #expr ": % ms", __TIMERET);                            \
-    }while(0)                                                           \
+    }while(0)                                                           

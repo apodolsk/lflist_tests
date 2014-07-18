@@ -1,14 +1,16 @@
 #pragma once
-#define KERNEL
+
+#include <pthread.h>
 
 #define PAGE_SHIFT  12
 #define PAGE_SIZE   (1 << PAGE_SHIFT)
 #define CACHELINE_SIZE 64
 
 struct thread;
+struct cpu;
 
 #define BREAK() abort()
-#define C pthread_self()
+#define C ((struct cpu *) pthread_self())
 
 struct slab *new_slabs(cnt batch);
 extern uint itid(void);

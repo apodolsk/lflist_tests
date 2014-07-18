@@ -16,25 +16,12 @@ bool fun_is_vip(const char *fun_name);
 
 /* Verbosities */
 
-#define LOG_SCHED 1
-#define LOG_CONTEXT_SWITCH 1
-#define LOG_ATOMICS 0
-#define LOG_FRAMES 1
-#define LOG_LOADER 1
-#define LOG_PALLOC 1
-#define LOG_PAGING 1
-#define LOG_STACKM 0
-#define LOG_MAIN 1
-#define LOG_MSGM 1
-#define LOG_SEM 1
-#define LOG_LFLISTM 0
-#define LOG_SYSCALL 1
-#define LOG_LIFECYCLE 1
+#define LOG_UNITESTS 1
 #define LOG_NALLOC 1
-#define LOG_EXCEPT 1
-#define LOG_SWEXN 1
-#define LOG_CPU 1
-#define LOG_VM 1
+#define LOG_LFLISTM 1
+#define LOG_ATOMICS 0
+#define LOG_STACKM 1
+#define LOG_LIST_TESTSM 1
 
 #define LOG_LVL CONCAT(LOG_, MODULE)
 
@@ -48,8 +35,8 @@ bool fun_is_vip(const char *fun_name);
 
 #else
 
-#define log(fmt, as...) (can_log(MODULE, 1) ? lprintf(fmt, ##as) : 0)
-#define log2(fmt, as...) (can_log(MODULE, 2) ? lprintf(fmt, ##as) : 0)
+#define log(fmt, as...) (can_log(MODULE, 1) ? lprintf(fmt, ##as) : (void) 0)
+#define log2(fmt, as...) (can_log(MODULE, 2) ? lprintf(fmt, ##as) : (void) 0)
 
 #define NAMEFMT(a, _, __) a:%
 #define pp(as...) log(STRLIT(MAP(NAMEFMT, _, as)), ##as)

@@ -18,7 +18,7 @@
 #include <time.h>
 #include <atomics.h>
 #include <unistd.h>
-#include <prand.h>
+#include <wrand.h>
 #include <timing.h>
 
 typedef void *(entrypoint)(void *);
@@ -135,7 +135,7 @@ void mt_child_rand(int parentid){
 
     prand_init();
     for(uint i = 0; i < NUM_LISTS; i++)
-        block_lists[i] = (list) LIST(&block_lists[i]);
+        block_lists[i] = (list) LIST(&block_lists[i], NULL);
     
     while(rdy == false)
         _yield(parentid);
@@ -155,7 +155,7 @@ void mt_child_rand(int parentid){
             if(!cur_block)
                 continue;
             *cur_block = (struct tblock)
-                { . size = size, .lanc = LANCHOR };
+                { . size = size, .lanc = LANCHOR(NULL) };
             write_magics(cur_block, tid);
             list_enq(&cur_block->lanc, blocks);
         }else if(blocks->size){
@@ -207,7 +207,7 @@ void mt_sharing_child(struct child_args *shared){
 
     list priv_blocks[NUM_LISTS];
     for(uint i = 0; i < NUM_LISTS; i++)
-        priv_blocks[i] = (list) LIST(&priv_blocks[i]);
+        priv_blocks[i] = (list) LIST(&priv_blocks[i], NULL);
 
     uint num_blocks = 0;
     for(uint i = 0; i < NUM_OPS; i++){
@@ -238,7 +238,7 @@ void mt_sharing_child(struct child_args *shared){
                 continue;
             log2("Claiming: %", cur_block);
             write_magics(cur_block, tid);
-            cur_block->lanc = (lanchor) LANCHOR;
+            cur_block->lanc = (lanchor) LANCHOR(NULL);
             list_enq(&cur_block->lanc, &priv_blocks[prand() % NUM_LISTS]);
         }
 
