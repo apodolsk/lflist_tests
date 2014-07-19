@@ -17,11 +17,11 @@ bool fun_is_vip(const char *fun_name);
 /* Verbosities */
 
 #define LOG_UNITESTS 1
-#define LOG_NALLOC 1
+#define LOG_NALLOC 0
 #define LOG_LFLISTM 2
 #define LOG_ATOMICS 0
-#define LOG_STACKM 1
-#define LOG_LIST_TESTSM 1
+#define LOG_STACKM 0
+#define LOG_LIST_TESTSM 0
 
 #define LOG_LVL CONCAT(LOG_, MODULE)
 

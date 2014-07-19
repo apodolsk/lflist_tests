@@ -3,10 +3,10 @@
 #include <atomics.h>
 #include <wrand.h>
 
-#define FUZZ_NS 1000
+#define FUZZ_NS 10000
 /* #define FUZZ_NS 0 */
-#define FUZZ_PCNT 30
-#define FUZZ_MOD 1
+#define FUZZ_PCNT 80
+#define FUZZ_MOD 2
 
 extern uptr (xadd)(uptr s, volatile uptr *p);
 extern uptr (xchg)(uptr s, volatile uptr *p);

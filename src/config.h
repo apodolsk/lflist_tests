@@ -9,7 +9,9 @@
 struct thread;
 struct cpu;
 
-#define BREAK() abort()
+#include <stdio.h>
+
+#define BREAK() ({fflush(stdout); abort();})
 #define C ((struct cpu *) pthread_self())
 
 struct slab *new_slabs(cnt batch);
