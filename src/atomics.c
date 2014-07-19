@@ -3,8 +3,8 @@
 #include <atomics.h>
 #include <wrand.h>
 
-/* #define FUZZ_NS 1000 */
-#define FUZZ_NS 0
+#define FUZZ_NS 1000
+/* #define FUZZ_NS 0 */
 #define FUZZ_PCNT 30
 #define FUZZ_MOD 1
 

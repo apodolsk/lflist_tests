@@ -75,16 +75,6 @@ static const type polytypes[] = { MAP(PTYPE, _,
 static heritage poly_heritages[] = {
     ITERATE(PHERITAGE, _, 14)
 };
-CASSERT(ARR_LEN(polytypes) == 14);
-
-/* extern void *edata; */
-/* static slab* next_cold = (slab *) const_align_up_pow2(edata, PAGE_SIZE); */
-/* static const slab* max_cold = USER_MEM_START; */
-
-/* static slab* alloc_kslabs(int nslabs){ */
-/*     slab *s = condxadd(next_cold, nslabs * PAGE_SIZE, less, max_cold); */
-/*     return s == max_cold ? NULL : s */
-/* } */
 
 static
 heritage *poly_heritage_of(size size){
@@ -92,8 +82,6 @@ heritage *poly_heritage_of(size size){
         if(polytypes[i].size >= size)
             return &poly_heritages[i];
     EWTF();
-    /* TODO: rip out */
-    return NULL;
 }
 
 void *(malloc)(size size){
@@ -169,27 +157,26 @@ void (free)(void *b){
     if(!b)
         return;
     linfree(l);
-    assert(write_magics(l, slab_of(l)->tx.t->size));
 }
-void (linfree)(lineage *ptr){
-    block *b = (block*) ptr;
+void (linfree)(lineage *l){
+    block *b = (block*) l;
     slab *s = slab_of(b);
-    heritage *h = s->her;
     *b = (block){SANCHOR};
 
-    /* TODO: what if sizeof(pthread_t) != sizeof(uptr) */
-    if(s->owner == C && cas_ok(NULL, s->owner, C)){
-        assert(h);
+    assert(write_magics(l, s->tx.t->size));
+
+    if(s->owner == C){
+        /* TODO: yeah, you own it till you free 1 block. Not so
+           great. More complicated scheme could ensure that it's not lost
+           if you don't push it upon first. Consider
+           lfstack_push_if(size_is,..)*/
+        s->owner = NULL;
         dealloc_from_slab(b, s);
-        /* TODO: look at slab_ref_down behavior here. Shouldn't this
-           happen only if the slab is full? */
-        if(h->slabs.size < CACHE_MAX)
-            lfstack_push(&s->sanc, &h->slabs);
-        else
-            slab_ref_down(s, h->hot_slabs);
+        heritage *h = s->her;
+        lfstack_push(&s->sanc, &h->slabs);
     }else{
         int nwb = lfstack_push(&b->sanc, &s->wayward_blocks);
-        if(&s->blocks[s->tx.t->size * (nwb + 1)] > (u8 *) &s[1]){
+        if(&s->blocks[s->tx.t->size * (nwb + 1)] >= (u8 *) &s[1]){
             s->owner = NULL;
             slab_ref_down(s, &hot_slabs);
         }
@@ -205,6 +192,7 @@ static
 void (slab_ref_down)(slab *s, lfstack *hot_slabs){
     assert(s->tx.linrefs);
     if(xadd((uptr) -1, &s->tx.linrefs) == 1){
+        s->owner == NULL;
         s->tx.t = NULL;
         s->her = NULL;
         lfstack_push(&s->sanc, hot_slabs);
