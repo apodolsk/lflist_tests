@@ -44,9 +44,10 @@ static howok casx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
     return NOT;
 }
 
-static int casx_won(const char *f, int l,
+static bool casx_won(const char *f, int l,
                     flx n, volatile flx *a, flx *e){
-    return eq2(*e, casx(f, l, n, a, e));
+    flx oe = *e;
+    return eq2(oe, casx(f, l, n, a, e));
 }
 
 #define casx(as...) casx(__func__, __LINE__, as)
@@ -54,12 +55,13 @@ static int casx_won(const char *f, int l,
 #define casx_won(as...) casx_won(__func__, __LINE__, as)
 
 static flx readx(volatile flx *x){
-    assert(aligned_pow2(x, sizeof(dptr)));
-    flx r;
-    r.gen = atomic_read(&x->gen);
-    r.mp = atomic_read(&x->mp);
-    return r;
-    /* return cas2((flx){}, x, (flx){}); */
+    /* assert(aligned_pow2(x, sizeof(dptr))); */
+    /* flx r; */
+    /* r.gen = atomic_read(&x->gen); */
+    /* r.mp = atomic_read(&x->mp); */
+    /* pp(r); */
+    /* return r; */
+    return cas2((flx){}, x, (flx){});
 }
 static bool eqx(volatile flx *a, flx *b, type *t){
     for(int c = 0;; TEST_PROGRESS(c)){
@@ -195,7 +197,9 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         if(!eqx(&pt(a)->n, n, t))
             goto newn;
         if(pt(npp) != pt(a)){
-            if(!eq2(*np, (*np = readx(&pt(*n)->p))))
+            flx onp = *np;
+            flx nnp = (*np = readx(&pt(*n)->p));
+            if(!eq2(onp, nnp))
                 goto newnp;
             else return assert(!a.nil), -1;
         }
