@@ -1,8 +1,5 @@
 #include <sys/mman.h>
 #include <nalloc.h>
-#include <pthread.h>
-#include <libthread.h>
-#include <timing.h>
 
 struct slab *new_slabs(cnt batch){
     struct slab *s = mmap(NULL, SLAB_SIZE * batch, PROT_WRITE | PROT_WRITE,
@@ -10,6 +7,8 @@ struct slab *new_slabs(cnt batch){
     return s == MAP_FAILED ? EWTF(), NULL : s;
 }
 
+#include <pthread.h>
+#include <libthread.h>
 __thread thread manual_tls;
 
 struct thread *this_thread(void){
@@ -25,6 +24,7 @@ void set_dbg_id(uint id){
     _dbg_id = id;
 }
 
+#include <timing.h>
 u64 rdtsc(void){
     return (u64) GETTIME();
 }
@@ -33,10 +33,13 @@ bool interrupts_enabled(void){
     return true;
 }
 
+#include <stdio.h>
 void breakpoint(void){
-    abort();
+    fflush(stdout);
+    asm volatile("int $3;");
 }
 
 void panic(const char *_, ...){
+    breakpoint();
     abort();
 }

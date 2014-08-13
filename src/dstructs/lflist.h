@@ -81,13 +81,9 @@ flx lflist_next(flx p, lflist *l);
 #define pudef (lflist, "LIST(%)", a->nil)
 #include <pudef.h>
 
-#define _lflist_del(as...) linref_account(0, lflist_del(as))
-#define _lflist_enq(as...) linref_account(0, lflist_enq(as))
-#define _lflist_deq(as...) linref_account(flptr(account_expr) ? 1 : 0,  \
-                                          lflist_deq(as))
-
-#define lflist_del(as...) trace(LFLISTM, 1, _lflist_del, as)
-#define lflist_deq(as...) trace(LFLISTM, 1, _lflist_deq, as)
-#define lflist_enq(as...) trace(LFLISTM, 1, _lflist_enq, as)
+#define lflist_del(as...) linref_account(0, trace(LFLISTM, 1, lflist_del, as))
+#define lflist_deq(as...)                       \
+    linref_account(flptr(account_expr) ? 1 : 0, trace(LFLISTM, 1, lflist_deq, as))
+#define lflist_enq(as...) linref_account(0, trace(LFLISTM, 1, lflist_enq, as))
 #define lflist_peek(as...) trace(LFLISTM, 2, lflist_peek, as)
 #define lflist_next(as...) trace(LFLISTM, 2, lflist_next, as)

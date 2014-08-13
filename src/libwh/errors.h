@@ -29,7 +29,7 @@
 extern noreturn void panic(const char *, ...);
 
 #define assert(expr...)                                               \
-    (!(expr) ? EWTF("Failed assertion: %.", #expr) : 0)
+    (!(expr) ? TODO("Failed assertion: %.", #expr) : 0)
 
 /* --- Fatal Errors (for the kernel) --- */
 
@@ -45,8 +45,7 @@ extern noreturn void panic(const char *, ...);
     ({                                                              \
         elog(1, "My creator has abandoned me. %:%:%. " fmt  \
              , __FILE__ , __func__ , __LINE__, ##as);               \
-        ebreakpoint(0);                                                  \
-        panic("TODO!");                                             \
+        ebreakpoint(0);                                             \
     })                                            
 
 

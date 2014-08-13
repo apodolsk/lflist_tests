@@ -39,13 +39,15 @@ static sem_t parent_done;
 static err succeed();
 static void node_init(node *b);
 extern void set_dbg_id(uint id);
+static err perm_ref_up();
+static void perm_ref_down();
 
 type *node_t = &(type)TYPE(node, linref_up, linref_down,
                            (void (*)(lineage *))node_init);
 type *perm_node_t = &(type)TYPE(node,
-                                (err (*)(volatile void *, const type *)) succeed,
-                                (void (*)(volatile void *)) succeed,
-                                (void (*)(lineage *))node_init);
+                                (err (*)(volatile void *, type *)) perm_ref_up,
+                                (void (*)(volatile void *)) perm_ref_down,
+                                (void (*)(lineage *)) node_init);
 
 volatile uptr nb;
 static lflist *shared;
@@ -57,8 +59,14 @@ static void node_init(node *b){
     b->lanc = (lanchor) LANCHOR(NULL);
 }
 
-static err succeed(){
+#include <libthread.h>
+static err perm_ref_up(){
+    T->nallocin.linrefs_held++;
     return 0;
+}
+
+static void perm_ref_down(){
+    T->nallocin.linrefs_held--;
 }
 
 static void *test_reinsert(uint t){
