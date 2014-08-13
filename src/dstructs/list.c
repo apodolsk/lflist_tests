@@ -84,9 +84,9 @@ int lanchor_unused(lanchor *a){
 
 int lanchor_valid(lanchor *a, list *l){
     assert(a != &l->nil);
-    rassert(a->n->p, ==, a);
-    rassert(a->p->n, ==, a);
-    assert2(list_contains(a, l));
+    assert(a->n->p == a);
+    assert(a->p->n == a);
+    /* assert2(list_contains(a, l)); */
     return 1;
 }
 
@@ -97,7 +97,7 @@ uptr list_size(list *l){
 int list_valid(list *l){
     lanchor *c;
     LIST_FOR_EACH(c, l)
-        rassert(c->p->n, ==, c);
+        assert(c->p->n == c);
     return 1;
 }
 

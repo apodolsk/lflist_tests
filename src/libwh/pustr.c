@@ -1,9 +1,9 @@
 #include <pustr.h>
 #include <stdio.h>
 
-size_t puvsnprintf(char *b, size_t max, char *fmt, va_list args){
+size_t puvsnprintf(char *b, size_t max, const char *fmt, va_list args){
     size_t l = 0;
-    for(char *c = fmt; *c != '\0'; c++){
+    for(const char *c = fmt; *c != '\0'; c++){
         if(*c == '%'){
             pu_arg *a = va_arg(args, pu_arg *);
             assert(a && a->typed_snprint);
@@ -17,7 +17,7 @@ size_t puvsnprintf(char *b, size_t max, char *fmt, va_list args){
     return l;
 }
 
-size_t _pusnprintf(char *b, size_t max, char *fmt, ...){
+size_t _pusnprintf(char *b, size_t max, const char *fmt, ...){
     va_list args; 
     va_start(args, fmt);
     size_t l = puvsnprintf(b, max, fmt, args);
@@ -26,7 +26,7 @@ size_t _pusnprintf(char *b, size_t max, char *fmt, ...){
 }
 
 #define PU_DFLT_BUF_SZ 80
-size_t _puprintf(char *fmt, ...){
+size_t _puprintf(const char *fmt, ...){
     size_t max = PU_DFLT_BUF_SZ, need;
     for(int i = 0; i < 2; i++){
         char b[max];
@@ -35,7 +35,7 @@ size_t _puprintf(char *fmt, ...){
         need = 1 + puvsnprintf(b, max, fmt, l);
         va_end(l);
         if(max >= need){
-            puts(b);
+            fputs(b, stdout);
             break;
         }
         max = need;
@@ -45,8 +45,8 @@ size_t _puprintf(char *fmt, ...){
 
 size_t pusnprint_ptr_char(char *b, size_t l, volatile const char **a){
     if(!*a)
-        return snprintf(b, l, "(char *)<nil>");
-    return snprintf(b, l, "%s", *a);
+        return (size_t) snprintf(b, l, "(char *)<nil>");
+    return (size_t) snprintf(b, l, "%s", *a);
 }
 
 size_t pusnprint_char(char *b, size_t l, volatile const char *a){
@@ -56,19 +56,19 @@ size_t pusnprint_char(char *b, size_t l, volatile const char *a){
 }
 
 size_t pusnprint_dflt(char *b, size_t l, volatile const void **a){
-    return snprintf(b, l, "%p", *a);
+    return (size_t) snprintf(b, l, "%p", *a);
 }
 
 #define pudef_dflt(t, fmt)                                              \
     size_t CONCAT(pusnprint_, t)                                        \
     (char *b, size_t l, volatile const t *a){                           \
-        return snprintf(b, l, fmt, *a);                                 \
+        return (size_t) snprintf(b, l, fmt, *a);                         \
     }                                                                   \
     size_t CONCAT(pusnprint_ptr_, t)                                    \
     (char *b, size_t l, volatile const t **a){                          \
         if(!*a)                                                         \
-            return snprintf(b, l, "("STRLIT(t)" *)<nil>");              \
-        return snprintf(b, l, "%p:&"fmt, *a, **a);                      \
+            return (size_t) snprintf(b, l, "("STRLIT(t)" *)<nil>");      \
+        return (size_t) snprintf(b, l, "%p:&"fmt, *a, **a);              \
     }
 
 pudef_dflt(bool, "%"PRId8)

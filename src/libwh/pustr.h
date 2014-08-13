@@ -3,8 +3,6 @@
 #include "pumacros.h"
 
 #include <inttypes.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdarg.h>
 
 #define NTYPES 0
@@ -14,12 +12,142 @@
 #define pusnprintf(...) 1
 #define puprintf(...) 1
 #define putrace(_, f, as...) f(as)
-#define putracev(_, f, as...) f(as)
 #else
+
+typedef size_t (*typed_snprint)(char *, size_t, volatile const void *);
+
+typedef struct{
+    volatile const void *val;
+    typed_snprint typed_snprint;
+}pu_arg;
+
+size_t puvsnprintf(char *b, size_t max, const char *fmt, va_list args);
+
+#define puprintf(fmt, as...) _puprintf(fmt      \
+                                       COMMAPFX_IF_NZ(PUMAP(pu_arg_of, _, ##as)))
+size_t _puprintf(const char *fmt, ...);
+
+#define pusnprintf(b, l, fmt, as...)                \
+    _pusnprintf(b, l, fmt, PUMAP(pu_arg_of, _, as))
+size_t _pusnprintf(char *b, size_t max, const char *fmt, ...);
+
+#define pu_arg_of(a, _,  __)                                             \
+    &(pu_arg){(typeof(decay(a))[1]){a}, (typed_snprint) pusnprint_of(a)}
+/* Turn array expressions into pointer expressions. */
+#define decay(v) ((void) 0, v)
+
+#define pusnprint_of(a)                                     \
+    _Generic(decay(a),                                      \
+             PUMAP2(pusnprint_of_dflt, _, DEFAULT_TYPES),   \
+    default:                                                \
+             REPEAT_NOCOMMA(LCHOOSE, decay(a), NTYPES)      \
+             pusnprint_dflt                                 \
+             REPEAT_NOCOMMA(RCHOOSE, decay(a), NTYPES))     \
+    
+#define pusnprint_of_dflt(t, _, __)                                     \
+    t  : &CONCAT(pusnprint_, t),                                        \
+        volatile t  : &CONCAT(pusnprint_, t),                           \
+        const t  : &CONCAT(pusnprint_, t),                              \
+        volatile const t  : &CONCAT(pusnprint_, t),                     \
+        t* : &CONCAT(pusnprint_ptr_, t),                                \
+        volatile t* : &CONCAT(pusnprint_ptr_, t),                       \
+        const t* : &CONCAT(pusnprint_ptr_, t),                          \
+        volatile const t* : &CONCAT(pusnprint_ptr_, t)
+
+/* TODO: I have to do this because gcc 4.9 has a bug where _Generic(b,
+   typeof(b): ...) fails to match if b has a volatile type. */
+#define LCHOOSE(i, a)                                                   \
+           choose(compat(CONCAT(putype_, i),                            \
+                         typeof(a)), &CONCAT(pusnprint_, i) ,           \
+           choose(compat(volatile CONCAT(putype_, i),                   \
+                         typeof(a)), &CONCAT(pusnprint_, i) ,           \
+           choose(compat(CONCAT(putype_, i) *,                          \
+                         typeof(a)), &CONCAT(pusnprint_ptr_, i) ,       \
+           choose(compat(volatile CONCAT(putype_, i) *,                 \
+                         typeof(a)), &CONCAT(pusnprint_ptr_, i) ,       \
+                                                                        \
+
+#define RCHOOSE(i, _) ))))
+
+/* #define pusnprint_of_scoped(i, _)                                   \ */
+/*     typeof(decay((CONCAT(putype_, i)){})): &CONCAT(pusnprint_, i)                   */
+
+
+/* gcc and clang don't allow 'void' to occur in the list of _Generic
+   types, but do allow it in __builtin_types_compatible_p. I use this to
+   allow putrace to report and propogate the value of fun(as) iff
+   typeof(fun(as)) != void. */
+#define choose __builtin_choose_expr
+#define compat __builtin_types_compatible_p
+#define is_void(e) compat(void, typeof(e))
+
+/* To avoid double-eval of function args. */
+#define pu_store(arg, _, i) typeof(decay(arg)) CONCAT(__pu_arg, i) = arg;
+#define pu_ref(arg, _, i) CONCAT(__pu_arg, i)
+#define pu_strfmt(_, __, ___) %
+
+#define putrace(print, fun, as...)                                      \
+    ({                                                                  \
+        PUMAP_NOCOMMA(pu_store, _, as);                                 \
+        print("-- Begin %(" STRLIT(PUMAP(pu_strfmt, _, as))             \
+              ") in %:%", #fun                                          \
+              COMMAPFX_IF_NZ(PUMAP3(pu_ref, _, as)),                    \
+              __func__, __LINE__);                                      \
+        typeof(choose(is_void(fun(as)),                                 \
+                      1,                                                \
+                      fun(as)))                                         \
+            __pu_ret;                                                   \
+        __pu_ret =                                                      \
+        choose(is_void(fun(as)),                                        \
+               (fun(PUMAP(pu_ref, _, as)), 0),                          \
+               fun(PUMAP(pu_ref, _, as)));                              \
+        choose(is_void(fun(as)),                                        \
+               ({                                                       \
+                   print("-- End %() in %:%:%", #fun,                   \
+                         __FILE__, __func__, __LINE__);                 \
+               }),                                                      \
+               ({                                                       \
+                   print("-- End %() = % in %:%:%", #fun, __pu_ret,     \
+                         __FILE__, __func__, __LINE__);                 \
+                   __pu_ret;                                            \
+               }));                                                     \
+    })
+
+#define DEFAULT_TYPES                                       \
+    bool, int8_t, int16_t, int32_t, int64_t,                \
+    uint8_t, uint16_t, uint32_t, uint64_t, double, char
+
+#define puprot(t)                                                       \
+    size_t CONCAT(pusnprint_, t)(char *b, size_t l, volatile const t *a); \
+    size_t CONCAT(pusnprint_ptr_, t)(char *b, size_t l, volatile const t **a)
+
+puprot(bool);
+puprot(int8_t);
+puprot(int16_t);
+puprot(int32_t);
+puprot(int64_t);
+puprot(uint8_t);
+puprot(uint16_t);
+puprot(uint32_t);
+puprot(uint64_t);
+puprot(double);
+puprot(char);
+
+size_t pusnprint_dflt(char *b, size_t l, volatile const void **a);
 
 #define PUMAP(FUNC, global, ...) CONCAT(PUMAP_ , NUM_ARGS(__VA_ARGS__)) \
     (FUNC, global, __VA_ARGS__)
 
+#define PUMAP_30(f, g, arg, ...) f(arg, g, 29), PUMAP_29(f, g, __VA_ARGS__)
+#define PUMAP_29(f, g, arg, ...) f(arg, g, 28), PUMAP_28(f, g, __VA_ARGS__)
+#define PUMAP_28(f, g, arg, ...) f(arg, g, 27), PUMAP_27(f, g, __VA_ARGS__)
+#define PUMAP_27(f, g, arg, ...) f(arg, g, 26), PUMAP_26(f, g, __VA_ARGS__)
+#define PUMAP_26(f, g, arg, ...) f(arg, g, 25), PUMAP_25(f, g, __VA_ARGS__)
+#define PUMAP_25(f, g, arg, ...) f(arg, g, 24), PUMAP_24(f, g, __VA_ARGS__)
+#define PUMAP_24(f, g, arg, ...) f(arg, g, 23), PUMAP_23(f, g, __VA_ARGS__)
+#define PUMAP_23(f, g, arg, ...) f(arg, g, 22), PUMAP_22(f, g, __VA_ARGS__)
+#define PUMAP_22(f, g, arg, ...) f(arg, g, 22), PUMAP_11(f, g, __VA_ARGS__)
+#define PUMAP_21(f, g, arg, ...) f(arg, g, 21), PUMAP_20(f, g, __VA_ARGS__)
 #define PUMAP_20(f, g, arg, ...) f(arg, g, 19), PUMAP_19(f, g, __VA_ARGS__)
 #define PUMAP_19(f, g, arg, ...) f(arg, g, 18), PUMAP_18(f, g, __VA_ARGS__)
 #define PUMAP_18(f, g, arg, ...) f(arg, g, 17), PUMAP_17(f, g, __VA_ARGS__)
@@ -45,6 +173,17 @@
 #define PUMAP2(FUNC, global, ...) CONCAT(PUMAP2_ , NUM_ARGS(__VA_ARGS__)) \
     (FUNC, global, __VA_ARGS__)
 
+#define PUMAP2_30(f, g, arg, ...) f(arg, g, 29), PUMAP2_29(f, g, __VA_ARGS__)
+#define PUMAP2_29(f, g, arg, ...) f(arg, g, 28), PUMAP2_28(f, g, __VA_ARGS__)
+#define PUMAP2_28(f, g, arg, ...) f(arg, g, 27), PUMAP2_27(f, g, __VA_ARGS__)
+#define PUMAP2_27(f, g, arg, ...) f(arg, g, 26), PUMAP2_26(f, g, __VA_ARGS__)
+#define PUMAP2_26(f, g, arg, ...) f(arg, g, 25), PUMAP2_25(f, g, __VA_ARGS__)
+#define PUMAP2_25(f, g, arg, ...) f(arg, g, 24), PUMAP2_24(f, g, __VA_ARGS__)
+#define PUMAP2_24(f, g, arg, ...) f(arg, g, 23), PUMAP2_23(f, g, __VA_ARGS__)
+#define PUMAP2_23(f, g, arg, ...) f(arg, g, 22), PUMAP2_22(f, g, __VA_ARGS__)
+#define PUMAP2_22(f, g, arg, ...) f(arg, g, 22), PUMAP2_11(f, g, __VA_ARGS__)
+#define PUMAP2_21(f, g, arg, ...) f(arg, g, 21), PUMAP2_20(f, g, __VA_ARGS__)
+#define PUMAP2_20(f, g, arg, ...) f(arg, g, 19), PUMAP2_19(f, g, __VA_ARGS__)
 #define PUMAP2_20(f, g, arg, ...) f(arg, g, 19), PUMAP2_19(f, g, __VA_ARGS__)
 #define PUMAP2_19(f, g, arg, ...) f(arg, g, 18), PUMAP2_18(f, g, __VA_ARGS__)
 #define PUMAP2_18(f, g, arg, ...) f(arg, g, 17), PUMAP2_17(f, g, __VA_ARGS__)
@@ -118,6 +257,16 @@
 #define PUMAPNC_0(f, g, arg)
 
 #define REPEAT(f, g, lim) CONCAT(R_ , lim)(f, g)
+#define R_30(f, g) f(30, g), R_29(f, g)
+#define R_29(f, g) f(29, g), R_28(f, g)
+#define R_28(f, g) f(28, g), R_27(f, g)
+#define R_27(f, g) f(27, g), R_26(f, g)
+#define R_26(f, g) f(26, g), R_25(f, g)
+#define R_25(f, g) f(25, g), R_24(f, g)
+#define R_24(f, g) f(24, g), R_23(f, g)
+#define R_23(f, g) f(23, g), R_22(f, g)
+#define R_22(f, g) f(22, g), R_11(f, g)
+#define R_21(f, g) f(21, g), R_20(f, g)
 #define R_20(f, g) f(20, g) , R_19(f, g)
 #define R_19(f, g) f(19, g) , R_18(f, g)
 #define R_18(f, g) f(18, g) , R_17(f, g)
@@ -141,6 +290,16 @@
 #define R_0(f, g)
 
 #define REPEAT_NOCOMMA(f, g, lim) CONCAT(RNC_ , lim)(f, g)
+#define RNC_30(f, g) f(30, g) RNC_29(f, g)
+#define RNC_29(f, g) f(29, g) RNC_28(f, g)
+#define RNC_28(f, g) f(28, g) RNC_27(f, g)
+#define RNC_27(f, g) f(27, g) RNC_26(f, g)
+#define RNC_26(f, g) f(26, g) RNC_25(f, g)
+#define RNC_25(f, g) f(25, g) RNC_24(f, g)
+#define RNC_24(f, g) f(24, g) RNC_23(f, g)
+#define RNC_23(f, g) f(23, g) RNC_22(f, g)
+#define RNC_22(f, g) f(22, g) RNC_11(f, g)
+#define RNC_21(f, g) f(21, g) RNC_20(f, g)
 #define RNC_20(f, g) f(20, g) RNC_19(f, g)
 #define RNC_19(f, g) f(19, g) RNC_18(f, g)
 #define RNC_18(f, g) f(18, g) RNC_17(f, g)
@@ -162,121 +321,6 @@
 #define RNC_2(f, g) f(2, g) RNC_1(f, g)
 #define RNC_1(f, g) f(1, g)
 #define RNC_0(f, g)
-
-typedef size_t (*typed_snprint)(char *, size_t, volatile const void *);
-
-typedef struct{
-    volatile const void *val;
-    typed_snprint typed_snprint;
-}pu_arg;
-
-size_t puvsnprintf(char *b, size_t max, char *fmt, va_list args);
-
-#define puprintf(fmt, as...) _puprintf(fmt, PUMAP(pu_arg_of, _, as))
-size_t _puprintf(char *fmt, ...);
-
-#define pusnprintf(b, l, fmt, as...)                \
-    _pusnprintf(b, l, fmt, PUMAP(pu_arg_of, _, as))
-size_t _pusnprintf(char *b, size_t max, char *fmt, ...);
-
-#define pu_arg_of(a, _,  __)                                             \
-    &(pu_arg){(typeof(decay(a))[1]){a}, (typed_snprint) pusnprint_of(a)}
-/* Turn array expressions into pointer expressions. */
-#define decay(v) ((void) 0, v)
-
-#define pusnprint_of(a)                                     \
-    _Generic(decay(a),                                      \
-             PUMAP2(pusnprint_of_dflt, _, DEFAULT_TYPES),   \
-    default:                                                \
-             REPEAT_NOCOMMA(LCHOOSE, decay(a), NTYPES)      \
-             pusnprint_dflt                                 \
-             REPEAT_NOCOMMA(RCHOOSE, decay(a), NTYPES))     \
-    
-#define pusnprint_of_dflt(t, _, __)                                     \
-    t  : &CONCAT(pusnprint_, t),                                        \
-        volatile t  : &CONCAT(pusnprint_, t),                           \
-        const t  : &CONCAT(pusnprint_, t),                              \
-        volatile const t  : &CONCAT(pusnprint_, t),                     \
-        t* : &CONCAT(pusnprint_ptr_, t),                                \
-        volatile t* : &CONCAT(pusnprint_ptr_, t),                       \
-        const t* : &CONCAT(pusnprint_ptr_, t),                          \
-        volatile const t* : &CONCAT(pusnprint_ptr_, t)
-
-/* TODO: I have to do this because gcc 4.9 has a bug where _Generic(b,
-   typeof(b): ...) fails to match if b has a volatile type. */
-#define LCHOOSE(i, a)                                                   \
-   choose(compat(CONCAT(putype_, i), typeof(a)), &CONCAT(pusnprint_, i) , \
-       choose(compat(CONCAT(putype_, i) *, typeof(a)), &CONCAT(pusnprint_ptr_, i) ,
-
-#define RCHOOSE(i, _) ))
-
-/* #define pusnprint_of_scoped(i, _)                                   \ */
-/*     typeof(decay((CONCAT(putype_, i)){})): &CONCAT(pusnprint_, i)                   */
-
-
-/* gcc and clang don't allow 'void' to occur in the list of _Generic
-   types, but do allow it in __builtin_types_compatible_p. I use this to
-   allow putrace to report and propogate the value of fun(as) iff
-   typeof(fun(as)) != void. */
-#define choose __builtin_choose_expr
-#define compat __builtin_types_compatible_p
-#define is_void(e) compat(void, typeof(e))
-
-/* To avoid double-eval of function args. */
-#define pu_store(arg, _, i) typeof(decay(arg)) CONCAT(__pu_arg, i) = arg;
-#define pu_ref(arg, _, i) CONCAT(__pu_arg, i)
-#define pu_strfmt(_, __, ___) %
-
-#define putrace(print, fun, as...)                                      \
-    ({                                                                  \
-        PUMAP_NOCOMMA(pu_store, _, as);                                 \
-        print("-- Begin %(" STRLIT(PUMAP(pu_strfmt, _, as))             \
-              ") in %:%", #fun                                          \
-              COMMAPFX_IF_NZ(PUMAP3(pu_ref, _, as)),                    \
-              __func__, __LINE__);                                      \
-        typeof(choose(is_void(fun(as)),                                 \
-                      1,                                                \
-                      fun(as)))                                         \
-            __pu_ret;                                                   \
-        __pu_ret =                                                      \
-        choose(is_void(fun(as)),                                        \
-               (fun(PUMAP(pu_ref, _, as)), 0),                          \
-               fun(PUMAP(pu_ref, _, as)));                              \
-        choose(is_void(fun(as)),                                        \
-               ({                                                       \
-                   print("-- End %(" STRLIT(PUMAP(pu_strfmt, _, as))    \
-                         ") in %:%:%", #fun                             \
-                         COMMAPFX_IF_NZ(PUMAP3(pu_ref, _, as)),         \
-                         __FILE__, __func__, __LINE__);                 \
-               }),                                                      \
-               ({                                                       \
-                   print("-- End %() = % in %:%:%", #fun, __pu_ret,     \
-                         __FILE__, __func__, __LINE__);                 \
-                   __pu_ret;                                            \
-               }));                                                     \
-    })
-
-#define DEFAULT_TYPES                                       \
-    bool, int8_t, int16_t, int32_t, int64_t,                \
-    uint8_t, uint16_t, uint32_t, uint64_t, double, char
-
-#define puprot(t)                                                       \
-    size_t CONCAT(pusnprint_, t)(char *b, size_t l, volatile const t *a); \
-    size_t CONCAT(pusnprint_ptr_, t)(char *b, size_t l, volatile const t **a)
-
-puprot(bool);
-puprot(int8_t);
-puprot(int16_t);
-puprot(int32_t);
-puprot(int64_t);
-puprot(uint8_t);
-puprot(uint16_t);
-puprot(uint32_t);
-puprot(uint64_t);
-puprot(double);
-puprot(char);
-
-size_t pusnprint_dflt(char *b, size_t l, volatile const void **a);
 
 #endif
 

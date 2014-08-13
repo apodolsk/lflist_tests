@@ -3,11 +3,50 @@
 .global cmpxchg
 .global cmpxchg2
 
-## xadd:
-##     lock xadd %edi, (%rsi)
-##     mov %edi, %eax
-##     ret
+#if !__LP64__
 
+xadd:
+    movl 4(%esp), %eax
+    movl 8(%esp), %edx
+    
+    lock xadd %eax, (%edx)
+    
+    ret
+    
+xchg:   
+    movl    4(%esp), %eax
+    movl    8(%esp), %ecx
+
+    xchg    %eax, (%ecx)
+
+    ret
+
+cmpxchg:
+    movl 4(%esp), %edx
+    movl 8(%esp), %ecx
+    movl 12(%esp), %eax
+
+    lock cmpxchg %edx, (%ecx)
+    ret
+
+cmpxchg2:
+    pushl %ebx
+    pushl %esi
+    
+    movl 12(%esp), %ebx
+    movl 16(%esp), %ecx
+    movl 20(%esp), %esi
+    movl 24(%esp), %eax
+    movl 28(%esp), %edx
+
+    lock cmpxchg8b  (%esi)
+
+    popl %esi
+    popl %ebx
+    ret
+
+#else
+    
 xadd:
     push %rbp
     mov %rsp, %rbp
@@ -17,7 +56,7 @@ xadd:
 
     pop %rbp
     ret
-
+    
 xchg:
     push %rbp
     mov %rsp, %rbp
@@ -57,3 +96,4 @@ cmpxchg2:
     pop %rbp    
     ret
     
+#endif

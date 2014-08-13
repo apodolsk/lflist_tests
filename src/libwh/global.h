@@ -10,17 +10,21 @@
 #define align(ment) __attribute__((__aligned__(ment)))
 #define checked __attribute__((warn_unused_result))
 
-#include <string.h>
-
 #include <whtypes.h>
 #include <limits.h>
 
+#include <string.h>
+#include <stdio.h>
+#include <pustr.h>
 #include <config.h>
-#include <errors.h>
-#include <peb_assert.h>
 #include <log.h>
+
+#include <errors.h>
 #include <peb_util.h>
+#include <wrand.h>
 
 #include <syscall.h>
+
+#include <stdlib.h>
 
 #endif

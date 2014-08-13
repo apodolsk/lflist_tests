@@ -1,26 +1,29 @@
 #pragma once
 #include <pumacros.h>
-#include <peb_assert.h>
 
 #define CASSERT(e) _Static_assert(e, #e)
 
-#define ARR_LEN(a) (sizeof(a)/sizeof(*a))
+#define ARR_LEN(a) (sizeof(a)/sizeof(*(a)))
+#define ARR_LEN_2D(a) (sizeof(a)/sizeof(**(a)))
 
 /** 
- * Return the address of the struct s containing member_ptr, assuming s
- * has type container_type and member_ptr points to its field_name
- * field. If member_ptr is NULL, return NULL.
+ * Return the address of the struct s containing member, assuming s
+ * has type container_type and member points to its field_name
+ * field. If member is NULL, return NULL.
  */
 #define cof container_of
-#define container_of(member_ptr, container_type, field_name)        \
-    ((container_type *)                                             \
-     subtract_if_not_null((void *) member_ptr,                      \
-                          offsetof(container_type, field_name)))
+#define container_of(member, container_type, field_name)                \
+    ((container_type *)                                                 \
+     subtract_if_not_null((uptr) member, offsetof(container_type, field_name)))
 
-/* Used to do a NULL check without expanding member_ptr twice. */
-static inline const void *subtract_if_not_null(const void *ptr, cnt s){
-    return ptr == NULL ? ptr : (void *)((u8 *)ptr - s);
+/* Used to do a NULL check without expanding member twice. */
+static inline void *subtract_if_not_null(uptr p, cnt s){
+    return (void *) (p ? (p - s) : p);
 }
+
+#define cof_aligned_pow2(member, container_t)                           \
+    ((container_t *) align_down_pow2(member, sizeof(container_t)))
+
 
 /* Clang has a buggy statement-expression implementation. */
 /* #define PUN(t, s) ({                                                \ */
@@ -55,8 +58,14 @@ static inline uptr _umax(uptr a, uptr b){
     return a < b ? b : a;
 }
 
-static inline void must(err e){
+static inline int must(int i){
+    assert(i);
+    return i;
+}
+
+static inline err muste(err e){
     assert(!e);
+    return e;
 }
 
 static inline void *mustp(void *p){
@@ -66,6 +75,9 @@ static inline void *mustp(void *p){
 
 #define in_struct(p, s)                                         \
     ((uptr) (p) >= (uptr) (s) && (uptr) (p) < (uptr)((s) + 1))  \
+
+#define in_array(p, a)                                                 \
+    ((uptr) (p) >= (uptr) (s) && (uptr) (p) < (uptr)(s) + sizeof(s))   \
 
 #define is_pow2(n) ((n) && !((n) & ((n) - 1)))
 
@@ -93,30 +105,39 @@ static inline uint div_rup_pow2(uint n, uint by){
     (((uptr)(addr) % (size)) == 0)
 
 #define align_down(addr, size)                              \
-    ((void *) ualign_down((uptr) (addr), (size)))
+    ((typeof(addr)) ualign_down((uptr) (addr), (size)))
 static inline uptr ualign_down(uptr addr, size size){
     return addr - addr % size;
 }
 
 #define align_up(addr, size)                    \
-    ((void *) ualign_up((uptr) (addr), (size)))
+    ((typeof(addr)) ualign_up((uptr) (addr), (size)))
 static inline uptr ualign_up(uptr addr, size size){
     return ualign_down(addr + size - 1, size);
 }
 
 #define align_down_pow2(n, size)                \
-    (typeof (n)) (({assert(is_pow2(size));}),   \
-     (uptr) (n) & ~((size) - 1))
+    (((typeof (n)) (({assert(is_pow2(size));}),         \
+                       (uptr) (n) & ~((size) - 1))))
 
-#define align_up_pow2(n, size)                          \
-    (typeof (n)) (({assert(is_pow2(size));}),           \
-     align_down_pow2((uptr) (n) + (size) - 1, size))      
+#define align_up_pow2(n, size)                                      \
+    (((typeof (n)) (({assert(is_pow2(size));}),                     \
+                    align_down_pow2((uptr) (n) + (size) - 1, size))))
 
 #define mod_pow2(n, mod)                        \
     ((uptr) (n) & ((mod) - 1))
 
 #define aligned_pow2(n, size)                   \
     (!mod_pow2(n, size))
+
+/* TODO: apparently not working */
+/* #define align_next_pow2(n)                                              \ */
+/*     ({                                                                  \ */
+/*         CASSERT((sizeof(void *)/sizeof((n, 0))) * sizeof((n, 0))        \ */
+/*               == sizeof(void *));                                       \ */
+/*         1 << ((WORDBITS * sizeof((n, 0)) / sizeof(void *))              \ */
+/*               - __builtin_clz((n, 0) - 1));                             \ */
+/*     })                                                                  \ */
 
 static inline void no_op(){}
 static inline err zero(){return 0;}

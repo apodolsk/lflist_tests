@@ -44,11 +44,10 @@
 #include <nalloc.h>
 #include <config.h>
 #include <atomics.h>
+#include <libthread.h>
 
 #define HEAP_DBG 1
-#define CACHE_MAX SLAB_ALLOC_BATCH
 #define NALLOC_MAGIC_INT 0x01FA110C
-#define SLAB_ALLOC_BATCH 16
 
 typedef struct tyx tyx;
 
@@ -60,18 +59,21 @@ static cnt slab_num_priv_blocks(slab *s);
 static slab *slab_of(block *b);
 static err write_magics(block *b, size bytes);         
 static err magics_valid(block *b, size bytes);
-static void (slab_ref_down)(slab *s, lfstack *hot_slabs);
+static void slab_ref_down(slab *s, lfstack *hot_slabs);
+
+#define slab_new(as...) trace(NALLOC, 2, slab_new, as)
+#define slab_ref_down(as...) trace(NALLOC, 2, slab_ref_down, as)
 
 lfstack hot_slabs = LFSTACK;
 
-#define PTYPE(s, ...) {.name=#s, .size=s, .linref_up=NULL, .linref_down=NULL} 
+#define PTYPE(s, ...) {#s, s, NULL, NULL, NULL}
 static const type polytypes[] = { MAP(PTYPE, _,
         16, 32, 48, 64, 80, 96, 112, 128,
         192, 256, 384, 512, 1024, MAX_BLOCK)
 };
 
 #define PHERITAGE(i, ...)                                           \
-    HERITAGE(&polytypes[i], CACHE_MAX, SLAB_ALLOC_BATCH, no_op, new_slabs) ,
+    HERITAGE(&polytypes[i], 8, 1, new_slabs)
 static heritage poly_heritages[] = {
     ITERATE(PHERITAGE, _, 14)
 };
@@ -89,27 +91,27 @@ void *(malloc)(size size){
         return NULL;
     if(size > MAX_BLOCK)
         return RARITY(), NULL;
-    block *b = linalloc(poly_heritage_of(size));
-    if(b)
-        assert(magics_valid(b, poly_heritage_of(size)->t->size));
+    block *b = (linalloc)(poly_heritage_of(size));
+    /* if(b) */
+    /*     assert(magics_valid(b, poly_heritage_of(size)->t->size)); */
     return b;
 }
 
 void *(linalloc)(heritage *h){
     slab *s = cof(lfstack_pop(&h->slabs), slab, sanc);
     if(!s && !(s = slab_new(h)))
-        return NULL;
+        return EOOR(), NULL;
     
     block *b = alloc_from_slab(s, h);
     if(slab_num_priv_blocks(s))
         lfstack_push(&s->sanc, &h->slabs);
     else{
-        s->owner = C;
+        s->owner = this_thread();
         s->her = h;
     }
     
     assert(b);
-    assert(aligned_pow2(b, MIN_ALIGNMENT));
+    assert(aligned_pow2(b, sizeof(dptr)));
     return b;
 }
 
@@ -118,8 +120,7 @@ block *(alloc_from_slab)(slab *s, heritage *h){
     block *b;
     if(s->cold_blocks){
         b = (block *) &s->blocks[h->t->size * --s->cold_blocks];
-        assert(magics_valid(b, h->t->size));
-        h->block_init(b);
+        /* assert(magics_valid(b, h->t->size)); */
         return b;
     }
     b = cof(stack_pop(&s->free_blocks), block, sanc);
@@ -129,6 +130,7 @@ block *(alloc_from_slab)(slab *s, heritage *h){
     return cof(stack_pop(&s->free_blocks), block, sanc);
 }
 
+CASSERT(is_pow2(SLAB_SIZE));
 static
 slab *(slab_new)(heritage *h){
     slab *s = cof(lfstack_pop(h->hot_slabs), slab, sanc);
@@ -137,18 +139,26 @@ slab *(slab_new)(heritage *h){
         if(!s)
             return NULL;
         for(slab *si = s; si != &s[h->slab_alloc_batch]; si++){
-            *si = (slab) SLAB;
+            si->slabfoot = (slabfoot) SLABFOOT;
             if(si != s)
                 lfstack_push(&si->sanc, h->hot_slabs);
         }
     }
-    s->tx = (tyx){h->t, 1};
+    assert(aligned_pow2(s, SLAB_SIZE));
     s->her = h;
+    if(s->tx.t != h->t){
+        s->tx = (tyx){h->t};
+        if(h->t->lin_init)
+            for(cnt b = 0; b < slab_max_blocks(s); b++)
+                h->t->lin_init((lineage *) &s->blocks[b * h->t->size]);
+    }
+    assert(!s->tx.linrefs);
+    s->tx.linrefs = 1;
     s->cold_blocks = slab_max_blocks(s);
 
-    size sz = h->t->size;
-    for(uint i = 0; i < s->cold_blocks; i++)
-        assert(write_magics((block *) &s->blocks[i * sz], sz));
+    /* size sz = h->t->size; */
+    /* for(uint i = 0; i < s->cold_blocks; i++) */
+    /*     assert(write_magics((block *) &s->blocks[i * sz], sz)); */
     return s;
 }
 
@@ -156,16 +166,18 @@ void (free)(void *b){
     lineage *l = (lineage *) b;
     if(!b)
         return;
-    linfree(l);
+    (linfree)(l);
 }
 void (linfree)(lineage *l){
-    block *b = (block*) l;
+    block *b = l;
     slab *s = slab_of(b);
     *b = (block){SANCHOR};
 
-    assert(write_magics(l, s->tx.t->size));
+    /* assert(write_magics(l, s->tx.t->size)); */
+    assert(s);
+    assert(s->tx.t);
 
-    if(s->owner == C){
+    if(s->owner == this_thread()){
         /* TODO: yeah, you own it till you free 1 block. Not so
            great. More complicated scheme could ensure that it's not lost
            if you don't push it upon first. Consider
@@ -176,8 +188,9 @@ void (linfree)(lineage *l){
         lfstack_push(&s->sanc, &h->slabs);
     }else{
         int nwb = lfstack_push(&b->sanc, &s->wayward_blocks);
-        if(&s->blocks[s->tx.t->size * (nwb + 1)] >= (u8 *) &s[1]){
+        if(&s->blocks[s->tx.t->size * (nwb + 2)] > &s->blocks[MAX_BLOCK]){
             s->owner = NULL;
+            s->wayward_blocks = (lfstack) LFSTACK;
             slab_ref_down(s, &hot_slabs);
         }
     }
@@ -190,10 +203,9 @@ void (dealloc_from_slab)(block *b, slab *s){
 
 static
 void (slab_ref_down)(slab *s, lfstack *hot_slabs){
-    assert(s->tx.linrefs);
+    assert(s->tx.linrefs > 0);
     if(xadd((uptr) -1, &s->tx.linrefs) == 1){
         s->owner == NULL;
-        s->tx.t = NULL;
         s->her = NULL;
         lfstack_push(&s->sanc, hot_slabs);
     }
@@ -201,23 +213,24 @@ void (slab_ref_down)(slab *s, lfstack *hot_slabs){
 
 err (linref_up)(volatile void *l, type *t){
     slab *s = slab_of((void *) l);
-    pp(t);
     for(tyx tx = s->tx;;){
-        if(tx.t != t)
+        if(tx.t != t || !tx.linrefs)
             return EARG("Wrong type.");
-        assert(tx.linrefs);
+        ppl(2, l, t, tx.linrefs);
+        assert(tx.linrefs > 0);
         if(cas2_won(((tyx){t, tx.linrefs + 1}), &s->tx, &tx))
-            return 0;
+            return T->nallocin.linrefs_held++, 0;
     }
 }
 
 void (linref_down)(volatile void *l){
+    T->nallocin.linrefs_held--;
     slab_ref_down(slab_of((void *) l), &hot_slabs);
 }
 
 static
 unsigned int slab_max_blocks(slab *s){
-    return (SLAB_SIZE - offsetof(slab, blocks)) / s->tx.t->size;
+    return MAX_BLOCK / s->tx.t->size;
 }
 
 static
@@ -227,27 +240,27 @@ cnt slab_num_priv_blocks(slab *s){
 
 static
 slab *(slab_of)(block *b){
-    return (slab *) align_down_pow2(b, SLAB_SIZE);
+    return cof_aligned_pow2(b, slab);
 }
 
 void *(smalloc)(size size){
-    return malloc(size);
+    return (malloc)(size);
 };
 
 void (sfree)(void *b, size size){
     assert(slab_of(b)->tx.t->size >= size);
-    free(b);
+    (free)(b);
 }
 
-void *calloc(size nb, size bs){
-    u8 *b = malloc(nb * bs);
+void *(calloc)(size nb, size bs){
+    u8 *b = (malloc)(nb * bs);
     if(b)
         memset(b, 0, nb * bs);
     return b;
 }
 
-void *realloc(void *o, size size){
-    u8 *b = malloc(size);
+void *(realloc)(void *o, size size){
+    u8 *b = (malloc)(size);
     if(b && o)
         memcpy(b, o, size);
     free(o);
@@ -270,8 +283,16 @@ int magics_valid(block *b, size bytes){
         return 1;
     int *magics = (int *) (b + 1);
     for(size i = 0; i < (bytes - sizeof(*b))/sizeof(*magics); i++)
-        rassert(magics[i], ==, NALLOC_MAGIC_INT);
+        assert(magics[i] == NALLOC_MAGIC_INT);
     return 1;
+}
+
+void linref_account_open(linref_account *a){
+    a->baseline = T->nallocin.linrefs_held;
+}
+
+void linref_account_close(linref_account *a){
+    assert(T->nallocin.linrefs_held == a->baseline);
 }
 
 int posix_memalign(void **mptr, size align, size sz){return -1;}

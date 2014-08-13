@@ -3,8 +3,14 @@
 #define STRLIT(xs...) _STRLIT(xs)
 #define _STRLIT(xs...) #xs
 
-#define CONCAT2(x, y) x##y
-#define CONCAT(x, y) CONCAT2(x, y)
+#define CONCAT(x, y) _CONCAT(x, y)
+#define _CONCAT(x, y) x##y
+
+#define CONCAT2(x, y) _CONCAT2(x, y)
+#define _CONCAT2(x, y) x##y
+
+#define CONCAT3(x, y) _CONCAT3(x, y)
+#define _CONCAT3(x, y) x##y
 
 #define ISEMPTY(as...)  _ISEMPTY(_, ##as, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)
 #define _ISEMPTY(_, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, ...) a11
@@ -36,7 +42,8 @@
  * TODO: remember why the indirection matters. HINT: constructing
  * invocations from tuples. It's probably not just the ##.
  */
-#define NUM_ARGS(...)                                                  \
+#define NUM_ARGS(as...) _NUM_ARGS(as)
+#define _NUM_ARGS(...)                                                  \
     GET_41ST(                                                           \
         _, ##__VA_ARGS__, 39, 38, 37, 36, 35,                           \
         34, 33, 32, 31, 30, 29, 28, 27, 26, 25,                         \
@@ -87,7 +94,7 @@
 #define MAP_1(f, g, arg) f(arg, g, 0)
 #define MAP_0(f, g, arg)
 
-/* This is here because MAP() won't be expanded inside an expansion of
+/* This is here because MAP() can't be used inside an expansion of
    MAP() - ie the preprocessor doesn't allow recursion. */
 #define MAP2(FUNC, global, ...) CONCAT(MAP2_ , NUM_ARGS(__VA_ARGS__)) \
     (FUNC, global, __VA_ARGS__)
@@ -166,27 +173,50 @@
 #define MAPNC_0(f, g, arg)
 
 #define ITERATE(f, g, lim) CONCAT(I_ , lim)(f, g, lim)
-#define I_20(f, g, lim) f(lim-20, g) I_19(f, g, lim)
-#define I_19(f, g, lim) f(lim-19, g) I_18(f, g, lim)
-#define I_18(f, g, lim) f(lim-18, g) I_17(f, g, lim)
-#define I_17(f, g, lim) f(lim-17, g) I_16(f, g, lim)
-#define I_16(f, g, lim) f(lim-16, g) I_15(f, g, lim)
-#define I_15(f, g, lim) f(lim-15, g) I_14(f, g, lim)
-#define I_14(f, g, lim) f(lim-14, g) I_13(f, g, lim)
-#define I_13(f, g, lim) f(lim-13, g) I_12(f, g, lim)
-#define I_12(f, g, lim) f(lim-12, g) I_11(f, g, lim)
-#define I_11(f, g, lim) f(lim-11, g) I_10(f, g, lim)
-#define I_10(f, g, lim) f(lim-10, g) I_9(f, g, lim)
-#define I_9(f, g, lim) f(lim-9, g) I_8(f, g, lim)
-#define I_8(f, g, lim) f(lim-8, g) I_7(f, g, lim)
-#define I_7(f, g, lim) f(lim-7, g) I_6(f, g, lim)
-#define I_6(f, g, lim) f(lim-6, g) I_5(f, g, lim)
-#define I_5(f, g, lim) f(lim-5, g) I_4(f, g, lim)
-#define I_4(f, g, lim) f(lim-4, g) I_3(f, g, lim)
-#define I_3(f, g, lim) f(lim-3, g) I_2(f, g, lim)
-#define I_2(f, g, lim) f(lim-2, g) I_1(f, g, lim)
-#define I_1(f, g, lim) f(lim-1, g, 0)
+#define I_20(f, g, lim) f(lim-20, g) , I_19(f, g, lim)
+#define I_19(f, g, lim) f(lim-19, g) , I_18(f, g, lim)
+#define I_18(f, g, lim) f(lim-18, g) , I_17(f, g, lim)
+#define I_17(f, g, lim) f(lim-17, g) , I_16(f, g, lim)
+#define I_16(f, g, lim) f(lim-16, g) , I_15(f, g, lim)
+#define I_15(f, g, lim) f(lim-15, g) , I_14(f, g, lim)
+#define I_14(f, g, lim) f(lim-14, g) , I_13(f, g, lim)
+#define I_13(f, g, lim) f(lim-13, g) , I_12(f, g, lim)
+#define I_12(f, g, lim) f(lim-12, g) , I_11(f, g, lim)
+#define I_11(f, g, lim) f(lim-11, g) , I_10(f, g, lim)
+#define I_10(f, g, lim) f(lim-10, g) , I_9(f, g, lim)
+#define I_9(f, g, lim) f(lim-9, g) , I_8(f, g, lim)
+#define I_8(f, g, lim) f(lim-8, g) , I_7(f, g, lim)
+#define I_7(f, g, lim) f(lim-7, g) , I_6(f, g, lim)
+#define I_6(f, g, lim) f(lim-6, g) , I_5(f, g, lim)
+#define I_5(f, g, lim) f(lim-5, g) , I_4(f, g, lim)
+#define I_4(f, g, lim) f(lim-4, g) , I_3(f, g, lim)
+#define I_3(f, g, lim) f(lim-3, g) , I_2(f, g, lim)
+#define I_2(f, g, lim) f(lim-2, g) , I_1(f, g, lim)
+#define I_1(f, g, lim) f(lim-1, g)
 #define I_0(f, g, lim)
+
+#define ITERATE_NOCOMMA(f, g, lim) CONCAT(INC_ , lim)(f, g, lim)
+#define INC_20(f, g, lim) f(lim-20, g) INC_19(f, g, lim)
+#define INC_19(f, g, lim) f(lim-19, g) INC_18(f, g, lim)
+#define INC_18(f, g, lim) f(lim-18, g) INC_17(f, g, lim)
+#define INC_17(f, g, lim) f(lim-17, g) INC_16(f, g, lim)
+#define INC_16(f, g, lim) f(lim-16, g) INC_15(f, g, lim)
+#define INC_15(f, g, lim) f(lim-15, g) INC_14(f, g, lim)
+#define INC_14(f, g, lim) f(lim-14, g) INC_13(f, g, lim)
+#define INC_13(f, g, lim) f(lim-13, g) INC_12(f, g, lim)
+#define INC_12(f, g, lim) f(lim-12, g) INC_11(f, g, lim)
+#define INC_11(f, g, lim) f(lim-11, g) INC_10(f, g, lim)
+#define INC_10(f, g, lim) f(lim-10, g) INC_9(f, g, lim)
+#define INC_9(f, g, lim) f(lim-9, g) INC_8(f, g, lim)
+#define INC_8(f, g, lim) f(lim-8, g) INC_7(f, g, lim)
+#define INC_7(f, g, lim) f(lim-7, g) INC_6(f, g, lim)
+#define INC_6(f, g, lim) f(lim-6, g) INC_5(f, g, lim)
+#define INC_5(f, g, lim) f(lim-5, g) INC_4(f, g, lim)
+#define INC_4(f, g, lim) f(lim-4, g) INC_3(f, g, lim)
+#define INC_3(f, g, lim) f(lim-3, g) INC_2(f, g, lim)
+#define INC_2(f, g, lim) f(lim-2, g) INC_1(f, g, lim)
+#define INC_1(f, g, lim) f(lim-1, g)
+#define INC_0(f, g, lim)
 
 #define ISZERO(i) CONCAT(ISZERO, i)
 #define ISZERO0 1

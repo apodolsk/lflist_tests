@@ -4,7 +4,7 @@
 
 uptr _xadd(uptr s, volatile uptr *p);
 uptr _xchg(uptr s, volatile uptr *p);
-uptr _xchg2(dptr s, volatile dptr *p);
+dptr _xchg2(dptr s, volatile dptr *p);
 uptr _atomic_read(volatile uptr *p);
 
 uptr _cas(uptr n, volatile uptr *p, uptr old);
@@ -26,7 +26,7 @@ howok _cas2_ok(dptr n, volatile dptr *p, dptr *old);
 #define atomic_read(p)                          \
     PUN(typeof(*p), _atomic_read((uptr *) p))   \
 
-#define xadd(as...) _xadd(as)
+#define xadd(s, d) PUN(typeof(*d), _xadd(PUN(uptr, s), (uptr *) d))
 #define xchg(s, d) PUN(typeof(*d), _xchg(PUN(uptr, s), (uptr *) (d)))
 #define xchg2(s, d) PUN(typeof(*d), _xchg2(PUN(dptr, s), (dptr *) (d)))
 #define condxadd(n, d, lim)                     \

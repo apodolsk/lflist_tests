@@ -1,5 +1,5 @@
 #ifndef pudef
-#error "pudef ain't defined, yall." __INCLUDE_LEVEL__
+#error "pudef ain't defined, yall."
 #endif
 
 #ifndef NTYPES
@@ -61,6 +61,32 @@
 #elif NEXTNTYPES == 16
 #undef NEXTNTYPES
 #define NEXTNTYPES 17
+#elif NEXTNTYPES == 17
+#undef NEXTNTYPES
+#define NEXTNTYPES 18
+#elif NEXTNTYPES == 18
+#undef NEXTNTYPES
+#define NEXTNTYPES 19
+#elif NEXTNTYPES == 19
+#undef NEXTNTYPES
+#define NEXTNTYPES 20
+#elif NEXTNTYPES == 20
+#undef NEXTNTYPES
+#define NEXTNTYPES 21
+#elif NEXTNTYPES == 21
+#undef NEXTNTYPES
+#define NEXTNTYPES 22
+#elif NEXTNTYPES == 22
+#undef NEXTNTYPES
+#define NEXTNTYPES 23
+#elif NEXTNTYPES == 23
+#undef NEXTNTYPES
+#define NEXTNTYPES 24
+#elif NEXTNTYPES == 24
+#undef NEXTNTYPES
+#define NEXTNTYPES 25
+#else
+#error "So many types! Too many to count!"
 #endif  /* NEXTNTYPES */
 
 #define PU_FIRST(a, ...) a
@@ -83,8 +109,9 @@ static inline size_t CONCAT(pusnprint_ptr_, PU_T(pudef))
 (char *b, size_t l, volatile const PU_T(pudef) **apt){
     volatile const PU_T(pudef) *a = *apt;
     if(!a)
-        return snprintf(b, l, "("STRLIT(PU_T(pudef))" *)<nil>");
-    return pusnprintf(b, l, "%:&"PU_FMT(pudef), (void *) *apt, PU_FARGS(pudef));
+        return (size_t) snprintf(b, l, "("STRLIT(PU_T(pudef))" *)<nil>");
+    return pusnprintf(b, l, "%:&"PU_FMT(pudef),
+                      (volatile const void *) *apt, PU_FARGS(pudef));
 }
 
 static inline size_t CONCAT(pusnprint_, NEXTNTYPES)
@@ -148,6 +175,30 @@ static inline size_t CONCAT(pusnprint_ptr_, NEXTNTYPES)
 #elif NTYPES == 16
 #undef NTYPES
 #define NTYPES 17
+#elif NTYPES == 17
+#undef NTYPES
+#define NTYPES 18
+#elif NTYPES == 18
+#undef NTYPES
+#define NTYPES 19
+#elif NTYPES == 19
+#undef NTYPES
+#define NTYPES 20
+#elif NTYPES == 20
+#undef NTYPES
+#define NTYPES 21
+#elif NTYPES == 21
+#undef NTYPES
+#define NTYPES 22
+#elif NTYPES == 22
+#undef NTYPES
+#define NTYPES 23
+#elif NTYPES == 23
+#undef NTYPES
+#define NTYPES 24
+#elif NTYPES == 24
+#undef NTYPES
+#define NTYPES 25
 #endif  /* NTYPES */
 
 #endif  /* NPUSTR */

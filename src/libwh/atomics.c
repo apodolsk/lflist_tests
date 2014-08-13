@@ -1,12 +1,11 @@
 #define MODULE ATOMICS
 
 #include <atomics.h>
-#include <wrand.h>
+#include <asm.h>
 
-#define FUZZ_NS 10000
-/* #define FUZZ_NS 0 */
-#define FUZZ_PCNT 80
-#define FUZZ_MOD 2
+#define FUZZ_NS 90000
+#define FUZZ_PCNT 60
+#define FUZZ_MOD 3
 
 extern uptr (xadd)(uptr s, volatile uptr *p);
 extern uptr (xchg)(uptr s, volatile uptr *p);
@@ -15,8 +14,10 @@ extern dptr (cmpxchg2)(dptr n, volatile dptr *p, dptr old);
     
 #include <time.h>
 static void fuzz_atomics(){
-    if(FUZZ_NS && (0 == mod_pow2(itid(), FUZZ_MOD))
-       && prandpcnt(FUZZ_PCNT))
+    if(!interrupts_enabled())
+        return;
+    if(FUZZ_NS && (0 == mod_pow2(PUN(dptr, get_dbg_id()), FUZZ_MOD))
+       && randpcnt(FUZZ_PCNT))
         nanosleep(&(struct timespec){.tv_nsec = FUZZ_NS}, NULL);
 }
 
@@ -32,7 +33,7 @@ uptr _xchg(uptr s, volatile uptr *p){
     return (xchg)(s, p);
 }
 
-uptr _xchg2(dptr s, volatile dptr *p){
+dptr _xchg2(dptr s, volatile dptr *p){
     assert(aligned_pow2(p, sizeof(*p)));
     fuzz_atomics();
     while(1){
@@ -89,9 +90,9 @@ uptr _atomic_read(volatile uptr *p){
 
 uptr _condxadd(uptr n, volatile uptr *p, uptr lim){
     for(uptr r = *p;;){
-        if(r == lim)
-            return lim;
         assert(r < lim);
+        if(r + n >= lim)
+            return lim;
         if(_cas_won(r + n, p, &r))
             return r;
     }

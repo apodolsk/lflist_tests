@@ -1,0 +1,20 @@
+#pragma once
+
+#define PAGE_SHIFT  12
+#define PAGE_SIZE   (1 << PAGE_SHIFT)
+#define CACHELINE_SIZE 64
+
+#define SLAB_SIZE (PAGE_SIZE)
+
+#include <tid.h>
+
+void breakpoint(void);
+
+bool interrupts_enabled(void);
+
+struct thread;
+struct thread *this_thread(void);
+void slabs_init(void);
+struct slab *new_slabs(cnt batch);
+
+dbg_id get_dbg_id(void);
