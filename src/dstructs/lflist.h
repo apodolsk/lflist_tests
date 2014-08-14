@@ -33,6 +33,7 @@ struct flx{
     uptr gen;
 } align(sizeof(dptr));
 #define mpt(flanc) ((uptr) (flanc) >> 3)
+#define FLX(as...) ((flx){as})
 
 struct flanchor{
     volatile flx n;

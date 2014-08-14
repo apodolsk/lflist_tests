@@ -91,12 +91,14 @@ static void *test_reinsert(uint t){
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
             log(1, "Pushing %", flptr(bx));
+            perm_node_t->linref_down(flptr(bx));
             lflist_enq(bx, perm_node_t, l);
         }else{
             bx = lflist_deq(perm_node_t, l);
             node *b = cof(flptr(bx), node, flanc);
             if(!b)
                 continue;
+            perm_node_t->linref_down(flptr(bx));
             log(1, "Popped %", flptr(bx));
             lflist_enq(bx, perm_node_t, &priv);
         }
@@ -254,7 +256,8 @@ static void launch_test(void *test(void *)){
 
     pthread_t tids[nthreads];
     for(uint i = 0; i < nthreads; i++)
-        if(pthread_create(&tids[i], NULL, (void *(*)(void*))test, (void *)i))
+        if(pthread_create(&tids[i], NULL, (void *(*)(void*))test,
+                          (void *) firstborn + i))
             EWTF();
     
     for(uint i = 0; i < nthreads; i++)
