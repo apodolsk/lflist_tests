@@ -266,7 +266,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         oldn = *n;
         oldnp = *np;
 
-        flx newnp = {a.mp, np->gen + (n->nil ? 0 : 1)};
+        flx newnp = {a.mp, np->gen + (n->nil ? 1 : 0)};
         if(casx_ok(newnp, &pt(*n)->p, np))
             return *np = newnp, 0;
         goto newnp;
