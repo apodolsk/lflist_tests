@@ -34,6 +34,7 @@ bool interrupts_enabled(void){
 }
 
 #include <stdio.h>
+inline
 void breakpoint(void){
     fflush(stdout);
     asm volatile("int $3;");

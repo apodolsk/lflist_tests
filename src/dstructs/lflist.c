@@ -32,7 +32,7 @@
 
 #ifndef FAKELOCKFREE
 
-#define MAX_LOOP 64
+#define MAX_LOOP 0
 #define TEST_PROGRESS(c)                                                 \
     ({ if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %", c); })
 
@@ -42,10 +42,10 @@ static void flinref_down(flx *a, type *t);
 static err help_next(flx a, flx *n, flx *np, type *t);
 static err help_prev(flx a, flx *p, flx *pn, type *t);
 
-#define flinref_up(as...) trace(LFLISTM, 3, flinref_up, as)
-#define flinref_down(as...) trace(LFLISTM, 3, flinref_down, as)
-#define help_next(as...) trace(LFLISTM, 4, help_next, as)
-#define help_prev(as...) trace(LFLISTM, 4, help_prev, as)
+#define flinref_up(as...) trace(LFLISTM, 5, flinref_up, as)
+#define flinref_down(as...) trace(LFLISTM, 5, flinref_down, as)
+#define help_next(as...) trace(LFLISTM, 3, help_next, as)
+#define help_prev(as...) trace(LFLISTM, 3, help_prev, as)
 #define flinref_read(as...) trace(LFLISTM, 4, flinref_read, as)
 
 
@@ -222,6 +222,7 @@ cleanup:
 
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
+    flx oldn = (flx){}, oldnp = (flx){};
     for(int c = 0;;){
     newn:
         assert(a.nil || pt(*n) != pt(a));
@@ -233,27 +234,39 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         TEST_PROGRESS(c);
         if(pt(*np) == pt(a))
             return 0;
-        if(!pt(*np) || np->locked || np->nil){
+        if(n->locked){
+            if(!pt(*np) || np->locked || np->nil){
+                if(!eqx(&pt(a)->n, n, t))
+                    goto newn;
+                else return assert(!a.nil), -1;
+            }
+            
+            flx npp = readx(&pt(*np)->p);
+            ppl(2, *n, *np, npp);
             if(!eqx(&pt(a)->n, n, t))
                 goto newn;
-            else return assert(!a.nil), -1;
+            if(pt(npp) != pt(a)){
+                flx onp = *np;
+                if(!eq2(onp, *np = readx(&pt(*n)->p)))
+                    goto newnp;
+                else return assert(!a.nil), -1;
+            }
+            RARITY("Swinging n:% np:% npp:%", *n, *np, npp);
+        } else{
+            if(!eqx(&pt(a)->n, n, t))
+                goto newn;
+            if(!a.nil && pt(a)->p.gen != a.gen)
+                return -1;
+            assert(pt(*np) && !np->locked);
         }
+        assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
+        oldn = *n;
+        oldnp = *np;
         
-        flx npp = readx(&pt(*np)->p);
-        ppl(2, *n, *np, npp);
-        if(!eqx(&pt(a)->n, n, t))
-            goto newn;
-        if(pt(npp) != pt(a)){
-            flx onp = *np;
-            if(!eq2(onp, *np = readx(&pt(*n)->p)))
-                goto newnp;
-            else return assert(!a.nil), -1;
-        }
-
-        RARITY("Swinging n:% np:% npp:%", *n, *np, npp);
-        if(casx_ok((flx){a.mp, np->gen}, &pt(*n)->p, np))
+        if(casx_ok((flx){a.mp, np->gen + n->nil ? 0 : 1}, &pt(*n)->p, np))
             return *np = (flx){a.mp, np->gen}, 0;
-        *n = flinref_read(&pt(a)->n, ((flx*[]){n, NULL}), t);
+        goto newnp;
+        /* *n = flinref_read(&pt(a)->n, ((flx*[]){n, NULL}), t); */
     }
 }
 
@@ -365,8 +378,9 @@ flx (lflist_deq)(type *t, lflist *l){
         if(n.nil)
             return assert(&l->nil == pt(n)), (flx){};
         /* TODO: why's this here? */
-        if(eq2(oldn, n))
-            return flinref_down(&n, t), (flx){};
+        assert(!eq2(oldn, n));
+        /* if(eq2(oldn, n)) */
+        /*     return flinref_down(&n, t), (flx){}; */
         if(!lflist_del(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};
         oldn = n;

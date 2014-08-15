@@ -127,6 +127,7 @@ static void *test_del(uint t){
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
+        pp(i);
         if(randpcnt(10) && condxadd(1, &nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             pp(1, (void *) b);
