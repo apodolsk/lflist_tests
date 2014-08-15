@@ -76,7 +76,7 @@ static void *test_reinsert(uint t){
     heritage *node_h =
         &(heritage)POSIX_HERITAGE(perm_node_t);
 
-    srand(GETTIME());
+    wsrand(GETTIME());
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
@@ -87,7 +87,7 @@ static void *test_reinsert(uint t){
             list_enq(&b->lanc, &perm);
         }
 
-        lflist *l = &shared[rand() % nlists];
+        lflist *l = &shared[wrand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
             log(1, "Pushing %", flptr(bx));
@@ -123,11 +123,11 @@ static void *test_del(uint t){
     set_dbg_id(t);
     heritage *node_h = &(heritage)POSIX_HERITAGE(node_t);
 
-    srand(GETTIME());
+    wsrand(GETTIME());
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        pp(i);
+        lprintf("%", i);
         if(randpcnt(10) && condxadd(1, &nb, nalloc) < nalloc){
             node *b = (node *) linalloc(node_h);
             pp(1, (void *) b);
@@ -135,7 +135,7 @@ static void *test_del(uint t){
             list_enq(&b->lanc, &perm);
         }
 
-        lflist *l = &shared[rand() % nlists];
+        lflist *l = &shared[wrand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &semipriv))){
             log(1, "Pushing", flptr(bx));
@@ -196,7 +196,7 @@ static void *test_lin_reinsert(uint t){
     
     list privnn = LIST(&privnn, NULL);
 
-    srand(GETTIME());
+    wsrand(GETTIME());
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
@@ -220,7 +220,7 @@ static void *test_lin_reinsert(uint t){
             list_enq(&b->lanc, &perm);
         }
 
-        lflist *l = &shared[rand() % nlists];
+        lflist *l = &shared[wrand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_deq(perm_node_t, &priv))){
             lflist_enq(bx, perm_node_t, l);

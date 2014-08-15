@@ -6,6 +6,14 @@
 #define lprintf(fmt, as...) puprintf("% "fmt"\n", get_dbg_id(), ##as)
 
 #define NAMEFMT(a, _, __) a:%
+
+#if !LOG_MASTER
+#define log(...) 0
+#define pp(as...) (as)
+#define ppl(lvl, as...) (as)
+#define trace(module, lvl, f, as...) f(as)
+#else
+
 #define ppl(lvl, as...)                                                 \
     log_cond(lvl, MODULE,                                               \
              ({                                                         \
@@ -15,11 +23,6 @@
              }),                                                        \
              as)
 #define pp(as...) ppl(0, as)
-
-#if !LOG_MASTER
-#define log(...) 0
-#define trace(module, lvl, f, as...) f(as)
-#else
 
 #define log(lvl, fmt, as...) log_cond(lvl, MODULE, lprintf(fmt, ##as), 0)
 

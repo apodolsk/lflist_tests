@@ -74,7 +74,7 @@ static volatile int rdy;
 
 void write_magics(struct tblock *b, int tid){
     size max = umin(b->size - sizeof(*b), max_writes) / sizeof(b->magics[0]);
-    for(uint i = b->write_start_idx = (uint) rand() % max; i < max; i++)
+    for(uint i = b->write_start_idx = (uint) wrand() % max; i < max; i++)
         b->magics[i] = tid;
 }
 
@@ -133,7 +133,7 @@ void mt_child_rand(int parentid){
     list block_lists[NUM_LISTS];
     int tid = get_dbg_id();
 
-    srand(rdtsc());
+    wsrand(rdtsc());
     for(uint i = 0; i < NUM_LISTS; i++)
         block_lists[i] = (list) LIST(&block_lists[i], NULL);
     
@@ -142,7 +142,7 @@ void mt_child_rand(int parentid){
 
     for(uint i = 0; i < NUM_OPS; i++){
         int size;
-        list *blocks = &block_lists[rand() % NUM_LISTS];
+        list *blocks = &block_lists[wrand() % NUM_LISTS];
         int malloc_prob =
             blocks->size < num_allocations/2 ? 75 :
             blocks->size < num_allocations ? 50 :
@@ -150,7 +150,7 @@ void mt_child_rand(int parentid){
             0;
         
         if(randpcnt(malloc_prob)){
-            size = umax(MIN_SIZE, rand() % (MAX_SIZE));
+            size = umax(MIN_SIZE, wrand() % (MAX_SIZE));
             cur_block = wsmalloc(size);
             if(!cur_block)
                 continue;
@@ -200,7 +200,7 @@ void mt_sharing_child(struct child_args *shared){
     int parentid = shared->parentid;
     int tid =get_dbg_id();
     struct tblock *cur_block;
-    srand(rdtsc());
+    wsrand(rdtsc());
 
     while(rdy == false)
         _yield(parentid);
@@ -212,7 +212,7 @@ void mt_sharing_child(struct child_args *shared){
     uint num_blocks = 0;
     for(uint i = 0; i < NUM_OPS; i++){
         int size;
-        lfstack *blocks= &shared->block_stacks[rand() % NUM_STACKS].s;
+        lfstack *blocks= &shared->block_stacks[wrand() % NUM_STACKS].s;
         int malloc_prob =
             num_blocks < num_allocations/2 ? 75 :
             num_blocks < num_allocations ? 50 :
@@ -220,7 +220,7 @@ void mt_sharing_child(struct child_args *shared){
             0;
 
         if(randpcnt(malloc_prob)){
-            size = umax(MIN_SIZE, rand() % (MAX_SIZE));
+            size = umax(MIN_SIZE, wrand() % (MAX_SIZE));
             cur_block = wsmalloc(size);
             if(!cur_block)
                 continue;
@@ -239,11 +239,11 @@ void mt_sharing_child(struct child_args *shared){
             log(2, "Claiming: %", cur_block);
             write_magics(cur_block, tid);
             cur_block->lanc = (lanchor) LANCHOR(NULL);
-            list_enq(&cur_block->lanc, &priv_blocks[rand() % NUM_LISTS]);
+            list_enq(&cur_block->lanc, &priv_blocks[wrand() % NUM_LISTS]);
         }
 
         if(randpcnt(2 * (100 - malloc_prob))){
-            cur_block = cof(list_deq(&priv_blocks[rand() % NUM_LISTS]),
+            cur_block = cof(list_deq(&priv_blocks[wrand() % NUM_LISTS]),
                             struct tblock, lanc);
             if(!cur_block)
                 continue;
@@ -288,14 +288,14 @@ void producerest(void){
 
 void produce(struct child_args *shared){
     int tid =get_dbg_id();
-    srand(rdtsc());
+    wsrand(rdtsc());
 
     stack priv_blocks = (stack) STACK;
     struct tblock *cur_block;
     uint num_blocks = 0;
     for(uint i = 0; i < NUM_OPS; i++){
         int size;
-        lfstack *blocks= &shared->block_stacks[rand() % NUM_STACKS].s;
+        lfstack *blocks= &shared->block_stacks[wrand() % NUM_STACKS].s;
         int malloc_prob =
             num_blocks < numhreads * num_allocations/2 ? 90 :
             num_blocks < numhreads * num_allocations ? 70 :
@@ -303,7 +303,7 @@ void produce(struct child_args *shared){
             0;
 
         if(randpcnt(malloc_prob)){
-            size = umax(MIN_SIZE, rand() % (MAX_SIZE));
+            size = umax(MIN_SIZE, wrand() % (MAX_SIZE));
             cur_block = wsmalloc(size);
             if(!cur_block)
                 continue;
@@ -342,7 +342,7 @@ void consumer_child(struct child_args *shared){
     int parentid = shared->parentid;
     int tid =get_dbg_id();
     struct tblock *cur_block;
-    srand(rdtsc());
+    wsrand(rdtsc());
 
     while(rdy == false)
         _yield(parentid);
@@ -350,7 +350,7 @@ void consumer_child(struct child_args *shared){
     stack priv_blocks = STACK;
     uint num_blocks = 0;
     for(uint i = 0; i < NUM_OPS; i++){
-        lfstack *blocks= &shared->block_stacks[rand() % NUM_STACKS].s;
+        lfstack *blocks= &shared->block_stacks[wrand() % NUM_STACKS].s;
         int free_prob = 
             num_blocks < num_allocations/2 ? 25 :
             num_blocks < num_allocations ? 50 :

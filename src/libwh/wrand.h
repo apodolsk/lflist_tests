@@ -9,3 +9,5 @@ typedef struct{
 void rand_add_entropy(uint e);
 void rand_update_local_seed(void);
 bool randpcnt(uint pcnt);
+void wsrand(uint seed);
+uint wrand(void);

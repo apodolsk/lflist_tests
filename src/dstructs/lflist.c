@@ -237,6 +237,9 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         TEST_PROGRESS(c);
         if(pt(*np) == pt(a))
             return 0;
+        /* This is subtle. help_next handles interrupted adds of a and
+           interrupted deletes of n with the same write. For an
+           interrupted add, !n->locked is always true. */
         if(n->locked){
             if(!pt(*np) || np->locked || np->nil){
                 if(!eqx(&pt(a)->n, n, t))
@@ -254,7 +257,6 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
                     goto newnp;
                 else return assert(!a.nil), -1;
             }
-            RARITY("Swinging n:% np:% npp:%", *n, *np, npp);
         } else{
             if(!eqx(&pt(a)->n, n, t))
                 goto newn;
@@ -265,6 +267,8 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
         oldn = *n;
         oldnp = *np;
+
+        RARITY("Swinging n:% np:%", *n, *np);
 
         flx newnp = {a.mp, np->gen + (n->nil ? 1 : 0)};
         if(casx_ok(newnp, &pt(*n)->p, np))
@@ -383,10 +387,7 @@ flx (lflist_deq)(type *t, lflist *l){
             EWTF();
         if(n.nil)
             return assert(&l->nil == pt(n)), (flx){};
-        /* TODO: why's this here? */
         assert(!eq2(oldn, n));
-        /* if(eq2(oldn, n)) */
-        /*     return flinref_down(&n, t), (flx){}; */
         if(!lflist_del(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};
         oldn = n;
