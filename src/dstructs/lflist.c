@@ -200,11 +200,13 @@ err (lflist_del)(flx a, type *t){
                a->n is the only reference to 'n' discoverable from nil,
                and we should finish the add before it gets cleared (next
                time a is added). */
-            flx nn = pt(n)->n;
+            flx nn = readx(&pt(n)->n);
             if(nn.nil){
-                flx nnp = pt(nn)->p;
-                if(pt(nnp) == pt(a))
+                flx nnp = readx(&pt(nn)->p);
+                if(pt(nnp) == pt(a)){
+                    assert(!n.nil);
                     casx((flx){.pt=n.pt, nnp.gen + 1}, &pt(nn)->p, &nnp);
+                }
             }
         }
 
@@ -225,8 +227,9 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
     flx oldn = (flx){}, oldnp = (flx){};
     for(int c = 0;;){
     newn:
-        assert(a.nil || pt(*n) != pt(a));
         assert(!a.nil || pt(*n));
+        assert((!a.nil && pt(*n) != pt(a)) ||
+               ((n->nil && a.nil) ^ (pt(a) != pt(*n))));
         if(!pt(*n))
             return -1;
         *np = readx(&pt(*n)->p);
@@ -262,9 +265,10 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
         oldn = *n;
         oldnp = *np;
-        
-        if(casx_ok((flx){a.mp, np->gen + n->nil ? 0 : 1}, &pt(*n)->p, np))
-            return *np = (flx){a.mp, np->gen}, 0;
+
+        flx newnp = {a.mp, np->gen + (n->nil ? 0 : 1)};
+        if(casx_ok(newnp, &pt(*n)->p, np))
+            return *np = newnp, 0;
         goto newnp;
         /* *n = flinref_read(&pt(a)->n, ((flx*[]){n, NULL}), t); */
     }
@@ -277,6 +281,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         *p = flinref_read(&pt(a)->p, ((flx*[]){p, &pp, NULL}), t);
     newp:
         assert(a.nil || (pt(*p) != pt(a)));
+        assert((!a.nil && pt(*p) != pt(a)) ||
+               ((p->nil && a.nil) ^ (pt(a) != pt(*p))));
         if(!pt(*p) || p->locked || (!a.nil && p->gen != a.gen))
             return *pn = (flx){}, pt(pp) ? flinref_down(&pp, t):0, -1;
         *pn = readx(&pt(*p)->n);
