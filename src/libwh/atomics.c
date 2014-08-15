@@ -3,6 +3,7 @@
 #include <atomics.h>
 #include <asm.h>
 
+#define FUZZ_ATOMICS 1
 #define FUZZ_NS 90000
 #define FUZZ_PCNT 60
 #define FUZZ_MOD 3
@@ -16,10 +17,11 @@ extern dptr (cmpxchg2)(dptr n, volatile dptr *p, dptr old);
 static void fuzz_atomics(){
     if(!interrupts_enabled())
         return;
-    if(FUZZ_NS && (0 == mod_pow2(PUN(dptr, get_dbg_id()), FUZZ_MOD))
+    if(FUZZ_ATOMICS &&
+       (0 == mod_pow2(PUN(dptr, get_dbg_id()), FUZZ_MOD))
        && randpcnt(FUZZ_PCNT))
-        nanosleep(&(struct timespec){.tv_nsec = FUZZ_NS -
-                    (wrand() % FUZZ_NS)}, NULL);
+        nanosleep(&(struct timespec){.tv_nsec = FUZZ_NS - (wrand() % FUZZ_NS)},
+                  NULL);
 }
 
 uptr _xadd(uptr s, volatile uptr *p){

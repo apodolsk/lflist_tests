@@ -6,7 +6,7 @@
 
 #include <pthread.h>
 
-static pthread_mutex mut = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 static
 void lock_lflist(lflist *l){
@@ -47,7 +47,7 @@ err (lflist_del)(flx a, type *h){
     if(a.a->gen != a.gen || !a.a->lanc.n || ((uptr) a.a->lanc.n & 1))
         return unlock_lflist(l), -1;
     list_remove(&a.a->lanc, &l->l);
-    a.a->lanc = (lanchor) LANCHOR;
+    a.a->lanc = (lanchor) LANCHOR(NULL);
     a.a->host = NULL;
     unlock_lflist(l);
     return 0;
@@ -60,7 +60,7 @@ flx (lflist_deq)(type *h, lflist *l){
     flanchor *r = cof(list_deq(&l->l), flanchor, lanc);
     if(r){
         rlx = (flx){r, r->gen};
-        r->lanc = (lanchor) LANCHOR;
+        r->lanc = (lanchor) LANCHOR(NULL);
         r->host = NULL;
     }
     unlock_lflist(l);

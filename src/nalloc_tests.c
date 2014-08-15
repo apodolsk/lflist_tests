@@ -417,12 +417,12 @@ void cas_update(void){
 
 int malloc_test_main(int program){
     extern int nthreads;
-    extern int nalloc;
+    extern int nblocks;
     extern int nwrites;
     extern int niter;
 
     numhreads = nthreads;
-    num_allocations = nalloc;
+    num_allocations = nblocks;
     max_writes = nwrites;
     ops_mult = niter;
 

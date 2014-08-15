@@ -74,6 +74,8 @@ flx lflist_deq(type *t, lflist *l);
 flx lflist_peek(lflist *l);
 flx lflist_next(flx p, lflist *l);
 
+#ifndef FAKELOCKFREE
+
 #define pudef (flx, "{%:%:%:%, %}", (void *)(a->pt << 3), (uptr) a->nil, \
                (uptr) a->locked, (uptr) a->helped, a->gen)
 #include <pudef.h>
@@ -81,6 +83,8 @@ flx lflist_next(flx p, lflist *l);
 #include <pudef.h>
 #define pudef (lflist, "LIST(%)", a->nil)
 #include <pudef.h>
+
+#endif
 
 #define lflist_del(as...) linref_account(0, trace(LFLISTM, 1, lflist_del, as))
 #define lflist_deq(as...)                       \

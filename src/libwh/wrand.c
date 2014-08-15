@@ -4,12 +4,12 @@
 static rand_info epool;
 
 void rand_add_entropy(uint e){
+    /* TODO: synchronization. Should be ok as is, but think. */
     epool.seed ^= e;
     epool.last_update = rdtsc();
 }
 
 void rand_update_local_seed(void){
-    assert(!interrupts_enabled());
     if(T->randin.last_update == epool.last_update)
         return;
     T->randin.seed ^ epool.seed;
