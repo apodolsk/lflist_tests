@@ -195,19 +195,23 @@ err (lflist_del)(flx a, type *t){
         if(n.helped && pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}),t)))
             np = readx(&pt(n)->p);
         if(pt(np) == pt(a)){
-            casx((flx){p.mp, np.gen}, &pt(n)->p, &np);
             /* Clean up after an interrupted add of 'n'. In this case,
                a->n is the only reference to 'n' discoverable from nil,
                and we should finish the add before it gets cleared (next
                time a is added). */
-            flx nn = readx(&pt(n)->n);
-            if(nn.nil){
-                flx nnp = readx(&pt(nn)->p);
-                if(pt(nnp) == pt(a)){
-                    assert(!n.nil);
-                    casx((flx){.pt=n.pt, nnp.gen + 1}, &pt(nn)->p, &nnp);
+            if(!n.nil){
+                flx nn = readx(&pt(n)->n);
+                if(nn.nil){
+                    flx nnp = readx(&pt(nn)->p);
+                    if(pt(nnp) == pt(a)){
+                        assert(!n.nil);
+                        casx((flx){.pt=n.pt, nnp.gen + 1}, &pt(nn)->p, &nnp);
+                    }
                 }
             }
+
+            casx((flx){p.mp, np.gen}, &pt(n)->p, &np);
+            pt(a)->n = (flx){.gen = n.gen};
         }
 
         pt(a)->p = (flx){.gen = a.gen};
@@ -227,6 +231,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
     flx oldn = (flx){}, oldnp = (flx){};
     for(int c = 0;;){
     newn:
+        ppl(2, *n);
         assert(!a.nil || pt(*n));
         assert((!a.nil && pt(*n) != pt(a)) ||
                ((n->nil && a.nil) ^ (pt(a) != pt(*n))));
@@ -234,6 +239,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             return -1;
         *np = readx(&pt(*n)->p);
     newnp:
+        ppl(2, *np);
         TEST_PROGRESS(c);
         if(pt(*np) == pt(a))
             return 0;
@@ -260,7 +266,8 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         } else{
             if(!eqx(&pt(a)->n, n, t))
                 goto newn;
-            if(!a.nil && pt(a)->p.gen != a.gen)
+            flx p = pt(a)->p;
+            if(!a.nil && (p.gen != a.gen || p.locked || !pt(p)))
                 return -1;
             assert(pt(*np) && !np->locked);
         }
@@ -284,6 +291,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
     for(int c = 0;;){
         *p = flinref_read(&pt(a)->p, ((flx*[]){p, &pp, NULL}), t);
     newp:
+        ppl(2, *p);
         assert(a.nil || (pt(*p) != pt(a)));
         assert((!a.nil && pt(*p) != pt(a)) ||
                ((p->nil && a.nil) ^ (pt(a) != pt(*p))));
@@ -291,6 +299,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             return *pn = (flx){}, pt(pp) ? flinref_down(&pp, t):0, -1;
         *pn = readx(&pt(*p)->n);
     newpn:
+        ppl(2, *pn);
         /* This has to be before the *pn == a check to ensure that
            a->p.gen == a.gen for non-nil nodes. */
         if(!eqx(&pt(a)->p, p, t))
@@ -304,7 +313,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
         if(!pt(pp))
             continue;
-        flx ppn = readx(&pt(pp)->n);
+        flx ppn = ppl(2, readx(&pt(pp)->n));
         if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
             continue;
         if(!eqx(&pt(a)->p, p, t)){
@@ -341,7 +350,6 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(!eqx(&pt(a)->p, p, t))
             goto newp;
 
-        ppl(2, a, p, pp, ppn);
         flx newpn = (flx){.nil=a.nil, 0, 0, a.pt, pn->gen + 1};
         if(casx_ok(newpn, &pt(*p)->n, pn))
             return *pn = newpn, flinref_down(&pp, t), 0;
@@ -368,7 +376,6 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         assert(!eq2(oldpn, pn) || !eq2(oldp, p));
         oldp = p;
         oldpn = pn;
-        ppl(2, p, pn);
         
         pt(a)->p.mp = p.mp;
         if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, &pn))
