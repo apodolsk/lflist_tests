@@ -33,7 +33,7 @@
 #ifndef FAKELOCKFREE
 
 #define MAX_LOOP 0
-#define TEST_PROGRESS(c)                                                 \
+#define TEST_CONTENTION(c)                                                 \
     ({ if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %", c); })
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
@@ -93,7 +93,7 @@ static flx readx(volatile flx *x){
 }
 static bool eqx(volatile flx *a, flx *b, type *t){
     flx old = *b;
-    for(int c = 0;; TEST_PROGRESS(c)){
+    for(int c = 0;; TEST_CONTENTION(c)){
         *b = readx(a);
         if(eq2(old, *b))
             return true;
@@ -109,7 +109,7 @@ static bool eqx(volatile flx *a, flx *b, type *t){
 static
 flx (flinref_read)(volatile flx *from, flx **held, type *t){
     flx old = (flx){};
-    for(int c = 0;; TEST_PROGRESS(c)){
+    for(int c = 0;; TEST_CONTENTION(c)){
         flx a = readx(from);
         flx *reused = NULL;
         for(; *held; held++){
@@ -146,12 +146,15 @@ void (flinref_down)(flx *a, type *t){
 err (lflist_del)(flx a, type *t){
     assert(!a.nil);
 
+    err e = -1;
     flx lock = {}, pn, np, p = {};
     flx n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
-    for(int c = 0;; TEST_PROGRESS(c)){
+    for(int c = 0;; TEST_CONTENTION(c)){
         if(help_next(a, &n, &np, t)){
             RARITY("N abort n:% np:%", n, np);
-            break;
+            if(pt(p))
+                flinref_down(&p, t);
+            goto cleanup;
         }
         if(help_prev(a, &p, &pn, t) || p.gen != a.gen){
             RARITY("P abort p:% pn:%", p, pn);
@@ -180,8 +183,8 @@ err (lflist_del)(flx a, type *t){
 
     if(pt(p))
         flinref_down((flx[]){p}, t);
+    
 
-    err e = -1;
     if(!p.locked && p.mp && p.gen == a.gen &&
        ((lock.mp && n.gen == lock.gen) || n.helped))
     {
@@ -241,37 +244,15 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         *np = readx(&pt(*n)->p);
     newnp:
         ppl(2, *np);
-        TEST_PROGRESS(c);
+        TEST_CONTENTION(c);
         if(pt(*np) == pt(a))
             return 0;
-        /* This is subtle. help_next handles interrupted adds of a and
-           interrupted deletes of n with the same write. For an
-           interrupted add, !n->locked is always true. */
-        /* if(n->locked){ */
-        /*     if(!pt(*np) || np->locked || np->nil){ */
-        /*         if(!eqx(&pt(a)->n, n, t)) */
-        /*             goto newn; */
-        /*         else return assert(!a.nil), -1; */
-        /*     } */
-            
-        /*     flx npp = readx(&pt(*np)->p); */
-        /*     ppl(2, *n, *np, npp); */
-        /*     if(!eqx(&pt(a)->n, n, t)) */
-        /*         goto newn; */
-        /*     if(pt(npp) != pt(a)){ */
-        /*         flx onp = *np; */
-        /*         if(!eq2(onp, *np = readx(&pt(*n)->p))) */
-        /*             goto newnp; */
-        /*         else return assert(!a.nil), -1; */
-        /*     } */
-        /* } else{ */
         flx p = readx(&pt(a)->p);
         if(!a.nil && (p.gen != a.gen || p.locked || !pt(p)))
             return -1;
         if(!eqx(&pt(a)->n, n, t))
             goto newn;
         assert(pt(*np) && !np->locked);
-        /* } */
         assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
         oldn = *n;
         oldnp = *np;
@@ -296,7 +277,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         assert(a.nil || (pt(*p) != pt(a)));
         assert((!a.nil && pt(*p) != pt(a)) ||
                ((p->nil && a.nil) ^ (pt(a) != pt(*p))));
-        if(!pt(*p) || p->locked || (!a.nil && p->gen != a.gen))
+        if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return *pn = (flx){}, pt(pp) ? flinref_down(&pp, t):0, -1;
         *pn = readx(&pt(*p)->n);
     newpn:
@@ -308,12 +289,16 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(pt(*pn)){
             if(pt(*pn) != pt(a))
                 return pt(pp) ? flinref_down(&pp, t):0, -1;
-            TEST_PROGRESS(c);
+            TEST_CONTENTION(c);
             if(!pn->locked)
                 return pt(pp) ? flinref_down(&pp, t):0, 0;
+        }else{
+            assert(a.nil);
+            SUPER_RARITY("hi");
         }
         
         pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
+        ppl(2, pp);
         if(!pt(pp))
             continue;
         flx ppn = ppl(2, readx(&pt(pp)->n));
@@ -363,8 +348,11 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     if(!casx_won((flx){.locked = 1, .gen = a.gen + 1}, &pt(a)->p,
                  &(flx){.gen = a.gen}))
         return -1;
+    /* TODO: this is the one place where neither read nor write is
+       CAS-protected if readx is a plain read. */
+    flx n = readx(&pt(a)->n);
     flx p = {}, pn = {}, oldp = {}, oldpn = {};
-    for(int c = 0;;TEST_PROGRESS(c)){
+    for(int c = 0;;TEST_CONTENTION(c)){
         if(help_prev(((flx){.nil = 1, .pt = mpt(&l->nil)}), &p, &pn, t)){
             assert(pt(p));
             assert(pt(pn));
@@ -374,6 +362,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
             continue;
         }
         assert(!pn.locked);
+        assert(pt(pn));
         assert(pn.nil);
         assert(pt(p) != pt(a));
         assert(!eq2(oldpn, pn) || !eq2(oldp, p));
@@ -384,23 +373,22 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         if(casx_won((flx){.mp = a.mp, pn.gen + 1}, &pt(p)->n, &pn))
             break;
     }
-    pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
-    
-    flinref_down((flx[]){p}, t);
+    casx((flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1}, &pt(a)->n, &n);
     casx((flx){.mp = a.mp, .gen = p.gen + 1}, &l->nil.p, &p);
+    flinref_down((flx[]){p}, t);
     return 0;
 }
 
 flx (lflist_deq)(type *t, lflist *l){
     flx np, oldn = {}, n = {};
-    for(;;){
+    for(int c = 0;;TEST_CONTENTION(c)){
         n = flinref_read(&l->nil.n, ((flx*[]){&n, NULL}), t);
         if(help_next(((flx){.nil = 1, .pt = mpt(&l->nil)}), &n, &np, t))
             EWTF();
         if(n.nil)
             return assert(&l->nil == pt(n)), (flx){};
         if(eq2(oldn, n))
-            return (flx){};
+            return flinref_down(&n, t), (flx){};
         assert(!eq2(oldn, n));
         if(!lflist_del(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};

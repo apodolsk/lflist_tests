@@ -47,6 +47,7 @@
 #include <libthread.h>
 
 #define HEAP_DBG 1
+#define LINREF_ACCOUNT_DBG 0
 #define NALLOC_MAGIC_INT 0x01FA110C
 
 typedef struct tyx tyx;
@@ -293,7 +294,8 @@ void linref_account_open(linref_account *a){
 }
 
 void linref_account_close(linref_account *a){
-    assert(T->nallocin.linrefs_held == a->baseline);
+    if(LINREF_ACCOUNT_DBG)
+        assert(T->nallocin.linrefs_held == a->baseline);
 }
 
 int posix_memalign(void **mptr, size align, size sz){return -1;}
