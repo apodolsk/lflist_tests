@@ -10,15 +10,17 @@ typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
 typedef union mptr mptr;
 
+typedef struct markp{
+    uptr nil:1;
+    uptr locked:1;
+    uptr helped:1;
+    uptr pt:WORDBITS-3;
+} markp;
+
 struct flx{
     union {
         flanchor *mp;
-        struct{
-            uptr nil:1;
-            uptr locked:1;
-            uptr helped:1;
-            uptr pt:WORDBITS-3;
-        };
+        markp;
         /* Standard C (6.6) doesn't support casting addresses in constant
            expressions. GCC/CLANG do as an undocumented extension, but no
            computation from a cast may be truncated (as it would be if
