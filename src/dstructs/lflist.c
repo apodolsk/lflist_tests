@@ -294,7 +294,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 return pt(pp) ? flinref_down(&pp, t):0, 0;
         }else{
             assert(a.nil);
-            SUPER_RARITY("hi");
+            flx newpn = {.mp = a.mp, .gen = pn->gen};
+            if(!casx_ok(newpn, &pt(*p)->n, pn))
+                continue;
+            *pn = newpn;
         }
         
         pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
