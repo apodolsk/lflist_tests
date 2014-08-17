@@ -359,7 +359,8 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     flx p = {}, pn = {}, oldp = {}, oldpn = {};
     for(int c = 0;;TEST_CONTENTION(c)){
         if(help_prev(((flx){.nil = 1, .pt = mpt(&l->nil)}), &p, &pn, t)){
-            assert(pt(p) && pt(pn));
+            assert(pt(p) && pt(pn) &&
+                   (pt(pt(pn)->n) == &l->nil || !eq2(l->nil.p, p)));
             flinref_down((flx[]){p}, t);
             casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, &p);
             p = (flx){};
