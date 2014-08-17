@@ -18,7 +18,7 @@ static void fuzz_atomics(){
     if(!interrupts_enabled())
         return;
     if(FUZZ_ATOMICS &&
-       (0 == mod_pow2(PUN(dptr, get_dbg_id()), FUZZ_MOD))
+       (0 == mod_pow2(PUN(uptr, get_dbg_id()), FUZZ_MOD))
        && randpcnt(FUZZ_PCNT))
         nanosleep(&(struct timespec){.tv_nsec = FUZZ_NS - (wrand() % FUZZ_NS)},
                   NULL);

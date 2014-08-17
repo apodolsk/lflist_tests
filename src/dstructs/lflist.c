@@ -197,6 +197,7 @@ err (lflist_del)(flx a, type *t){
             }
         }
         assert(!p.locked);
+        p.helped = 0;
         if(n.helped && pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}),t)))
             np = readx(&pt(n)->p);
         if(pt(np) == pt(a)){
