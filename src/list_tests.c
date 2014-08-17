@@ -184,6 +184,7 @@ static void *test_del(dbg_id id){
 
     for(flx bx; flptr(bx = lflist_deq(t, &priv));)
         lflist_enq(bx, t, &shared[0]), t->linref_down(flptr(bx));
+        
 
     for(node *b; (b = cof(list_deq(&perm), node, lanc));){
         pthread_mutex_lock(&all_lock);
