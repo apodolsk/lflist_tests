@@ -185,8 +185,8 @@ err (lflist_del)(flx a, type *t){
         flinref_down((flx[]){p}, t);
     
 
-    if(!p.locked && p.mp && p.gen == a.gen &&
-       ((lock.mp && n.gen == lock.gen) || n.helped))
+    if(!p.locked && p.pt && p.gen == a.gen &&
+       (n.helped || ((lock.mp && n.gen == lock.gen))))
     {
         if(!casx_won((flx){.nil=p.nil,1,0,p.pt,p.gen}, &pt(a)->p, &p)){
             if(p.locked || !p.mp || p.gen != a.gen)
@@ -285,45 +285,27 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         assert((!a.nil && pt(*p) != pt(a)) ||
                ((p->nil && a.nil) ^ (pt(a) != pt(*p))));
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
-            return *pn = (flx){}, pt(pp) ? flinref_down(&pp, t):0, -1;
+            return *pn = (flx){}, -1;
         *pn = readx(&pt(*p)->n);
     newpn:
         ppl(2, *pn);
         if(!eqx(&pt(a)->p, p, t))
             goto newp;
+        assert(pt(*pn));
         if(pt(*pn) != pt(a)){
             if(!a.nil){
-                flx n = readx(&pt(a)->n, t);
+                flx n = readx(&pt(a)->n);
                 if(n.locked)
                     return -1;
-                if(pn.locked || pt(*pn) != pt(n))
+                if(pn->locked || pt(*pn) != pt(n))
                     return -2;
-                if(pn.locked
-                if(pn.locked)
-                    return -1;
-                if(casx_won(a)
             }
-        }
-        if(!eqx(&pt(a)->p, p, t))
-            goto newp;
-        assert(pt(*pn));
-        if(pt(*pn)){
-            if(pt(*pn) != pt(a))
-                return pt(pp) ? flinref_down(&pp, t):0, -1;
-            TEST_CONTENTION(c);
-            if(!pn->locked)
-                return pt(pp) ? flinref_down(&pp, t):0, 0;
-        }else{
-            EWTF();
-            assert(a.nil);
-            flx newpn = {.mp = a.mp, .gen = pn->gen};
-            if(!casx_ok(newpn, &pt(*p)->n, pn))
-                continue;
-            *pn = newpn;
+            if(!casx_ok((flx){a.mp, pn->gen + 1}, &pt(*p)->n, pn))
+                goto newpn;
+            *pn = (flx){a.mp, pn->gen + 1};
         }
         
-        pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
-        ppl(2, pp);
+        pp = ppl(2, flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t));
         if(!pt(pp))
             continue;
         flx ppn = ppl(2, readx(&pt(pp)->n));
@@ -354,43 +336,37 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             *pn = ppn;
             goto newpn;
         }
-        if(!eqx(&pt(a)->p, p, t))
-            goto newp;
 
+        flinref_down(&pp, t);
         flx newpn = (flx){.nil=a.nil, 0, 0, a.pt, pn->gen + 1};
         if(casx_ok(newpn, &pt(*p)->n, pn))
-            return *pn = newpn, flinref_down(&pp, t), 0;
+            return *pn = newpn, 0;
     }
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
-    flx nap = {.helped=1, .gen=a.gen + 1};
-    if(!casx_won(nap, &pt(a)->p, &(flx){.gen=a.gen}))
+    flx oldap = {.helped=1, .gen=a.gen + 1};
+    if(!casx_won(oldap, &pt(a)->p, &(flx){.gen=a.gen}))
         return -1;
     assert(!pt(a)->n.mp);
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
     
     flx p = {}, pn = {}, oldp = {}, oldpn = {};
     for(int c = 0;;TEST_CONTENTION(c)){
-        if(help_prev(((flx){.nil = 1, .pt = mpt(&l->nil)}), &p, &pn, t)){
-            assert(pt(p) && pt(pn) &&
-                   (pt(pt(pn)->n) == &l->nil || !eq2(l->nil.p, p)));
-            flinref_down((flx[]){p}, t);
-            casx((flx){.pt = pn.pt, p.gen + 1}, &l->nil.p, &p);
-            p = (flx){};
-            continue;
-        }
+        if(help_prev(((flx){.nil = 1, .pt = mpt(&l->nil)}), &p, &pn, t))
+            EWTF();
         assert(!p.locked && !p.helped && !pn.locked
                && pt(pn) && pn.nil && pt(p) != pt(a) &&
                (!eq2(oldp, p) || !eq2(oldpn, pn)));
         oldp = p;
         oldpn = pn;
-        
-        pt(a)->p.markp = nap.markp = (markp){p.nil, .helped=1, .pt=p.pt};
+
+        if(!casx_won((flx){.mp=p.mp, .gen=a.gen}, &pt(a)->p, &oldap))
+            return -1;
         if(casx_won((flx){.mp=a.mp, pn.gen + 1}, &pt(p)->n, &pn))
             break;
+        oldap = (flx){.mp=p.mp, .gen=a.gen};
     }
-    casx((flx){p.mp, a.gen + 1}, &pt(a)->p, &nap);
     casx((flx){a.mp, .gen=p.gen + 1}, &l->nil.p, &p);
     flinref_down((flx[]){p}, t);
     return 0;
