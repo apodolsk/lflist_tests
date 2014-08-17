@@ -55,6 +55,8 @@ flanchor *pt(flx a){
 }
 static
 flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
+    assert(n.nil || (&pt(n)->p != a && &pt(n)->n != a));
+    assert(!eq2(n, *e));
     log(2, "CAS! %:% - % if %, addr:%", f, l, n, *e, a);
     flx oe = *e;
     *e = cas2(n, a, oe);
@@ -152,9 +154,7 @@ err (lflist_del)(flx a, type *t){
     for(int c = 0;; TEST_CONTENTION(c)){
         if(help_next(a, &n, &np, t)){
             RARITY("N abort n:% np:%", n, np);
-            if(pt(p))
-                flinref_down(&p, t);
-            goto cleanup;
+            break;
         }
         if(help_prev(a, &p, &pn, t) || p.gen != a.gen){
             RARITY("P abort p:% pn:%", p, pn);
@@ -236,10 +236,11 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
     for(int c = 0;;){
     newn:
         ppl(2, *n);
+        assert(!a.nil || (!n->locked && !n->helped && pt(*n)));
         assert((!a.nil && pt(*n) != pt(a)) ||
-               ((n->nil && a.nil) ^ (pt(a) != pt(*n))));
+               ((a.nil && n->nil) ^ (pt(a) != pt(*n))));
         if(!pt(*n))
-            return assert(!a.nil), -1;
+            return -1;
         *np = readx(&pt(*n)->p);
     newnp:
         ppl(2, *np);
@@ -251,6 +252,8 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             return -1;
         if(!eqx(&pt(a)->n, n, t))
             goto newn;
+        if(!a.nil && n->locked)
+            return -1;
         assert(pt(*np) && !np->locked);
         assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
         oldn = *n;
@@ -352,6 +355,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         return -1;
     /* TODO: this is the one place where neither read nor write is
        CAS-protected if readx is a plain read. */
+    assert(!pt(a)->n.mp);
     flx n = readx(&pt(a)->n);
     flx p = {}, pn = {}, oldp = {}, oldpn = {};
     for(int c = 0;;TEST_CONTENTION(c)){
