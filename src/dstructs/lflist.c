@@ -162,6 +162,7 @@ err (lflist_del)(flx a, type *t){
         lock = (flx){.nil=n.nil, 1, 0, n.pt, n.gen + 1};
         howok r = casx_ok(lock, &pt(a)->n, &n);
         if(r != NOT){
+            assert(n.nil || pt(n) != pt(p));
             n = lock;            
             if(r != WON) lock = (flx){};
             if(casx_ok((flx){.nil=n.nil,0,0,n.pt,pn.gen+1}, &pt(p)->n, &pn))
@@ -169,7 +170,7 @@ err (lflist_del)(flx a, type *t){
         }else{
             if(pt(n) != pt(lock)){
                 flinref_down(&lock, t);
-                if(flinref_up(&n, t))
+                if(pt(n) && flinref_up(&n, t))
                     n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
             }else
                 lock = (flx){};
@@ -211,9 +212,8 @@ err (lflist_del)(flx a, type *t){
             }
 
             casx((flx){p.mp, np.gen}, &pt(n)->p, &np);
-            pt(a)->n = (flx){.gen = n.gen};
         }
-
+        pt(a)->n = (flx){.gen = n.gen};
         pt(a)->p = (flx){.gen = a.gen};
         e = 0;
     }
@@ -264,11 +264,11 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
                 else return assert(!a.nil), -1;
             }
         } else{
-            if(!eqx(&pt(a)->n, n, t))
-                goto newn;
             flx p = pt(a)->p;
             if(!a.nil && (p.gen != a.gen || p.locked || !pt(p)))
                 return -1;
+            if(!eqx(&pt(a)->n, n, t))
+                goto newn;
             assert(pt(*np) && !np->locked);
         }
         assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
@@ -304,11 +304,13 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
            a->p.gen == a.gen for non-nil nodes. */
         if(!eqx(&pt(a)->p, p, t))
             goto newp;
-        if(pt(*pn) != pt(a))
-            return pt(pp) ? flinref_down(&pp, t):0, -1;
-        TEST_PROGRESS(c);
-        if(!pn->locked)
-            return pt(pp) ? flinref_down(&pp, t):0, 0;
+        if(pt(*pn)){
+            if(pt(*pn) != pt(a))
+                return pt(pp) ? flinref_down(&pp, t):0, -1;
+            TEST_PROGRESS(c);
+            if(!pn->locked)
+                return pt(pp) ? flinref_down(&pp, t):0, 0;
+        }
         
         pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
         if(!pt(pp))
@@ -357,7 +359,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
-    if(!casx_won((flx){.gen = a.gen + 1}, &pt(a)->p, &(flx){.gen = a.gen}))
+    if(!casx_won((flx){.locked = 1, .gen = a.gen + 1}, &pt(a)->p, &(flx){.gen = a.gen}))
         return -1;
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
@@ -373,6 +375,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         }
         assert(!pn.locked);
         assert(pn.nil);
+        assert(pt(p) != pt(a));
         assert(!eq2(oldpn, pn) || !eq2(oldp, p));
         oldp = p;
         oldpn = pn;

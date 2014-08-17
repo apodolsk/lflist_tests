@@ -212,6 +212,7 @@ void (slab_ref_down)(slab *s, lfstack *hot_slabs){
 }
 
 err (linref_up)(volatile void *l, type *t){
+    assert(l);
     slab *s = slab_of((void *) l);
     for(tyx tx = s->tx;;){
         if(tx.t != t || !tx.linrefs)
