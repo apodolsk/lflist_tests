@@ -216,7 +216,11 @@ err (lflist_del)(flx a, type *t){
                 }
             }
 
-            casx((flx){p.mp, np.gen}, &pt(n)->p, &np);
+            flx onp = np;
+            if(!casx_ok((flx){p.mp, np.gen}, &pt(n)->p, &np)
+               && np.gen == onp.gen && pt(np) == pt(a))
+                if(!casx_ok((flx){p.mp, np.gen}, &pt(n)->p, &np))
+                    assert(pt(np) != pt(a));
         }
         pt(a)->n = (flx){.gen = n.gen};
         pt(a)->p = (flx){.gen = a.gen};
@@ -323,16 +327,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
              ?: ({goto newpn;0;}))
             && casx_ok((flx){a.mp, ppn.gen + 1}, &pt(pp)->n, &ppn)))
         {
-            flx oldp = *p, newp = (flx){.nil=pp.nil, .pt=pp.pt, p->gen};
-            if(!casx_ok(newp, &pt(a)->p, p)){
-                if(pt(*p) != pt(oldp)){
-                    flinref_down(&oldp, t);
-                    if(flinref_up(p, t))
-                        continue;
-                }
-                goto newp;
-            }
-            flinref_down(&oldp, t);
+            flx newp = (flx){.nil=pp.nil, .pt=pp.pt, p->gen};
+            if(!casx_ok(newp, &pt(a)->p, p))
+                continue;
+            flinref_down(p, t);
             *p = newp;
             if(pt(ppn) != pt(a)){
                 *pn = (flx){a.mp, ppn.gen + 1};
@@ -358,7 +356,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     assert(!pt(a)->n.mp);
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
     
-    flx p = {}, pn = {}, oldp = {};
+    flx p = {}, pn = {}, oldp = {}, oldpn = {};
     for(int c = 0;;TEST_CONTENTION(c)){
         if(help_prev(((flx){.nil = 1, .pt = mpt(&l->nil)}), &p, &pn, t)){
             assert(pt(p) && pt(pn));
@@ -368,8 +366,10 @@ err (lflist_enq)(flx a, type *t, lflist *l){
             continue;
         }
         assert(!p.locked && !p.helped && !pn.locked
-               && pt(pn) && pn.nil && pt(p) != pt(a) && !eq2(oldp, p));
+               && pt(pn) && pn.nil && pt(p) != pt(a) &&
+               (!eq2(oldp, p) || !eq2(oldpn, pn)));
         oldp = p;
+        oldpn = pn;
         
         pt(a)->p.markp = nap.markp = (markp){p.nil, .helped=1, .pt=p.pt};
         if(casx_won((flx){.mp=a.mp, pn.gen + 1}, &pt(p)->n, &pn))
