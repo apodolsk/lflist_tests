@@ -289,10 +289,24 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         *pn = readx(&pt(*p)->n);
     newpn:
         ppl(2, *pn);
-        /* This has to be before the *pn == a check to ensure that
-           a->p.gen == a.gen for non-nil nodes. */
         if(!eqx(&pt(a)->p, p, t))
             goto newp;
+        if(pt(*pn) != pt(a)){
+            if(!a.nil){
+                flx n = readx(&pt(a)->n, t);
+                if(n.locked)
+                    return -1;
+                if(pn.locked || pt(*pn) != pt(n))
+                    return -2;
+                if(pn.locked
+                if(pn.locked)
+                    return -1;
+                if(casx_won(a)
+            }
+        }
+        if(!eqx(&pt(a)->p, p, t))
+            goto newp;
+        assert(pt(*pn));
         if(pt(*pn)){
             if(pt(*pn) != pt(a))
                 return pt(pp) ? flinref_down(&pp, t):0, -1;
