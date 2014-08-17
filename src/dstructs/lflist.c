@@ -236,11 +236,10 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
     for(int c = 0;;){
     newn:
         ppl(2, *n);
-        assert(!a.nil || pt(*n));
         assert((!a.nil && pt(*n) != pt(a)) ||
                ((n->nil && a.nil) ^ (pt(a) != pt(*n))));
         if(!pt(*n))
-            return -1;
+            return assert(!a.nil), -1;
         *np = readx(&pt(*n)->p);
     newnp:
         ppl(2, *np);

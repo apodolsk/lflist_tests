@@ -107,7 +107,9 @@ size_t _pusnprintf(char *b, size_t max, const char *fmt, ...);
                          __FILE__, __func__, __LINE__);                 \
                }),                                                      \
                ({                                                       \
-                   print("-- End %() = % in %:%:%", #fun, __pu_ret,     \
+                   print("-- End % = %("STRLIT(PUMAP(pu_strfmt, _, as)) \
+                         ") in %:%:%", __pu_ret, #fun                   \
+                         COMMAPFX_IF_NZ(PUMAP3(pu_ref, _, as)),         \
                          __FILE__, __func__, __LINE__);                 \
                    __pu_ret;                                            \
                }));                                                     \
