@@ -313,8 +313,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             goto newp;
         
 
-        flx newpn = (flx){.nil=a.nil, 0, 0, a.pt, pn->gen + 1};
-        if(updx_ok(newpn, &pt(*p)->n, pn))
+        if(updx_ok((flx){.nil=a.nil, 0, 1, a.pt, pn->gen + 1}, &pt(*p)->n, pn))
             return 0;
         goto newpn;
     }
