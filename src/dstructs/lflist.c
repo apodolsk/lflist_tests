@@ -188,25 +188,35 @@ err (lflist_del)(flx a, type *t){
     if(!del_won)
         goto cleanup;
 
-    if(pn_ok == WON)
+    assert(pt(a)->n.locked &&
+           pt(a)->p.gen == a.gen &&
+           /* No more updates. */
+           eq2(pt(a)->p, pt(a)->p) &&
+           pt(pt(a)->n) == pt(pt(a)->n));
+    if(pn_ok)
         assert(pt(pn) == pt(pt(a)->n) &&
+               pt(np) == pt(a) &&
                eq2(pt(a)->p, p) &&
                pt(a)->n.pt == n.pt);
 
     ppl(2, n, np, a, pn_ok);
+    flx onp = np;
     if(pt(np) != pt(a))
         goto np_done;
     assert(pt(p) && !p.locked && p.gen == a.gen && eq2(pt(a)->p, p));
-    if(!pn_ok)
-       if(!pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}), t))
-          || pt(a) != pt(np = readx(&pt(n)->p))){
-           ppl(2, n, np);
-           goto np_done;
-       }
 
-    casx((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, (flx[]){np})
+    if(!pn_ok && pt(np) == pt(a))eqx())
     
-    if(!n.nil && np.helped){
+    if(!pn_ok && pt(np) == pt(a))
+        if(pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}), t)))
+            np = readx(&pt(n)->p);
+        else
+            goto done;
+
+    if(pt(a) == pt(np))
+        casx((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, np);
+    
+    if(!n.nil && onp.helped && onp.gen == np.gen && pt(np)){
         /* Clean up after an interrupted add of 'n'. In this case,
            a->n is the only reference to 'n' discoverable from nil,
            and we should finish the add before it gets cleared (next
