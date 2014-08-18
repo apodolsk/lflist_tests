@@ -307,13 +307,19 @@ static sem_t thread_paused;
 static void thr_setup(uint id){
     set_dbg_id(id);
     wsrand(GETTIME());
+    sem_wait(&universe_rdy);
+    threads[id - firstborn].dead = true;
+    sem_post(&universe_rdy);
 }
 
 static void thr_destroy(uint id){
+    sem_wait(&universe_rdy);
     threads[id - firstborn].dead = true;
+    sem_post(&universe_rdy);
 }
 
 err pause_universe(void){
+    log(0, "Pausing!");
     sem_wait(&universe_rdy);
     cnt live = 0;
     for(struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
@@ -325,8 +331,10 @@ err pause_universe(void){
 }
 
 void resume_universe(void){
-    for(uint i = 0; i < nthreads; i++)
-        sem_post(&universe_rdy);
+    for(struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
+        if(!c->dead && c->id != pthread_self())
+            sem_post(&universe_rdy);
+    sem_post(&universe_rdy);
 }
 void wait_for_universe(){
     sem_post(&thread_paused);
