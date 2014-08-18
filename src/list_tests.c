@@ -13,6 +13,8 @@
 #include <global.h>
 #include <asm.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include <timing.h>
 
@@ -128,6 +130,8 @@ static void *test_del(dbg_id id){
     list perm = LIST(&perm, NULL);
     heritage *node_h = &(heritage)POSIX_HERITAGE(perm_node_t);
     type *t = perm_node_t;
+
+    pp(0, getpgid(syscall(SYS_gettid)));
 
     for(uint i = 0; i < niter; i++){
         ppl(1, i);

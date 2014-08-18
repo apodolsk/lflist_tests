@@ -183,15 +183,18 @@ err (lflist_del)(flx a, type *t){
     if(!del_won)
         goto cleanup;
 
-    assert(!pn_ok || (pt(pn) == pt(pt(a)->n) && eq2(readx(&pt(a)->p), p)));
+    if(!pn_ok)
+        assert(pt(pn) == pt(pt(a)->n) && eq2(pt(a)->p, p) && (eq2(pt(a)->n, n)));
 
+    ppl(2, np, a, pn_ok);
     if(pt(np) != pt(a))
         goto np_done;
-    assert(pt(p) && !p.locked && p.gen == a.gen && eq2(readx(&pt(a)->p), p));
+    assert(pt(p) && !p.locked && p.gen == a.gen && eq2(pt(a)->p, p));
     if(!pn_ok)
        if(!pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}), t))
-          || pt(a) != pt(np = readx(&pt(n)->p)))
+          || pt(a) != pt(np = readx(&pt(n)->p))){
         goto np_done;
+       }
     if(!updx_won((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, &np))
         goto np_done;
     
@@ -214,12 +217,6 @@ err (lflist_del)(flx a, type *t){
 
 np_done:
     assert(pt(n) && (n.locked || n.helped) && pt(pt(a)->n) == pt(n));
-
-    if(!updx_won((flx){.nil=p.nil,1,0,p.pt,p.gen}, &pt(a)->p, &p)){
-        assert(!pn_ok);
-        if(!updx_won((flx){.nil=p.nil,1,0,p.pt,p.gen}, &pt(a)->p, &p))
-            EWTF();
-    }
 
     pt(a)->n = (flx){.gen = n.gen};
     pt(a)->p = (flx){.gen = a.gen};
@@ -283,7 +280,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(pt(*pn) != pt(a)){
             if(!a.nil)
                 return -1;
-            assert(!pn->nil && pt(pn));
+            assert(!pn->nil && pt(*pn));
             if(!updx_ok((flx){.pt=pn->pt, .gen=p->gen + 1}, &pt(a)->p, p))
                 continue;
             goto newp;
@@ -392,6 +389,23 @@ flanchor *flptr(flx a){
 flx flx_of(flanchor *a){
     return (flx){.pt = mpt(a), a->p.gen};
 }
+
+/* bool lflist_valid(lflist *l){ */
+/*     pause_universe(); */
+/*     flx n = l->nil.n; */
+/*     flx p = l->nil.p; */
+/*     assert(pt(n) == pt(p)); */
+/*     assert(!n.nil || pt(n) == pt(p)); */
+/*     for(flanchor *a = &l->nil;;){ */
+/*         assert(flanchor_valid(a)); */
+/*         a = pt(pt(a)->n, l); */
+/*     } */
+/*     resume_universe(); */
+/* } */
+
+/* bool flanchor_valid(flanchor *a, lflist *on){ */
+    
+/* } */
 
 
 #endif
