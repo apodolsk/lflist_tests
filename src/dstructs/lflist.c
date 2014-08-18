@@ -183,16 +183,11 @@ err (lflist_del)(flx a, type *t){
     if(pt(np) != pt(a))
         goto np_done;
     assert(pt(p) && !p.locked && p.gen == a.gen && eq2(readx(&pt(a)->p), p));
-    if(!pn_ok){
-        if(pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}), t))){
-            np = readx(&pt(n)->p);
-            ppl(2, n, np);
-        }else
-            goto np_done;
-    }
-    if(!updx_ok((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, &np))
+    if(!pn_ok
+       || !pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}), t))
+       || pt(a) != pt(np = readx(&pt(n)->p))
+       || !updx_won((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, &np))
         goto np_done;
-
     
     if(!n.nil){
         /* Clean up after an interrupted add of 'n'. In this case,
