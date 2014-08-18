@@ -301,49 +301,64 @@ static struct tctxt{
     pthread_t id;
     bool dead;
 } *threads;
-static sem_t universe_rdy;
-static sem_t thread_paused;
+static sem_t unpauses;
+static sem_t pauses;
+static pthread_mutex_t state_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void thr_setup(uint id){
     set_dbg_id(id);
     wsrand(GETTIME());
-    sem_wait(&universe_rdy);
-    threads[id - firstborn].dead = true;
-    sem_post(&universe_rdy);
+    muste(pthread_mutex_lock(&state_lock));
+    threads[id - firstborn] = (struct tctxt) {pthread_self()};
+    muste(pthread_mutex_unlock(&state_lock));
 }
 
 static void thr_destroy(uint id){
-    sem_wait(&universe_rdy);
+    muste(pthread_mutex_lock(&state_lock));
     threads[id - firstborn].dead = true;
-    sem_post(&universe_rdy);
+    muste(pthread_mutex_unlock(&state_lock));    
 }
 
+iptr waiters;
 err pause_universe(void){
-    log(0, "Pausing!");
-    sem_wait(&universe_rdy);
+    assert(waiters >= 0);
+    pp(waiters);
+    if(!cas_won(1, &waiters, (iptr[]){0}))
+        return -1;
+    muste(pthread_mutex_lock(&state_lock));
     cnt live = 0;
     for(struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
-        if(!c->dead && c->id != pthread_self())
-            live++, pthread_kill(c->id, SIGUSR1);
+        if(!c->dead && c->id != pthread_self()){
+            live++;
+            pthread_kill(c->id, SIGUSR1);
+        }
+    waiters += live;
+    muste(pthread_mutex_unlock(&state_lock));
     for(uint i = 0; i < live; i++)
-        sem_wait(&thread_paused);
+        muste(sem_wait(&pauses));
     return 0;
 }
 
 void resume_universe(void){
+    cnt live = 0;
     for(struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
         if(!c->dead && c->id != pthread_self())
-            sem_post(&universe_rdy);
-    sem_post(&universe_rdy);
+            live++;
+    assert(live == (cnt) waiters - 1);
+    for(cnt i = 0; i < live; i++)
+        muste(sem_post(&unpauses));
+    _xadd(-1, (uptr *) &waiters);
 }
+
 void wait_for_universe(){
-    sem_post(&thread_paused);
-    sem_wait(&universe_rdy);
+    muste(sem_post(&pauses));
+    muste(sem_wait(&unpauses));
+    _xadd(-1, (uptr *) &waiters);
 }
 
 static void launch_test(void *test(void *)){
-    muste(sem_init(&universe_rdy, 0, 1));
-    muste(sem_init(&thread_paused, 0, 0));
+    muste(sem_init(&pauses, 0, 0));
+    muste(sem_init(&unpauses, 0, 0));
     muste(sigaction(SIGUSR1,
                     &(struct sigaction){.sa_handler=wait_for_universe,
                             .sa_flags=SA_RESTART | SA_NODEFER}, NULL));

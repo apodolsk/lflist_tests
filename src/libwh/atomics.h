@@ -2,7 +2,7 @@
 
 #include <peb_util.h>
 
-uptr _xadd(uptr s, volatile uptr *p);
+uptr _xadd(iptr s, volatile uptr *p);
 uptr _xchg(uptr s, volatile uptr *p);
 dptr _xchg2(dptr s, volatile dptr *p);
 uptr _atomic_read(volatile uptr *p);
@@ -26,7 +26,7 @@ howok _cas2_ok(dptr n, volatile dptr *p, dptr *old);
 #define atomic_read(p)                          \
     PUN(typeof(*p), _atomic_read((uptr *) p))   \
 
-#define xadd(s, d) PUN(typeof(*d), _xadd(PUN(uptr, s), (uptr *) d))
+#define xadd(s, d) PUN(typeof(*d), _xadd(s, (uptr *) d))
 #define xchg(s, d) PUN(typeof(*d), _xchg(PUN(uptr, s), (uptr *) (d)))
 #define xchg2(s, d) PUN(typeof(*d), _xchg2(PUN(dptr, s), (dptr *) (d)))
 #define condxadd(n, d, lim)                     \

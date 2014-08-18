@@ -441,7 +441,11 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         return true;
     }
 
-    flanchor *pn = pt(p->n), *pp = pt(p->p), *np = pt(n->p), *nn= pt(n->n);
+    flanchor
+        *pn = pt(readx(&p->n)),
+        *pp = pt(readx(&p->p)),
+        *np = pt(readx(&n->p)),
+        *nn = pt(readx(&n->n));
 
     if(ax.nil){
         assert(!on || !*on || *on == cof(a, lflist, nil));
@@ -457,6 +461,8 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         assert(!on || *on != cof(a, lflist, nil));
         assert(p != a && n != a);
         assert(nx.nil || n != p);
+        assert(eq2(a->p, px));
+        assert(eq2(a->n, nx));
         if(!nx.locked)
             assert((pn == a && np == a) ||
                    (pn == a && pt(np->p) == a && pt(np->n) == n) ||

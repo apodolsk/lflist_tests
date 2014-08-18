@@ -8,7 +8,7 @@
 #define FUZZ_PCNT 60
 #define FUZZ_MOD 2
 
-extern uptr (xadd)(uptr s, volatile uptr *p);
+extern uptr (xadd)(iptr s, volatile uptr *p);
 extern uptr (xchg)(uptr s, volatile uptr *p);
 extern uptr (cmpxchg)(uptr n, volatile uptr *p, uptr old);
 extern dptr (cmpxchg2)(dptr n, volatile dptr *p, dptr old);
@@ -24,7 +24,7 @@ static void fuzz_atomics(){
                   NULL);
 }
 
-uptr _xadd(uptr s, volatile uptr *p){
+uptr _xadd(iptr s, volatile uptr *p){
     assert(aligned_pow2(p, sizeof(*p)));
     fuzz_atomics();
     return (xadd)(s, p);
