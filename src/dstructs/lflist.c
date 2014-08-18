@@ -200,10 +200,9 @@ err (lflist_del)(flx a, type *t){
     if(!pn_ok)
        if(!pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}), t))
           || pt(a) != pt(np = readx(&pt(n)->p))){
-        goto np_done;
+           ppl(2, n, np);
+           goto np_done;
        }
-    if(!updx_won((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, &np))
-        goto np_done;
     
     if(!n.nil){
         /* Clean up after an interrupted add of 'n'. In this case,
@@ -221,6 +220,9 @@ err (lflist_del)(flx a, type *t){
             }
         }
     }
+
+    if(!updx_won((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, &np))
+        goto np_done;
 
 np_done:
     assert(pt(n) && (n.locked || n.helped) && pt(pt(a)->n) == pt(n));
@@ -473,7 +475,8 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         else
             assert((pn == a && np == a) ||
                    (pn == n && np == a) ||
-                   (pn == n && np == p));
+                   (pn == n && np == p) ||
+                   (pn != a && np != a));
     }
 
 
