@@ -17,6 +17,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <timing.h>
+#include <signal.h>
 
 #define MAXWRITE 8
 typedef align(sizeof(dptr)) struct{
@@ -51,6 +52,8 @@ static void node_init(node *b);
 extern void set_dbg_id(uint id);
 static err perm_ref_up();
 static void perm_ref_down();
+static void thr_setup(uint id);
+static void thr_destroy(uint id);
 
 type *perm_node_t = &(type)TYPE(node,
                                 (err (*)(volatile void *, type *)) perm_ref_up,
@@ -77,14 +80,13 @@ static void perm_ref_down(){
 }
 
 static void *test_reinsert(uint id){
+    thr_setup(id);
     lflist priv = LFLIST(&priv, NULL);
     list perm = LIST(&perm, NULL);
-    set_dbg_id(id);
     heritage *node_h =
         &(heritage)POSIX_HERITAGE(perm_node_t);
     type *t = perm_node_t;
 
-    wsrand(GETTIME());
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
@@ -118,12 +120,13 @@ static void *test_reinsert(uint id){
         pthread_mutex_unlock(&all_lock);
     }
 
+    thr_destroy(id);
+
     return NULL;
 }
 
 static void *test_del(dbg_id id){
-    set_dbg_id(id);
-    wsrand(GETTIME());
+    thr_setup(id);
     sem_wait(&parent_done);
 
     lflist priv = LFLIST(&priv, NULL);
@@ -200,6 +203,8 @@ static void *test_del(dbg_id id){
         pthread_mutex_unlock(&all_lock);
     }
 
+    thr_destroy(id);
+
     return NULL;
 }
 
@@ -227,15 +232,17 @@ static int magics_valid(notnode *b){
 type *node_t = &(type)TYPE(node, linref_up, linref_down,
                            (void (*)(lineage *))node_init);
 
-static void *test_lin_reinsert(uint t){
+static void *test_lin_reinsert(uint id){
     lflist priv = LFLIST(&priv, NULL);
     list perm = LIST(&perm, NULL);
-    set_dbg_id(t);
     heritage *node_h = &(heritage)HERITAGE(node_t, 1, 1, new_slabs);
+    TODO("");
+    type *t = NULL;
     
     list privnn = LIST(&privnn, NULL);
 
-    wsrand(GETTIME());
+    thr_setup(id);
+
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
@@ -285,24 +292,63 @@ static void *test_lin_reinsert(uint t){
         list_enq(&b->lanc, &all);
     pthread_mutex_unlock(&all_lock);
 
+    thr_destroy(id);
+
     return NULL;
 }
 
-static void launch_test(void *test(void *)){
-    sem_t parent_dead;
-    if(sem_init(&parent_dead, 0, 0))
-        EWTF();
+static struct tctxt{
+    pthread_t id;
+    bool dead;
+} *threads;
+static sem_t universe_rdy;
+static void thr_setup(uint id){
+    set_dbg_id(id);
+    wsrand(GETTIME());
+}
 
-    pthread_t tids[nthreads];
+static void thr_destroy(uint id){
+    threads[id - firstborn].dead = true;
+}
+
+err pause_universe(void){
+    sem_wait(&universe_rdy);
+    for(struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
+        if(!c->dead)
+            pthread_kill(c->id, SIGUSR1);
+    return 0;
+}
+
+void resume_universe(void){
     for(uint i = 0; i < nthreads; i++)
-        if(pthread_create(&tids[i], NULL, (void *(*)(void*))test,
+        sem_post(&universe_rdy);
+}
+void wait_for_universe(){
+    log(1, "paused!");
+    sem_wait(&universe_rdy);
+}
+
+static void launch_test(void *test(void *)){
+    muste(sem_init(&universe_rdy, 0, 1));
+    muste(sigaction(SIGUSR1,
+                    &(struct sigaction){.sa_handler=wait_for_universe,
+                            .sa_flags=SA_RESTART | SA_NODEFER}, NULL));
+
+    struct tctxt threadscope[nthreads];
+    threads = threadscope;
+    for(uint i = 0; i < nthreads; i++)
+        if(pthread_create(&threads[i].id, NULL, (void *(*)(void*))test,
                           (void *) (firstborn + i)))
             EWTF();
     
     for(uint i = 0; i < nthreads; i++)
         sem_post(&parent_done);
+
+    pause_universe();
+    resume_universe();
+    
     for(uint i = 0; i < nthreads; i++)
-        pthread_join(tids[i], NULL);
+        pthread_join(threads[i].id, NULL);
     list done = LIST(&done, NULL);
     /* TODO: should use node_t for those tests which require it */
     for(uint i = 0; i < nlists; i++)
