@@ -213,7 +213,6 @@ np_done:
         assert(!pn_ok);
         if(!updx_won((flx){.nil=p.nil,1,0,p.pt,p.gen}, &pt(a)->p, &p))
             EWTF();
-        TODO("Can I even get here?");
     }
 
     pt(a)->n = (flx){.gen = n.gen};
@@ -275,7 +274,6 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         ppl(2, *pn);
         if(!eqx(&pt(a)->p, p, t))
             goto newp;
-        assert(pt(*pn));
         if(pt(*pn) != pt(a)){
             if(!a.nil)
                 return -1;
