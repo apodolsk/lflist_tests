@@ -10,26 +10,26 @@ SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 CFLAGS:=$(INC)\
-	 -O0\
-	 -D_GNU_SOURCE\
-	 -Wall\
-	 -Wno-format\
-	 -Wextra\
-	 -Wno-missing-field-initializers\
-	 -Werror\
-	 -fplan9-extensions\
-	 -Wno-unused-variable\
-	 -std=gnu11\
-	 -g\
-	 -Wno-missing-braces\
-	 -Wno-unused-parameter\
-	 -Wno-unused-value\
-	 -Wno-unused-function\
-	 -Wno-int-to-pointer-cast\
-	 -pthread\
-	 -fno-omit-frame-pointer\
-	 -include "global.h"\
-	 -m64
+	-O0\
+	-D_GNU_SOURCE\
+	-Wall \
+	-Wextra \
+	-Werror \
+	-Wcast-align\
+	-Wno-missing-field-initializers \
+	-Wno-missing-braces \
+	-Wno-unused-parameter \
+	-Wno-unused-function\
+	-Wno-unused-value\
+	-Wno-address\
+	-fplan9-extensions\
+	-Wno-unused-variable\
+	-std=gnu11\
+	-g\
+	-pthread\
+	-fno-omit-frame-pointer\
+	-include "global.h"\
+	-m64
 LD:=$(CC)
 LDFLAGS:=-fvisibility=hidden -lprofiler -pthread -lrt $(CFLAGS)
 

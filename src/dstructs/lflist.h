@@ -78,7 +78,7 @@ flx lflist_next(flx p, lflist *l);
 
 #ifndef FAKELOCKFREE
 
-#define pudef (flx, "{%:%:%:%, %}", (void *)(a->pt << 3), (uptr) a->nil, \
+#define pudef (flx, "{%:%:%:%, %}", (void *)(uptr)(a->pt << 3), (uptr) a->nil, \
                (uptr) a->locked, (uptr) a->helped, a->gen)
 #include <pudef.h>
 #define pudef (flanchor, "n:%, p:%", a->n, a->p)

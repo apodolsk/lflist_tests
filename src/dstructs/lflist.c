@@ -51,7 +51,7 @@ static err help_prev(flx a, flx *p, flx *pn, type *t);
 
 static
 flanchor *pt(flx a){
-    return (flanchor *) (a.pt << 3);
+    return (flanchor *) (uptr)(a.pt << 3);
 }
 static
 flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
@@ -155,10 +155,15 @@ err (lflist_del)(flx a, type *t){
         goto cleanup;
     flx n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
     for(int c = 0;; TEST_CONTENTION(c)){
-        if(help_next(a, &n, &np, t))
+        if(help_next(a, &n, &np, t)){
+            RARITY("n abort");
             break;
-        if(help_prev(a, &p, &pn, t))
+        }
+        if(help_prev(a, &p, &pn, t)){
+            RARITY("p abort");
+            assert(pt(np) == pt(a));
             break;
+        }
         assert(!pn.locked);
 
         flx oldn = n;
@@ -183,10 +188,11 @@ err (lflist_del)(flx a, type *t){
     if(pt(np) != pt(a))
         goto np_done;
     assert(pt(p) && !p.locked && p.gen == a.gen && eq2(readx(&pt(a)->p), p));
-    if(!pn_ok
-       || !pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}), t))
-       || pt(a) != pt(np = readx(&pt(n)->p))
-       || !updx_won((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, &np))
+    if(!pn_ok)
+       if(!pt(n = flinref_read(&pt(a)->n, ((flx*[]){&n, NULL}), t))
+          || pt(a) != pt(np = readx(&pt(n)->p)))
+        goto np_done;
+    if(!updx_won((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, &np))
         goto np_done;
     
     if(!n.nil){
@@ -277,7 +283,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(pt(*pn) != pt(a)){
             if(!a.nil)
                 return -1;
-            assert(!pn->nil);
+            assert(!pn->nil && pt(pn));
             if(!updx_ok((flx){.pt=pn->pt, .gen=p->gen + 1}, &pt(a)->p, p))
                 continue;
             goto newp;
@@ -295,10 +301,11 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             goto newp;
         
         if(pt(ppn) == pt(a) ||
-           (!ppn.locked &&
-            (updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1}, &pt(*p)->n, pn)
-             ?: ({goto newpn;0;}))
-            && updx_ok((flx){a.mp, ppn.gen + 1}, &pt(pp)->n, &ppn)))
+           (!ppn.locked
+            && (updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1},
+                        &pt(*p)->n, pn) ?: ({goto newpn;0;}))
+            && updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1},
+                       &pt(pp)->n, &ppn)))
         {
             /* TODO flinref... */
             if(!updx_ok((flx){.nil=pp.nil, .pt=pp.pt, p->gen}, &pt(a)->p, p))
@@ -352,8 +359,6 @@ flx (lflist_deq)(type *t, lflist *l){
             EWTF();
         if(n.nil)
             return assert(&l->nil == pt(n)), (flx){};
-        if(eq2(oldn, n))
-            return flinref_down(&n, t), (flx){};
         assert(!eq2(oldn, n));
         if(!lflist_del(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};

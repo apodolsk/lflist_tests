@@ -40,7 +40,7 @@ uint nblocks = 100;
 uint nwrites = 8;
 
 /* GDB starts counting threads at 1, so the first child is 2. Urgh. */
-const uint firstborn = 2;
+const uptr firstborn = 2;
 
 static sem_t parent_done;
 
@@ -292,7 +292,7 @@ static void launch_test(void *test(void *)){
     pthread_t tids[nthreads];
     for(uint i = 0; i < nthreads; i++)
         if(pthread_create(&tids[i], NULL, (void *(*)(void*))test,
-                          (void *) firstborn + i))
+                          (void *) (firstborn + i)))
             EWTF();
     
     for(uint i = 0; i < nthreads; i++)
