@@ -193,7 +193,7 @@ err (lflist_del)(flx a, type *t){
                eq2(pt(a)->p, p) &&
                pt(a)->n.pt == n.pt);
 
-    ppl(2, np, a, pn_ok);
+    ppl(2, n, np, a, pn_ok);
     if(pt(np) != pt(a))
         goto np_done;
     assert(pt(p) && !p.locked && p.gen == a.gen && eq2(pt(a)->p, p));
@@ -203,8 +203,10 @@ err (lflist_del)(flx a, type *t){
            ppl(2, n, np);
            goto np_done;
        }
+
+    casx((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, (flx[]){np})
     
-    if(!n.nil){
+    if(!n.nil && np.helped){
         /* Clean up after an interrupted add of 'n'. In this case,
            a->n is the only reference to 'n' discoverable from nil,
            and we should finish the add before it gets cleared (next
@@ -214,15 +216,10 @@ err (lflist_del)(flx a, type *t){
         if(nn.nil){
             flx nnp = readx(&pt(nn)->p);
             ppl(2, nnp);
-            if(pt(nnp) == pt(a)){
-                assert(!n.nil);
+            if(pt(nnp) == pt(a))
                 casx((flx){.pt=n.pt, nnp.gen + 1}, &pt(nn)->p, &nnp);
-            }
         }
     }
-
-    if(!updx_won((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, &np))
-        goto np_done;
 
 np_done:
     assert(pt(n) && (n.locked || n.helped) && pt(pt(a)->n) == pt(n));
@@ -347,7 +344,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         oldp = p;
         oldpn = pn;
 
-        pt(a)->p.mp = p.mp;
+        pt(a)->p.markp = (markp){.nil=p.nil,.helped=1,.pt=p.pt};
         if(updx_won((flx){.helped=pn.helped, .pt=a.pt, pn.gen + 1},
                     &pt(p)->n, &pn))
             break;
