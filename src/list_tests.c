@@ -302,6 +302,8 @@ static struct tctxt{
     bool dead;
 } *threads;
 static sem_t universe_rdy;
+static sem_t thread_paused;
+
 static void thr_setup(uint id){
     set_dbg_id(id);
     wsrand(GETTIME());
@@ -313,9 +315,12 @@ static void thr_destroy(uint id){
 
 err pause_universe(void){
     sem_wait(&universe_rdy);
+    cnt live = 0;
     for(struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
         if(!c->dead && c->id != pthread_self())
-            pthread_kill(c->id, SIGUSR1);
+            live++, pthread_kill(c->id, SIGUSR1);
+    for(uint i = 0; i < live; i++)
+        sem_wait(&thread_paused);
     return 0;
 }
 
@@ -324,12 +329,13 @@ void resume_universe(void){
         sem_post(&universe_rdy);
 }
 void wait_for_universe(){
-    log(1, "paused!");
+    sem_post(&thread_paused);
     sem_wait(&universe_rdy);
 }
 
 static void launch_test(void *test(void *)){
     muste(sem_init(&universe_rdy, 0, 1));
+    muste(sem_init(&thread_paused, 0, 0));
     muste(sigaction(SIGUSR1,
                     &(struct sigaction){.sa_handler=wait_for_universe,
                             .sa_flags=SA_RESTART | SA_NODEFER}, NULL));

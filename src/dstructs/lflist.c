@@ -188,8 +188,10 @@ err (lflist_del)(flx a, type *t){
     if(!del_won)
         goto cleanup;
 
-    if(pn_ok)
-        assert(pt(pn) == pt(pt(a)->n) && eq2(pt(a)->p, p) && (eq2(pt(a)->n, n)));
+    if(pn_ok == WON)
+        assert(pt(pn) == pt(pt(a)->n) &&
+               eq2(pt(a)->p, p) &&
+               pt(a)->n.pt == n.pt);
 
     ppl(2, np, a, pn_ok);
     if(pt(np) != pt(a))
@@ -457,10 +459,11 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         assert(nx.nil || n != p);
         if(!nx.locked)
             assert((pn == a && np == a) ||
-                   (pn == a && pt(np->p) == a && pt(np->n) == np) ||
+                   (pn == a && pt(np->p) == a && pt(np->n) == n) ||
                    (nx.nil && ((pn == n && np == p)
                                || (pn == a && np == p)
-                               || (pn != n && np != p))));
+                               || (pn != n && np != p)
+                               || (pn != n && pt(pn->n) == n && pt(pn->p) == p))));
         else
             assert((pn == a && np == a) ||
                    (pn == n && np == a) ||
