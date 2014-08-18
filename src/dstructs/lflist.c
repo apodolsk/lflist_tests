@@ -390,22 +390,58 @@ flx flx_of(flanchor *a){
     return (flx){.pt = mpt(a), a->p.gen};
 }
 
-/* bool lflist_valid(lflist *l){ */
-/*     pause_universe(); */
-/*     flx n = l->nil.n; */
-/*     flx p = l->nil.p; */
-/*     assert(pt(n) == pt(p)); */
-/*     assert(!n.nil || pt(n) == pt(p)); */
-/*     for(flanchor *a = &l->nil;;){ */
-/*         assert(flanchor_valid(a)); */
-/*         a = pt(pt(a)->n, l); */
-/*     } */
-/*     resume_universe(); */
-/* } */
+bool lflist_valid(flx a){
+    if(pause_universe())
+        return true;
+    lflist *on = NULL;
+    for(flx c = a, n = {};;){
+        assert(flanchor_valid(c, &n, &on));
+        if(!pt(n) || pt(n) == pt(a))
+            return true;
+    }
+    assert(on);
+}
 
-/* bool flanchor_valid(flanchor *a, lflist *on){ */
-    
-/* } */
+bool flanchor_valid(flx ax, flx *retn, lflist **on){
+    flanchor *a = pt(ax);
+    flx px = a->p, nx = *retn = a->n;
+    flanchor *p = pt(px), *n = pt(nx);
+
+    if(!p || !n){
+        assert(!ax.nil);
+        assert((!p && !n) ||
+               (!p && pt(n->p) != a && nx.locked && pt(pt(n->n)->p) != a) ||
+               (!n && pt(p->n) != a && !px.locked));
+        return true;
+    }
+
+    flanchor *pn = pt(p->n), *pp = pt(p->p), *np = pt(n->p), *nn= pt(n->n);
+
+    if(ax.nil){
+        assert(!*on || *on == a);
+        *on = cof(flptr(a), lflist, nil);
+        assert(p && n && pn && np && pp && nn);
+        assert(!px.locked && !px.helped && !nx.locked && !px.helped);
+        assert(np == a || pt(np->p) == a && pt(np->n) == np && np->n.locked);
+        assert(pn == a
+               || !pn->n.locked && pt(pn->n) == a && pt(pn->p) == p
+               || ;
+    }else{
+        assert(p != a && n != a);
+        assert(nx.nil || n != p);
+        if(!nx.locked)
+            assert((np == a && pn == a) ||
+                   (nx.nil && pn == a && np == p) ||
+                   (nx.nil && pn == n && np == p) ||
+                   (nx.nil && pn != n && np != p));
+        else
+            assert((pn == a && np == a) ||
+                   (pn == n && np == a) ||
+                   (pn == n && np == p));
+    }
+
+        
+}
 
 
 #endif
