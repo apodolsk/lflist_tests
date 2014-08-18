@@ -249,6 +249,8 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             return 0;
         if(n->locked)
             return -1;
+        if(!a.nil && n->nil && pt(a)->p.gen != a.gen)
+            return -1;
         assert(pt(*np) && !np->locked);
         assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
         oldn = *n;
@@ -341,7 +343,8 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         oldpn = pn;
 
         pt(a)->p.mp = p.mp;
-        if(updx_won((flx){.mp=a.mp, pn.gen + 1}, &pt(p)->n, &pn))
+        if(updx_won((flx){.helped=pn.helped, .pt=a.pt, pn.gen + 1},
+                    &pt(p)->n, &pn))
             break;
     }
     casx((flx){a.mp, .gen=p.gen + 1}, &l->nil.p, (flx[]){p});

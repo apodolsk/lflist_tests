@@ -86,6 +86,7 @@ static void *test_reinsert(uint id){
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
+        ppl(1, i);
         if(randpcnt(10) && condxadd(1, &nb, nblocks) < nblocks){
             node *b = (node *) linalloc(node_h);
             lflist_enq(flx_of(&b->flanc), t, &priv);
