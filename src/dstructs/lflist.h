@@ -76,6 +76,8 @@ flx lflist_deq(type *t, lflist *l);
 flx lflist_peek(lflist *l);
 flx lflist_next(flx p, lflist *l);
 
+bool lflist_valid(flx a);
+
 #ifndef FAKELOCKFREE
 
 #define pudef (flx, "{%:%:%:%, %}", (void *)(uptr)(a->pt << 3), (uptr) a->nil, \

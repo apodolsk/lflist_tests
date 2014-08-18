@@ -314,7 +314,7 @@ static void thr_destroy(uint id){
 err pause_universe(void){
     sem_wait(&universe_rdy);
     for(struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
-        if(!c->dead)
+        if(!c->dead && c->id != pthread_self())
             pthread_kill(c->id, SIGUSR1);
     return 0;
 }
@@ -343,9 +343,6 @@ static void launch_test(void *test(void *)){
     
     for(uint i = 0; i < nthreads; i++)
         sem_post(&parent_done);
-
-    pause_universe();
-    resume_universe();
     
     for(uint i = 0; i < nthreads; i++)
         pthread_join(threads[i].id, NULL);

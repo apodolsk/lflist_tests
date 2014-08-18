@@ -32,6 +32,9 @@
 
 #ifndef FAKELOCKFREE
 
+#define LIST_CHECK_FREQ 5
+#define FLANC_CHECK_FREQ 40
+
 #define MAX_LOOP 0
 #define TEST_CONTENTION(c)                                                 \
     ({ if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %", c); })
@@ -41,6 +44,7 @@ static int flinref_up(flx *a, type *t);
 static void flinref_down(flx *a, type *t);
 static err help_next(flx a, flx *n, flx *np, type *t);
 static err help_prev(flx a, flx *p, flx *pn, type *t);
+static bool flanchor_valid(flx ax);
 
 #define flinref_up(as...) trace(LFLISTM, 5, flinref_up, as)
 #define flinref_down(as...) trace(LFLISTM, 5, flinref_down, as)
@@ -61,6 +65,7 @@ flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
     flx oe = *e;
     *e = cas2(n, a, oe);
     log(2, "% %:%- found:% addr:%", eq2(*e, oe)? "WON" : "LOST", f, l, *e, a);
+    assert(!pt(n) || flanchor_valid(n));
     return *e;
 }
 
@@ -183,7 +188,7 @@ err (lflist_del)(flx a, type *t){
     if(!del_won)
         goto cleanup;
 
-    if(!pn_ok)
+    if(pn_ok)
         assert(pt(pn) == pt(pt(a)->n) && eq2(pt(a)->p, p) && (eq2(pt(a)->n, n)));
 
     ppl(2, np, a, pn_ok);
@@ -390,57 +395,80 @@ flx flx_of(flanchor *a){
     return (flx){.pt = mpt(a), a->p.gen};
 }
 
+static bool _flanchor_valid(flx ax, flx *retn, lflist **on);
+
 bool lflist_valid(flx a){
-    if(pause_universe())
+    if(!randpcnt(LIST_CHECK_FREQ) || pause_universe())
         return true;
     lflist *on = NULL;
-    for(flx c = a, n = {};;){
-        assert(flanchor_valid(c, &n, &on));
-        if(!pt(n) || pt(n) == pt(a))
-            return true;
+    for(flx c = a;;){
+        assert(_flanchor_valid(c, &c, &on));
+        if(!pt(c) || pt(c) == pt(a))
+            break;
     }
     assert(on);
+    resume_universe();
+    return true;
 }
 
-bool flanchor_valid(flx ax, flx *retn, lflist **on){
+static 
+bool flanchor_valid(flx ax){
+    if(!randpcnt(FLANC_CHECK_FREQ) || pause_universe())
+        return true;
+    assert(_flanchor_valid(ax, NULL, NULL));
+    resume_universe();
+    return true;
+}
+
+static
+bool _flanchor_valid(flx ax, flx *retn, lflist **on){
     flanchor *a = pt(ax);
-    flx px = a->p, nx = *retn = a->n;
+    assert(a);
+    flx px = a->p, nx = a->n;
     flanchor *p = pt(px), *n = pt(nx);
+    if(retn) *retn = nx;
 
     if(!p || !n){
         assert(!ax.nil);
-        assert((!p && !n) ||
-               (!p && pt(n->p) != a && nx.locked && pt(pt(n->n)->p) != a) ||
-               (!n && pt(p->n) != a && !px.locked));
+        assert((eq2(nx,(flx){.gen=nx.gen}) && !p && !px.helped)
+               || (!p && n && pt(n->p) != a
+                   && (nx.locked || (nx.nil && px.locked))
+                   && (!pt(n->n) || pt(pt(n->n)->p) != a))
+               || (!n && p && pt(p->n) != a && !px.locked));
+        if(retn) *retn = (flx){};
         return true;
     }
 
     flanchor *pn = pt(p->n), *pp = pt(p->p), *np = pt(n->p), *nn= pt(n->n);
 
     if(ax.nil){
-        assert(!*on || *on == a);
-        *on = cof(flptr(a), lflist, nil);
+        assert(!on || !*on || *on == cof(a, lflist, nil));
+        if(on)
+            *on = cof(a, lflist, nil);
         assert(p && n && pn && np && pp && nn);
         assert(!px.locked && !px.helped && !nx.locked && !px.helped);
-        assert(np == a || pt(np->p) == a && pt(np->n) == np && np->n.locked);
+        assert(np == a
+               || (pt(np->p) == a && pt(np->n) == n && np->n.locked));
         assert(pn == a
-               || !pn->n.locked && pt(pn->n) == a && pt(pn->p) == p
-               || ;
+               || (!pn->n.locked && pt(pn->n) == a && pt(pn->p) == p));
     }else{
+        assert(!on || *on != cof(a, lflist, nil));
         assert(p != a && n != a);
         assert(nx.nil || n != p);
         if(!nx.locked)
-            assert((np == a && pn == a) ||
-                   (nx.nil && pn == a && np == p) ||
-                   (nx.nil && pn == n && np == p) ||
-                   (nx.nil && pn != n && np != p));
+            assert((pn == a && np == a) ||
+                   (pn == a && pt(np->p) == a && pt(np->n) == np) ||
+                   (nx.nil && ((pn == n && np == p)
+                               || (pn == a && np == p)
+                               || (pn != n && np != p))));
         else
             assert((pn == a && np == a) ||
                    (pn == n && np == a) ||
                    (pn == n && np == p));
     }
 
-        
+
+    return true;
 }
 
 

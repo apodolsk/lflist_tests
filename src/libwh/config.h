@@ -18,3 +18,6 @@ void slabs_init(void);
 struct slab *new_slabs(cnt batch);
 
 dbg_id get_dbg_id(void);
+
+err pause_universe(void);
+void resume_universe(void);

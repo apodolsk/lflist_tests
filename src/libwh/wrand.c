@@ -17,7 +17,7 @@ void rand_update_local_seed(void){
 }
 
 bool randpcnt(uint pcnt){
-    return (uint) wrand() % 100 < pcnt;
+    return pcnt && ((uint) wrand() % 100 < pcnt);
 }
 
 void wsrand(uint seed){
