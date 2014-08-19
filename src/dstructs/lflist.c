@@ -52,8 +52,7 @@ static bool flanchor_valid(flx ax);
 #define help_prev(as...) trace(LFLISTM, 3, help_prev, as)
 #define flinref_read(as...) trace(LFLISTM, 4, flinref_read, as)
 
-
-static
+static inline
 flanchor *pt(flx a){
     return (flanchor *) (uptr)(a.pt << 3);
 }
@@ -83,6 +82,12 @@ static bool updx_won(const char *f, int l,
                     flx n, volatile flx *a, flx *e){
     flx oe = *e;
     return eq2(oe, casx(f, l, n, a, e));
+}
+
+static bool progress(flx *o, flx n){
+    bool eq = eq2(*o, n);
+    *o = n;
+    return !eq || !n.mp;
 }
 
 #define casx(as...) casx(__func__, __LINE__, as)
@@ -182,10 +187,9 @@ err (lflist_del)(flx a, type *t){
     if(!del_won)
         goto cleanup;
 
-    if(pn_ok)
-        assert(eq2(pt(a)->p, p) &&
-               pt(a)->n.pt == n.pt);
-    if(pt(np) != pt(a))
+    if(pn_ok || pt(np) == pt(a))
+        assert(eq2(pt(a)->p, p));
+    if(pn_ok || pt(np) != pt(a))
         assert(pt(a)->n.pt == n.pt);
     
     /* Must be p abort */
@@ -232,11 +236,11 @@ cleanup:
 
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
-    flx oldn = (flx){}, oldnp = (flx){};
-    for(int lp = 0; ppl(2, *n), 1;){
+    flx on = (flx){}, onp = (flx){};
+    for(int lp = 0;; assert(progress(&on, ppl(2,*n)))){
         if(!pt(*n))
             return -1;
-        for(*np = readx(&pt(*n)->p); ppl(2, *np), 1; countloops(lp)){
+        for(*np = readx(&pt(*n)->p);; assert(progress(&onp, ppl(2,*np)))){
             if(pt(*np) == pt(a))
                 return 0;
             if(!eqx(&pt(a)->n, n, t))
@@ -246,13 +250,11 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             if(!a.nil && n->nil && pt(a)->p.gen != a.gen)
                 return -1;
             assert(pt(*np) && !np->locked);
-            assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
-            oldn = *n;
-            oldnp = *np;
 
             if(updx_ok((flx){.nil=a.nil, 0, np->helped, a.pt, np->gen + n->nil}, &
                        pt(*n)->p, np))
                 return 0;
+            countloops(lp);
         }
     }
 }
@@ -283,29 +285,53 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             if(!pt(pp))
                 break;
             flx ppn = ppl(2, readx(&pt(pp)->n));
+        newppn:
             if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
                 continue;
 
-            if(pt(ppn) == pt(a) ||
-               (!ppn.locked
-                && (updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1},
-                            &pt(*p)->n, pn) ?: ({continue; 0;}))
-                && updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1},
-                           &pt(pp)->n, &ppn)))
-            {
-                /* TODO flinref... */
+            if(pt(ppn) == pt(a)){
                 if(!updx_ok((flx){.nil=pp.nil, .pt=pp.pt, p->gen}, &pt(a)->p, p))
                     goto newp;
-                flinref_down(p, t);
                 *pn = ppn;
                 continue;
             }
-            if(!eqx(&pt(a)->p, p, t))
-                goto newp;
-        
 
-            if(updx_ok((flx){.nil=a.nil, 0, 1, a.pt, pn->gen + 1}, &pt(*p)->n, pn))
-                return 0;
+            if(ppn.locked){
+                if(updx_ok((flx){.nil=a.nil, 0, 1, a.pt, pn->gen + 1},
+                           &pt(*p)->n, pn))
+                    return 0;
+                continue;
+            }
+
+            if(!updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1},
+                        &pt(*p)->n, pn))
+                continue;
+            updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1},
+                    &pt(pp)->n, &ppn);
+            goto newppn;
+
+            /* if(!ppn.locked && pt(ppn) == pt(a)) */
+
+            /* if(pt(ppn) == pt(a) || */
+            /*    (!ppn.locked */
+            /*     && (updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1}, */
+            /*                 &pt(*p)->n, pn) ?: ({continue; 0;})) */
+            /*     && updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1}, */
+            /*                &pt(pp)->n, &ppn))) */
+            /* { */
+            /*     /\* TODO flinref... *\/ */
+            /*     if(!updx_ok((flx){.nil=pp.nil, .pt=pp.pt, p->gen}, &pt(a)->p, p)) */
+            /*         goto newp; */
+            /*     flinref_down(p, t); */
+            /*     *pn = ppn; */
+            /*     continue; */
+            /* } */
+            /* if(!eqx(&pt(a)->p, p, t)) */
+            /*     goto newp; */
+
+            /* if(pt(ppn) == pt(a)) */
+                
+
         }
     }
 }
