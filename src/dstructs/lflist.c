@@ -210,7 +210,8 @@ err (lflist_del)(flx a, type *t){
        a->n is the only reference to 'n' discoverable from nil,
        and we should finish the add before it gets cleared (next
        time a is added). */
-    if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){
+    /* if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){ */
+    if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){    
         flx nn = readx(&pt(n)->n);
         if(nn.nil){
             flx nnp = readx(&pt(nn)->p);
@@ -219,7 +220,7 @@ err (lflist_del)(flx a, type *t){
         }
     }
 
-    /* No more updates. */
+    /* No updates should have happened. */
     assert(pt(a)->n.locked &&
            pt(a)->p.gen == a.gen &&
            eq2(pt(a)->p, pt(a)->p) &&
@@ -230,6 +231,8 @@ err (lflist_del)(flx a, type *t){
 
 cleanup:
     if(pt(n))
+        flinref_down(&n, t);
+    if(pt(p))
         flinref_down(&n, t);
     return -!del_won;
 }
@@ -260,7 +263,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         oldn = *n;
         oldnp = *np;
 
-        if(updx_ok((flx){a.mp, np->gen + n->nil)}, &pt(*n)->p, np))
+        if(updx_ok((flx){a.mp, np->gen + n->nil}, &pt(*n)->p, np))
             return 0;
         goto newnp;
         /* *n = flinref_read(&pt(a)->n, ((flx*[]){n, NULL}), t); */
