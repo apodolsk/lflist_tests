@@ -285,9 +285,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 return 0;
 
             flx pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
-            if(!pt(pp))
+            if(!pt(pp)){
+                ppl(2, pp);
                 break;
-            progress(&opp, pp, lps);
+            }
             for(flx ppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
                     break;
