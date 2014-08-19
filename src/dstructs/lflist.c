@@ -476,7 +476,11 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
                    (nx.nil && ((pn == n && np == p)
                                || (pn == a && np == p)
                                || (pn != a && np != p)
-                               || (pn != n && pt(pn->n) == n && pt(pn->p) == p))));
+                               || (pn != n && np == p
+                                   && pt(pn->n) == n
+                                   && pn->p.helped
+                                   && (pt(pn->p) == p
+                                       || (pt(pp->n) != p && p->n.locked))))));
         else
             assert((pn == a && np == a) ||
                    (pn == n && np == a) ||

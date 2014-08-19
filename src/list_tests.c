@@ -322,7 +322,6 @@ static void thr_destroy(uint id){
 iptr waiters;
 err pause_universe(void){
     assert(waiters >= 0);
-    pp(waiters);
     if(!cas_won(1, &waiters, (iptr[]){0}))
         return -1;
     muste(pthread_mutex_lock(&state_lock));
