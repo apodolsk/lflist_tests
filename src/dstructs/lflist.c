@@ -160,10 +160,10 @@ err (lflist_del)(flx a, type *t){
 
     howok pn_ok = NOT;
     bool del_won = false;
-    flx pn = {}, np = {}, p = {};
+    flx pn, p = {};
     if(help_prev(a, &p, &pn, t))
         goto cleanup;
-    flx n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
+    flx np, n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
     for(int c = 0;; countloops(c)){
         if(help_next(a, &n, &np, t))
             break;
@@ -262,77 +262,58 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
 static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
     flx pp = {};
-    for(int c = 0; ppl(2, *p), 1;){
+    if(!p->mp)
         *p = flinref_read(&pt(a)->p, ((flx*[]){p, &pp, NULL}), t);
-    newp:
+    else goto newnp;
+    for(int c = 0; ppl(2, *p), 1;){
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
-        for(*pn = readx(&pt(*p)->n); ppl(2, *pn), 1;){
+        for(*pn = readx(&pt(*p)->n);; ppl(2, *pn)){
+        newnp:
             if(!eqx(&pt(a)->p, p, t))
-                goto newp;
+                break;
             if(pt(*pn) != pt(a)){
                 if(!a.nil)
                     return -1;
                 assert(!pn->nil && pt(*pn));
                 if(!updx_ok((flx){.pt=pn->pt, .gen=p->gen + 1}, &pt(a)->p, p))
                     break;
-                goto newp;
+                break;
             }
             if(!pn->locked)
                 return 0;
-        
+
             pp = ppl(2, flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t));
             if(!pt(pp))
                 break;
-            flx ppn = ppl(2, readx(&pt(pp)->n));
-        newppn:
-            if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
-                continue;
+            for(flx ppn = ppl(2, readx(&pt(pp)->n));;){
+                if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
+                    break;
 
-            if(pt(ppn) == pt(a)){
-                if(!updx_ok((flx){.nil=pp.nil, .pt=pp.pt, p->gen}, &pt(a)->p, p))
-                    goto newp;
-                *pn = ppn;
-                continue;
+                if(pt(ppn) == pt(a)){
+                    if(!updx_ok((flx){.nil=pp.nil, .pt=pp.pt, p->gen},
+                                &pt(a)->p, p))
+                        goto newp;
+                    *pn = ppn;
+                    break;
+                }
+
+                if(ppn.locked){
+                    if(updx_ok((flx){.nil=a.nil, 0, 1, a.pt, pn->gen + 1},
+                               &pt(*p)->n, pn))
+                        return 0;
+                    break;
+                }
+
+                if(!updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1},
+                            &pt(*p)->n, pn))
+                    break;
+                updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1},
+                        &pt(pp)->n, &ppn);
             }
-
-            if(ppn.locked){
-                if(updx_ok((flx){.nil=a.nil, 0, 1, a.pt, pn->gen + 1},
-                           &pt(*p)->n, pn))
-                    return 0;
-                continue;
-            }
-
-            if(!updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1},
-                        &pt(*p)->n, pn))
-                continue;
-            updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1},
-                    &pt(pp)->n, &ppn);
-            goto newppn;
-
-            /* if(!ppn.locked && pt(ppn) == pt(a)) */
-
-            /* if(pt(ppn) == pt(a) || */
-            /*    (!ppn.locked */
-            /*     && (updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1}, */
-            /*                 &pt(*p)->n, pn) ?: ({continue; 0;})) */
-            /*     && updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1}, */
-            /*                &pt(pp)->n, &ppn))) */
-            /* { */
-            /*     /\* TODO flinref... *\/ */
-            /*     if(!updx_ok((flx){.nil=pp.nil, .pt=pp.pt, p->gen}, &pt(a)->p, p)) */
-            /*         goto newp; */
-            /*     flinref_down(p, t); */
-            /*     *pn = ppn; */
-            /*     continue; */
-            /* } */
-            /* if(!eqx(&pt(a)->p, p, t)) */
-            /*     goto newp; */
-
-            /* if(pt(ppn) == pt(a)) */
-                
-
         }
+        /* Down here so that loop conditions get evaluated */
+    newp:;
     }
 }
 
