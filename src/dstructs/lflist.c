@@ -468,7 +468,7 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         assert(!on || *on != cof(a, lflist, nil));
         assert(p != a && n != a);
         assert(nx.nil || n != p);
-        if(!nx.locked)
+        if(!nx.locked){
             /* Could be enq(a) at any stage or "equilibrium" before del(a)
                sets anything. Unless enq(a) is in flight, pn==a. */
             assert((pn == a && np == a) ||
@@ -488,7 +488,15 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
                                        /* del(p) is far enough along to
                                           enable pn->p updates but hasn't
                                           helped enq(pn) set a->n=p */
-                                       || (pt(pp->n) != p && p->n.locked))))));
+                                       || (pt(pp->n) != p && p->n.locked)))
+                               || (pn == a && np != a
+                                   && !a->n.locked && a->p.helped
+                                   && pt(np->n) == a
+                                   && (np == p
+                                       || (np->n.locked
+                                           && pt(pt(np->p)->n) != np))))));
+        
+        }
         else
             /* Stages of del(a) after locking a->n. If np!=a, then pn!=a,
                but not vice-versa. */
