@@ -438,7 +438,7 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
     /* && (nx.locked || (nx.nil && px.locked)) */
     /* && (!pt(n->n) || pt(pt(n->n)->p) != a)) */
     
-    /* Could be early enq(a) or late del(a). */
+    /* Early enq(a) or late del(a). */
     if(!p || !n){
         assert(!ax.nil);
                /* a's on no list. */
@@ -446,14 +446,15 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
                /* enq(a) has locked a->p */
                || (!nx.mp && px.locked)
                /* enq(a, l) set a->n=&l->nil  */
-               || (!p && px.locked && n
+               || (!p && n && px.locked
                    && pt(n->p) != a
-                   && nx.nil
                    && (!pt(n->n) || pt(pt(n->n)->p) != a))
-               /* last stage of del(a). */
-               || ((!n && p && pt(p->n) != a && !px.locked)
-                   /* make sure it helped enq(n) */
-                   && (!pt(n->n) || pt(pt(n->n)->p) != a)));
+               /* last stage of del(a). It should have helped enq("n")
+                  first. */
+               || (!n && p && pt(p->n) != a && !px.locked
+                   /* try to check that del(a) helped enq(n) */
+                   && (!pt(pt(p->n)->n) ||
+                        pt(pt(pt(p->n)->n)->p) != a)));
     if(retn) *retn = (flx){};
         return true;
     }
