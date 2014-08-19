@@ -266,7 +266,6 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
         for(*pn = readx(&pt(*p)->n); ppl(2, *pn), 1;){
-        newpn:
             if(!eqx(&pt(a)->p, p, t))
                 goto newp;
             if(pt(*pn) != pt(a)){
@@ -292,7 +291,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             if(pt(ppn) == pt(a) ||
                (!ppn.locked
                 && (updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1},
-                            &pt(*p)->n, pn) ?: ({goto newpn;0;}))
+                            &pt(*p)->n, pn) ?: ({continue; 0;}))
                 && updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1},
                            &pt(pp)->n, &ppn)))
             {
@@ -301,7 +300,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                     goto newp;
                 flinref_down(p, t);
                 *pn = ppn;
-                goto newpn;
+                continue;
             }
             if(!eqx(&pt(a)->p, p, t))
                 goto newp;
