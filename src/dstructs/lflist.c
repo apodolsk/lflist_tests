@@ -284,10 +284,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 break;
             flx ppn = ppl(2, readx(&pt(pp)->n));
             if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
-                break;
-            if(!eqx(&pt(a)->p, p, t))
-                goto newp;
-        
+                continue;
+
             if(pt(ppn) == pt(a) ||
                (!ppn.locked
                 && (updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1},
