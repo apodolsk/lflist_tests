@@ -221,7 +221,7 @@ err (lflist_del)(flx a, type *t){
 
     assert(pt(a)->n.locked &&
            pt(a)->p.gen == a.gen &&
-           (pt(pn) == pt(a) || eq2(p, pt(a)->p)) &&
+           (pt(np) != pt(a) || eq2(p, pt(a)->p)) &&
            n.pt == pt(a)->n.pt);
 
     pt(a)->n = (flx){.gen = n.gen};
@@ -264,12 +264,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
     flx op = {}, opn = {}, opp = {}, oppn = {};
     if(!p->mp)
         *p = flinref_read(&pt(a)->p, ((flx*[]){p, NULL}), t);
-    else goto newnp;
     for(cnt lps = 0;; progress(&op, *p, lps++)){
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
         for(*pn = readx(&pt(*p)->n);; progress(&opn, *pn, lps++)){
-        newnp:
             if(!eqx(&pt(a)->p, p, t))
                 break;
             if(pt(*pn) != pt(a)){
