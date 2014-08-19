@@ -34,10 +34,7 @@
 
 #define LIST_CHECK_FREQ 5
 #define FLANC_CHECK_FREQ 40
-
 #define MAX_LOOP 0
-#define countloops(c)                                                 \
-    ({ if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %", c); })
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx *a, type *t);
@@ -84,11 +81,17 @@ static bool updx_won(const char *f, int l,
     return eq2(oe, casx(f, l, n, a, e));
 }
 
-static bool progress(flx *o, flx n){
-    bool eq = eq2(*o, n);
-    *o = n;
-    return !eq || !n.mp;
+static void countloops(cnt loops){
+    if(MAX_LOOP && loops > MAX_LOOP)
+        SUPER_RARITY("LOTTA LOOPS: %", loops);
 }
+
+static void progress(flx *o, flx n, cnt loops){
+    assert(!eq2(*o, n));
+    *o = n;
+    countloops(loops);
+}
+#define progress(o, n, loops) progress(o, ppl(2, n, loops))
 
 #define casx(as...) casx(__func__, __LINE__, as)
 #define updx_ok(as...) updx_ok(__func__, __LINE__, as)
@@ -104,15 +107,15 @@ static flx readx(volatile flx *x){
     return cas2((flx){}, x, (flx){});
 }
 static bool eqx(volatile flx *a, flx *b, type *t){
-    flx old = *b;
-    for(int c = 0;; countloops(c)){
+    flx ref = *b;
+    for(cnt lps = 0;; countloops(c)){
         *b = readx(a);
-        if(eq2(old, *b))
+        if(eq2(ref, *b))
             return true;
         if(pt(old) == pt(*b))
             return false;
         if(!pt(*b) || !flinref_up(b, t)){
-            flinref_down(&old, t);
+            flinref_down(&ref, t);
             return false;
         }
     }
@@ -161,10 +164,10 @@ err (lflist_del)(flx a, type *t){
     howok pn_ok = NOT;
     bool del_won = false;
     flx pn, p = {};
-    if(help_prev(a, &p, &pn, t))
-        goto cleanup;
-    flx np, n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
-    for(int c = 0;; countloops(c)){
+    /* if(help_prev(a, &p, &pn, t)) */
+    /*     goto cleanup; */
+    flx np, on, n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
+    for(int c = 0; c++; progress(a, &p, c++)){
         if(help_next(a, &n, &np, t))
             break;
         if(help_prev(a, &p, &pn, t))
@@ -237,10 +240,10 @@ cleanup:
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
     flx on = (flx){}, onp = (flx){};
-    for(int lp = 0;; assert(progress(&on, ppl(2,*n)))){
+    for(int lp = 0;; progress(&on, *n)){
         if(!pt(*n))
             return -1;
-        for(*np = readx(&pt(*n)->p);; assert(progress(&onp, ppl(2,*np)))){
+        for(*np = readx(&pt(*n)->p);; progress(&onp, *np)){
             if(pt(*np) == pt(a))
                 return 0;
             if(!eqx(&pt(a)->n, n, t))
