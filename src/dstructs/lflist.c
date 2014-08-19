@@ -211,7 +211,7 @@ err (lflist_del)(flx a, type *t){
        and we should finish the add before it gets cleared (next
        time a is added). */
     /* if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){ */
-    if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){    
+    if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){
         flx nn = readx(&pt(n)->n);
         if(nn.nil){
             flx nnp = readx(&pt(nn)->p);
