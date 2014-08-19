@@ -161,7 +161,9 @@ err (lflist_del)(flx a, type *t){
 
     howok pn_ok = NOT;
     bool del_won = false;
-    flx opn, pn, p = {};
+    flx opn,
+        p = flinref_read(&pt(a)->p, (flx*[]){NULL}, t),
+        pn = pt(p) ? readx(&pt(p)->n) : (flx){};
     if(help_prev(a, &p, &pn, t))
         goto cleanup;
     flx onp, np, n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
@@ -262,14 +264,16 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
 static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
     flx op = {}, opn = {}, opp = {}, oppn = {};
-    if(!p->mp)
-        *p = flinref_read(&pt(a)->p, ((flx*[]){p, NULL}), t);
-    for(cnt lps = 0;; progress(&op, *p, lps++)){
+    for(cnt lps = 0;;) {
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
-        for(;;*pn = readx(&pt(*p)->n), progress(&opn, *pn, lps++)){
+        progress(&op, *p, lps++);
+        
+        for(; ; ){
+            *pn = readx(&pt(*p)->n);
             if(!eqx(&pt(a)->p, p, t))
                 break;
+            /* progress(&opn, *pn, lps++); */
             if(pt(*pn) != pt(a)){
                 if(!a.nil)
                     return -1;
@@ -310,7 +314,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                         &pt(pp)->n, &ppn);
             }
         }
-        /* Down here so that loop conditions get evaluated */
+        /* Down here so that loop increment gets evaluated. */
     newp:;
     }
 }
@@ -321,10 +325,12 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         return -1;
     assert(!pt(a)->n.mp);
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
-    
-    flx p = {}, pn = {}, oldp = {}, oldpn = {};
+
+    flx p = flinref_read(&l->nil.p, (flx*[]){NULL}, t),
+        pn = pt(p) ? readx(&pt(p)->n) : (flx){};
+    flx oldp = {}, oldpn = {};
     for(int c = 0;;countloops(c)){
-        if(help_prev(((flx){.nil = 1, .pt = mpt(&l->nil)}), &p, &pn, t))
+        if(help_prev(((flx){.nil=1, .pt=mpt(&l->nil)}), &p, &pn, t))
             EWTF();
         assert(pt(p) != pt(a));
         assert(!p.locked && !p.helped && !pn.locked
