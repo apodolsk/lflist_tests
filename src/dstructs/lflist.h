@@ -19,8 +19,8 @@ typedef struct markp{
 
 struct flx{
     union {
-        flanchor *mp;
         markp;
+        flanchor *mp;
         /* Standard C (6.6) doesn't support casting addresses in constant
            expressions. GCC/CLANG do as an undocumented extension, but no
            computation from a cast may be truncated (as it would be if

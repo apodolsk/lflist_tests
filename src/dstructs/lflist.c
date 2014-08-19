@@ -172,14 +172,14 @@ err (lflist_del)(flx a, type *t){
         assert(!pn.locked);
 
         flx oldn = n;
-        howok lock_ok = updx_ok((flx){.nil=n.nil,1,0,n.pt, n.gen + 1},
+        howok lock_ok = updx_ok((flx){n.nil,1,0,n.pt, n.gen + 1},
                                 &pt(a)->n, &n);
         if(!lock_ok)
             continue;
         assert(!del_won || oldn.helped || oldn.locked);
         del_won |= lock_ok == WON && !oldn.helped && !oldn.locked;
 
-        pn_ok = updx_ok((flx){.nil=n.nil, 0, pn.helped, n.pt, pn.gen+1},
+        pn_ok = updx_ok((flx){n.nil, 0, pn.helped, n.pt, pn.gen+1},
                         &pt(p)->n, &pn);
         if(pn_ok)
             break;
@@ -203,7 +203,7 @@ err (lflist_del)(flx a, type *t){
 
     flx onp = np;
     if(pt(np) == pt(a))
-        casx((flx){.nil=p.nil, 0, np.helped, .pt=p.pt, .gen=np.gen + n.nil},
+        casx((flx){p.nil, 0, np.helped, .pt=p.pt, .gen=np.gen + n.nil},
              &pt(n)->p, &np);
 
     /* Clean up after an interrupted add of 'n'. In this case,
@@ -263,7 +263,8 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         oldn = *n;
         oldnp = *np;
 
-        if(updx_ok((flx){a.mp, np->gen + n->nil}, &pt(*n)->p, np))
+        if(updx_ok((flx){a.nil, 0, np->helped, a.pt, np->gen + n->nil},
+                   &pt(*n)->p, np))
             return 0;
         goto newnp;
         /* *n = flinref_read(&pt(a)->n, ((flx*[]){n, NULL}), t); */
@@ -309,13 +310,13 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         
         if(pt(ppn) == pt(a) ||
            (!ppn.locked
-            && (updx_ok((flx){.nil=a.nil, 1, 1, a.pt, pn->gen + 1},
+            && (updx_ok((flx){a.nil, 1, 1, a.pt, pn->gen + 1},
                         &pt(*p)->n, pn) ?: ({goto newpn;0;}))
-            && updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1},
+            && updx_ok((flx){a.nil, 0, ppn.helped, a.pt, ppn.gen + 1},
                        &pt(pp)->n, &ppn)))
         {
             /* TODO flinref... */
-            if(!updx_ok((flx){.nil=pp.nil, .pt=pp.pt, p->gen}, &pt(a)->p, p))
+            if(!updx_ok((flx){pp.nil, .pt=pp.pt, p->gen}, &pt(a)->p, p))
                 goto newp;
             flinref_down(p, t);
             *pn = ppn;
@@ -325,7 +326,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             goto newp;
         
 
-        if(updx_ok((flx){.nil=a.nil, 0, 1, a.pt, pn->gen + 1}, &pt(*p)->n, pn))
+        if(updx_ok((flx){a.nil, 0, 1, a.pt, pn->gen + 1}, &pt(*p)->n, pn))
             return 0;
         goto newpn;
     }
@@ -336,11 +337,11 @@ err (lflist_enq)(flx a, type *t, lflist *l){
                  &(flx){.gen=a.gen}))
         return -1;
     assert(!pt(a)->n.mp);
-    pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
+    pt(a)->n = (flx){1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
     
     flx p = {}, pn = {}, oldp = {}, oldpn = {};
     for(int c = 0;;TEST_CONTENTION(c)){
-        if(help_prev(((flx){.nil = 1, .pt = mpt(&l->nil)}), &p, &pn, t))
+        if(help_prev(((flx){1, .pt = mpt(&l->nil)}), &p, &pn, t))
             EWTF();
         assert(!p.locked && !p.helped && !pn.locked
                && pt(pn) && pn.nil && pt(p) != pt(a) &&
@@ -348,12 +349,12 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         oldp = p;
         oldpn = pn;
 
-        pt(a)->p.markp = (markp){.nil=p.nil,.helped=1,.pt=p.pt};
+        pt(a)->p.markp = (markp){p.nil,.helped=1,.pt=p.pt};
         if(updx_won((flx){.helped=pn.helped, .pt=a.pt, pn.gen + 1},
                     &pt(p)->n, &pn))
             break;
     }
-    casx((flx){a.mp, .gen=p.gen + 1}, &l->nil.p, (flx[]){p});
+    casx((flx){.mp=a.mp, .gen=p.gen + 1}, &l->nil.p, (flx[]){p});
     flinref_down(&p, t);
     return 0;
 }
@@ -362,13 +363,13 @@ flx (lflist_deq)(type *t, lflist *l){
     flx np, oldn = {}, n = {};
     for(int c = 0;;TEST_CONTENTION(c)){
         n = flinref_read(&l->nil.n, ((flx*[]){&n, NULL}), t);
-        if(help_next(((flx){.nil = 1, .pt = mpt(&l->nil)}), &n, &np, t))
+        if(help_next(((flx){1, .pt = mpt(&l->nil)}), &n, &np, t))
             EWTF();
         if(n.nil)
             return assert(&l->nil == pt(n)), (flx){};
         assert(!eq2(oldn, n));
-        if(!lflist_del(((flx){n.mp, np.gen}), t))
-            return (flx){n.mp, np.gen};
+        if(!lflist_del(((flx){.mp=n.mp, np.gen}), t))
+            return (flx){.mp=n.mp, np.gen};
         oldn = n;
     }
 }
