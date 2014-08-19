@@ -87,7 +87,7 @@ static void countloops(cnt loops){
 }
 
 static void progress(flx *o, flx n, cnt loops){
-    assert(!eq2(*o, n));
+    /* assert(!eq2(*o, n)); */
     *o = n;
     countloops(loops);
 }
@@ -286,7 +286,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 
             flx pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
             if(!pt(pp)){
-                ppl(2, pp);
+                if(eqx(&pt(a)->p, p, t))
+                    EWTF();
                 break;
             }
             for(flx ppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
