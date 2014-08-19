@@ -190,9 +190,9 @@ err (lflist_del)(flx a, type *t){
         goto cleanup;
 
     if(pn_ok || pt(np) == pt(a))
-        assert(eq2(pt(a)->p, p));
+        assert(eq2(p, pt(a)->p));
     if(pn_ok || pt(np) != pt(a))
-        assert(pt(a)->n.pt == n.pt);
+        assert(n.pt == pt(a)->n.pt);
     
     /* Must be p abort */
     if(!pn_ok && pt(np) == pt(a)){
@@ -219,11 +219,10 @@ err (lflist_del)(flx a, type *t){
         }
     }
 
-    /* No updates should have happened. */
     assert(pt(a)->n.locked &&
            pt(a)->p.gen == a.gen &&
-           eq2(pt(a)->p, pt(a)->p) &&
-           pt(pt(a)->n) == pt(pt(a)->n));
+           (pt(pn) == pt(a) || eq2(p, pt(a)->p)) &&
+           n.pt == pt(a)->n.pt);
 
     pt(a)->n = (flx){.gen = n.gen};
     pt(a)->p = (flx){.gen = a.gen};
@@ -291,6 +290,9 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 break;
             }
             for(flx ppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
+                if(!eqx(&pt(a)->p, p, t))
+                    goto newp;
+
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
                     break;
                 if(pt(ppn) == pt(a)){
