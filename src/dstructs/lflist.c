@@ -267,9 +267,9 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
     for(cnt lps = 0;;) {
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
-        progress(&op, *p, lps++);
+        /* progress(&op, *p, lps++); */
         
-        for(; ; ){
+        for(;;){
             *pn = readx(&pt(*p)->n);
             if(!eqx(&pt(a)->p, p, t))
                 break;
@@ -286,11 +286,9 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 return 0;
 
             flx pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
-            if(!pt(pp)){
-                if(eqx(&pt(a)->p, p, t))
-                    EWTF();
+            if(!eqx(&pt(a)->p, p, t))
                 break;
-            }
+            assert(pt(pp));
             for(flx ppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
                     break;
