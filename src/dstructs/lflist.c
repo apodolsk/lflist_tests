@@ -288,9 +288,6 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 break;
             }
             for(flx ppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
-                if(!eqx(&pt(a)->p, p, t))
-                    goto newp;
-
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
                     break;
                 if(pt(ppn) == pt(a)){
