@@ -91,7 +91,7 @@ static void progress(flx *o, flx n, cnt loops){
     *o = n;
     countloops(loops);
 }
-#define progress(o, n, loops) progress(o, ppl(2, n, loops))
+#define progress(o, n, loops) progress(o, ppl(2, n), loops)
 
 #define casx(as...) casx(__func__, __LINE__, as)
 #define updx_ok(as...) updx_ok(__func__, __LINE__, as)
@@ -107,18 +107,16 @@ static flx readx(volatile flx *x){
     return cas2((flx){}, x, (flx){});
 }
 static bool eqx(volatile flx *a, flx *b, type *t){
-    flx ref = *b;
-    for(cnt lps = 0;; countloops(c)){
-        *b = readx(a);
-        if(eq2(ref, *b))
-            return true;
-        if(pt(old) == pt(*b))
-            return false;
-        if(!pt(*b) || !flinref_up(b, t)){
-            flinref_down(&ref, t);
-            return false;
+    flx old = *b;
+    *b = readx(a);
+    if(pt(old) != pt(*b)){
+        flinref_down((flx[]){old}, t);
+        if(pt(*b)){
+            flinref_up(b, t);
+            assert(!eq2(*b, old));
         }
     }
+    return eq2(old, *b);
 }
 
 static
@@ -163,29 +161,28 @@ err (lflist_del)(flx a, type *t){
 
     howok pn_ok = NOT;
     bool del_won = false;
-    flx pn, p = {};
-    /* if(help_prev(a, &p, &pn, t)) */
-    /*     goto cleanup; */
-    flx np, on, n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
-    for(int c = 0; c++; progress(a, &p, c++)){
+    flx opn, pn, p = {};
+    flx onp, np, n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
+    for(int lps = 0;;){
         if(help_next(a, &n, &np, t))
             break;
         if(help_prev(a, &p, &pn, t))
             break;
         assert(pt(pn) == pt(a) && pt(np) == pt(a) && !pn.locked);
 
-        flx oldn = n;
+        flx on = n;
         howok lock_ok = updx_ok((flx){.nil=n.nil,1,0,n.pt, n.gen + 1},
                                 &pt(a)->n, &n);
         if(!lock_ok)
             continue;
-        assert(!del_won || oldn.helped || oldn.locked);
-        del_won |= lock_ok == WON && !oldn.helped && !oldn.locked;
+        assert(!del_won || on.helped || on.locked);
+        del_won |= lock_ok == WON && !on.helped && !on.locked;
 
         pn_ok = updx_ok((flx){.nil=n.nil, 0, pn.helped, n.pt, pn.gen+1},
                         &pt(p)->n, &pn);
         if(pn_ok)
             break;
+        progress(&opn, pn, lps++);
     }
     if(!del_won)
         goto cleanup;
@@ -201,7 +198,7 @@ err (lflist_del)(flx a, type *t){
         np = readx(&pt(n)->p);
     }
 
-    flx onp = np;
+    onp = np;
     if(pt(np) == pt(a))
         casx((flx){.nil=p.nil, 0, np.helped, p.pt, np.gen + n.nil},
              &pt(n)->p, &np);
@@ -239,11 +236,11 @@ cleanup:
 
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
-    flx on = (flx){}, onp = (flx){};
-    for(int lp = 0;; progress(&on, *n)){
+    flx on = {}, onp = {};
+    for(cnt lps = 0;; progress(&on, *n, lps++)){
         if(!pt(*n))
             return -1;
-        for(*np = readx(&pt(*n)->p);; progress(&onp, *np)){
+        for(*np = readx(&pt(*n)->p);; progress(&onp, *np, lps++)){
             if(pt(*np) == pt(a))
                 return 0;
             if(!eqx(&pt(a)->n, n, t))
@@ -257,21 +254,20 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
             if(updx_ok((flx){.nil=a.nil, 0, np->helped, a.pt, np->gen + n->nil}, &
                        pt(*n)->p, np))
                 return 0;
-            countloops(lp);
         }
     }
 }
 
 static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
-    flx pp = {};
+    flx op = {}, opn = {}, opp = {}, pp = {};
     if(!p->mp)
         *p = flinref_read(&pt(a)->p, ((flx*[]){p, &pp, NULL}), t);
     else goto newnp;
-    for(int c = 0; ppl(2, *p), 1;){
+    for(cnt lps = 0;; progress(&op, *p, lps++)){
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
-        for(*pn = readx(&pt(*p)->n);; ppl(2, *pn)){
+        for(*pn = readx(&pt(*p)->n);; progress(&opn, *pn, lps++)){
         newnp:
             if(!eqx(&pt(a)->p, p, t))
                 break;
@@ -286,10 +282,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             if(!pn->locked)
                 return 0;
 
-            pp = ppl(2, flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t));
+            pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
             if(!pt(pp))
                 break;
-            for(flx ppn = ppl(2, readx(&pt(pp)->n));;){
+            for(flx ppn = ppl(2, readx(&pt(pp)->n));; progress(&opp, pp, lps++)){
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
                     break;
 
