@@ -36,7 +36,7 @@
 #define FLANC_CHECK_FREQ 40
 
 #define MAX_LOOP 0
-#define TEST_CONTENTION(c)                                                 \
+#define countloops(c)                                                 \
     ({ if(MAX_LOOP && c++ > MAX_LOOP) SUPER_RARITY("LOTTA LOOPS %", c); })
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
@@ -100,7 +100,7 @@ static flx readx(volatile flx *x){
 }
 static bool eqx(volatile flx *a, flx *b, type *t){
     flx old = *b;
-    for(int c = 0;; TEST_CONTENTION(c)){
+    for(int c = 0;; countloops(c)){
         *b = readx(a);
         if(eq2(old, *b))
             return true;
@@ -116,7 +116,7 @@ static bool eqx(volatile flx *a, flx *b, type *t){
 static
 flx (flinref_read)(volatile flx *from, flx **held, type *t){
     flx old = (flx){};
-    for(int c = 0;; TEST_CONTENTION(c)){
+    for(int c = 0;; countloops(c)){
         flx a = readx(from);
         flx *reused = NULL;
         for(; *held; held++){
@@ -159,17 +159,12 @@ err (lflist_del)(flx a, type *t){
     if(help_prev(a, &p, &pn, t))
         goto cleanup;
     flx n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
-    for(int c = 0;; TEST_CONTENTION(c)){
-        if(help_next(a, &n, &np, t)){
-            RARITY("n abort");
+    for(int c = 0;; countloops(c)){
+        if(help_next(a, &n, &np, t))
             break;
-        }
-        if(help_prev(a, &p, &pn, t)){
-            RARITY("p abort");
-            assert(pt(np) == pt(a));
+        if(help_prev(a, &p, &pn, t))
             break;
-        }
-        assert(!pn.locked);
+        assert(pt(pn) == pt(a) && pt(np) == pt(a) && !pn.locked);
 
         flx oldn = n;
         howok lock_ok = updx_ok((flx){.nil=n.nil,1,0,n.pt, n.gen + 1},
@@ -184,18 +179,16 @@ err (lflist_del)(flx a, type *t){
         if(pn_ok)
             break;
     }
-
     if(!del_won)
         goto cleanup;
 
     if(pn_ok)
-        assert(pt(pn) == pt(pt(a)->n) &&
-               eq2(pt(a)->p, p) &&
+        assert(eq2(pt(a)->p, p) &&
                pt(a)->n.pt == n.pt);
     if(pt(np) != pt(a))
         assert(pt(a)->n.pt == n.pt);
-
-    ppl(2, n, np, a, pn_ok);
+    
+    /* Must be p abort */
     if(!pn_ok && pt(np) == pt(a)){
         n = flinref_read(&pt(a)->n, ((flx* []){&n, NULL}), t);
         np = readx(&pt(n)->p);
@@ -203,14 +196,14 @@ err (lflist_del)(flx a, type *t){
 
     flx onp = np;
     if(pt(np) == pt(a))
-        casx((flx){.nil=p.nil, 0, np.helped, .pt=p.pt, .gen=np.gen + n.nil},
+        casx((flx){.nil=p.nil, 0, np.helped, p.pt, np.gen + n.nil},
              &pt(n)->p, &np);
 
     /* Clean up after an interrupted add of 'n'. In this case,
        a->n is the only reference to 'n' discoverable from nil,
        and we should finish the add before it gets cleared (next
        time a is added). */
-    /* if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){ */
+    ppl(2, n, np, a, pn_ok);
     if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){
         flx nn = readx(&pt(n)->n);
         if(nn.nil){
@@ -240,34 +233,27 @@ cleanup:
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
     flx oldn = (flx){}, oldnp = (flx){};
-    for(int c = 0;;){
-    newn:
-        ppl(2, *n);
-        assert(!a.nil || (!n->locked && !n->helped && pt(*n)));
+    for(int lp = 0; ppl(2, *n), 1; countloops(lp)){
         if(!pt(*n))
             return -1;
-        *np = readx(&pt(*n)->p);
-    newnp:
-        ppl(2, *np);
-        TEST_CONTENTION(c);
-        if(!eqx(&pt(a)->n, n, t))
-            goto newn;
-        if(pt(*np) == pt(a))
-            return 0;
-        if(n->locked)
-            return -1;
-        if(!a.nil && n->nil && pt(a)->p.gen != a.gen)
-            return -1;
-        assert(pt(*np) && !np->locked);
-        assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
-        oldn = *n;
-        oldnp = *np;
+        for(*np = readx(&pt(*n)->p); ppl(2, *np), 1;){
+            if(!eqx(&pt(a)->n, n, t))
+                break;
+            if(pt(*np) == pt(a))
+                return 0;
+            if(n->locked)
+                return -1;
+            if(!a.nil && n->nil && pt(a)->p.gen != a.gen)
+                return -1;
+            assert(pt(*np) && !np->locked);
+            assert(!eq2(oldn, *n) || !eq2(oldnp, *np));
+            oldn = *n;
+            oldnp = *np;
 
-        if(updx_ok((flx){.nil=a.nil, 0, np->helped, a.pt, np->gen + n->nil}, &
-                   pt(*n)->p, np))
-            return 0;
-        goto newnp;
-        /* *n = flinref_read(&pt(a)->n, ((flx*[]){n, NULL}), t); */
+            if(updx_ok((flx){.nil=a.nil, 0, np->helped, a.pt, np->gen + n->nil}, &
+                       pt(*n)->p, np))
+                return 0;
+        }
     }
 }
 
@@ -340,7 +326,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
     
     flx p = {}, pn = {}, oldp = {}, oldpn = {};
-    for(int c = 0;;TEST_CONTENTION(c)){
+    for(int c = 0;;countloops(c)){
         if(help_prev(((flx){.nil = 1, .pt = mpt(&l->nil)}), &p, &pn, t))
             EWTF();
         assert(!p.locked && !p.helped && !pn.locked
@@ -361,7 +347,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
 
 flx (lflist_deq)(type *t, lflist *l){
     flx np, oldn = {}, n = {};
-    for(int c = 0;;TEST_CONTENTION(c)){
+    for(int c = 0;;countloops(c)){
         n = flinref_read(&l->nil.n, ((flx*[]){&n, NULL}), t);
         if(help_next(((flx){.nil = 1, .pt = mpt(&l->nil)}), &n, &np, t))
             EWTF();
