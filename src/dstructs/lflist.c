@@ -87,7 +87,7 @@ static void countloops(cnt loops){
 }
 
 static void progress(flx *o, flx n, cnt loops){
-    /* assert(!eq2(*o, n)); */
+    assert(!eq2(*o, n));
     *o = n;
     countloops(loops);
 }
@@ -267,7 +267,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
     for(cnt lps = 0;; progress(&op, *p, lps++)){
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
-        for(*pn = readx(&pt(*p)->n);; progress(&opn, *pn, lps++)){
+        for(;;*pn = readx(&pt(*p)->n), progress(&opn, *pn, lps++)){
             if(!eqx(&pt(a)->p, p, t))
                 break;
             if(pt(*pn) != pt(a)){
