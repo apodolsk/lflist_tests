@@ -233,14 +233,14 @@ cleanup:
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
     flx oldn = (flx){}, oldnp = (flx){};
-    for(int lp = 0; ppl(2, *n), 1; countloops(lp)){
+    for(int lp = 0; ppl(2, *n), 1;){
         if(!pt(*n))
             return -1;
-        for(*np = readx(&pt(*n)->p); ppl(2, *np), 1;){
-            if(!eqx(&pt(a)->n, n, t))
-                break;
+        for(*np = readx(&pt(*n)->p); ppl(2, *np), 1; countloops(lp)){
             if(pt(*np) == pt(a))
                 return 0;
+            if(!eqx(&pt(a)->n, n, t))
+                break;
             if(n->locked)
                 return -1;
             if(!a.nil && n->nil && pt(a)->p.gen != a.gen)
@@ -264,11 +264,9 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         *p = flinref_read(&pt(a)->p, ((flx*[]){p, &pp, NULL}), t);
     newp:
         ppl(2, *p);
-        assert(a.nil || (pt(*p) != pt(a)));
-        assert((!a.nil && pt(*p) != pt(a)) ||
-               ((p->nil && a.nil) ^ (pt(a) != pt(*p))));
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
+        
         *pn = readx(&pt(*p)->n);
     newpn:
         ppl(2, *pn);
