@@ -434,14 +434,27 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
     flanchor *p = pt(px), *n = pt(nx);
     if(retn) *retn = nx;
 
+
+    /* && (nx.locked || (nx.nil && px.locked)) */
+    /* && (!pt(n->n) || pt(pt(n->n)->p) != a)) */
+    
+    /* Could be early enq(a) or late del(a). */
     if(!p || !n){
         assert(!ax.nil);
-        assert((eq2(nx,(flx){.gen=nx.gen}) && !p && !px.helped)
-               || (!p && n && pt(n->p) != a
-                   && (nx.locked || (nx.nil && px.locked))
+               /* a's on no list. */
+        assert((!px.mp && !nx.mp)
+               /* enq(a) has locked a->p */
+               || (!nx.mp && px.locked)
+               /* enq(a, l) set a->n=&l->nil  */
+               || (!p && px.locked && n
+                   && pt(n->p) != a
+                   && nx.nil
                    && (!pt(n->n) || pt(pt(n->n)->p) != a))
-               || (!n && p && pt(p->n) != a && !px.locked));
-        if(retn) *retn = (flx){};
+               /* last stage of del(a). */
+               || ((!n && p && pt(p->n) != a && !px.locked)
+                   /* make sure it helped enq(n) */
+                   && (!pt(n->n) || pt(pt(n->n)->p) != a)));
+    if(retn) *retn = (flx){};
         return true;
     }
 
@@ -468,27 +481,41 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         assert(!on || *on != cof(a, lflist, nil));
         assert(p != a && n != a);
         assert(nx.nil || n != p);
-        assert(eq2(a->p, px));
-        assert(eq2(a->n, nx));
         if(!nx.locked)
+            /* Could be enq(a) at any stage or "equilibrium" before del(a)
+               sets anything. Unless enq(a) is in flight, pn==a. */
             assert((pn == a && np == a) ||
+                   /* del(np) has set a->n=n but not n->p=a */
                    (pn == a && pt(np->p) == a && pt(np->n) == n) ||
                    (nx.nil && ((pn == n && np == p)
                                || (pn == a && np == p)
+                               /* enq(a) has stale p and hasn't set p->n=a*/
                                || (pn != a && np != p)
+                               /* enq(pn) has set p->n=pn but not nil->p=pn.
+                                  enq(a) will help in help_prev. */
                                || (pn != n && np == p
                                    && pt(pn->n) == n
+                                   && !pn->n.locked
                                    && pn->p.helped
                                    && (pt(pn->p) == p
+                                       /* del(p) is far enough along to
+                                          enable pn->p updates but hasn't
+                                          helped enq(pn) set a->n=p */
                                        || (pt(pp->n) != p && p->n.locked))))));
         else
+            /* Stages of del(a) after locking a->n. If np!=a, then pn!=a,
+               but not vice-versa. */
             assert((pn == a && np == a) ||
                    (pn == n && np == a) ||
                    (pn == n && np == p) ||
                    (pn != a && np != a));
     }
 
-
+    
+    /* Detect unpaused universe or reordering weirdness. */
+    assert(eq2(a->p, px));
+    assert(eq2(a->n, nx));
+    
     return true;
 }
 
