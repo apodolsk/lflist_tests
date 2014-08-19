@@ -188,11 +188,6 @@ err (lflist_del)(flx a, type *t){
     if(!del_won)
         goto cleanup;
 
-    assert(pt(a)->n.locked &&
-           pt(a)->p.gen == a.gen &&
-           /* No more updates. */
-           eq2(pt(a)->p, pt(a)->p) &&
-           pt(pt(a)->n) == pt(pt(a)->n));
     if(pn_ok)
         assert(pt(pn) == pt(pt(a)->n) &&
                eq2(pt(a)->p, p) &&
@@ -201,30 +196,34 @@ err (lflist_del)(flx a, type *t){
         assert(pt(a)->n.pt == n.pt);
 
     ppl(2, n, np, a, pn_ok);
-    if(!pn_ok && pt(np) == pt(a))
+    if(!pn_ok && pt(np) == pt(a)){
         n = flinref_read(&pt(a)->n, ((flx* []){&n, NULL}), t);
+        np = readx(&pt(n)->p);
+    }
 
     flx onp = np;
     if(pt(np) == pt(a))
-        casx((flx){.nil=p.nil, .pt=p.pt, .gen=np.gen}, &pt(n)->p, &np);
-    
+        casx((flx){.nil=p.nil, 0, np.helped, .pt=p.pt, .gen=np.gen + n.nil},
+             &pt(n)->p, &np);
+
+    /* Clean up after an interrupted add of 'n'. In this case,
+       a->n is the only reference to 'n' discoverable from nil,
+       and we should finish the add before it gets cleared (next
+       time a is added). */
     if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){
-        /* Clean up after an interrupted add of 'n'. In this case,
-           a->n is the only reference to 'n' discoverable from nil,
-           and we should finish the add before it gets cleared (next
-           time a is added). */
         flx nn = readx(&pt(n)->n);
-        ppl(2, nn);
         if(nn.nil){
             flx nnp = readx(&pt(nn)->p);
-            ppl(2, nnp);
             if(pt(nnp) == pt(a))
                 casx((flx){.pt=n.pt, nnp.gen + 1}, &pt(nn)->p, &nnp);
         }
     }
 
-np_done:
-    assert(pt(n) && (n.locked || n.helped) && pt(pt(a)->n) == pt(n));
+    /* No more updates. */
+    assert(pt(a)->n.locked &&
+           pt(a)->p.gen == a.gen &&
+           eq2(pt(a)->p, pt(a)->p) &&
+           pt(pt(a)->n) == pt(pt(a)->n));
 
     pt(a)->n = (flx){.gen = n.gen};
     pt(a)->p = (flx){.gen = a.gen};
@@ -261,7 +260,7 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
         oldn = *n;
         oldnp = *np;
 
-        if(updx_ok((flx){a.mp, np->gen + (n->nil ? 1 : 0)}, &pt(*n)->p, np))
+        if(updx_ok((flx){a.mp, np->gen + n->nil)}, &pt(*n)->p, np))
             return 0;
         goto newnp;
         /* *n = flinref_read(&pt(a)->n, ((flx*[]){n, NULL}), t); */
