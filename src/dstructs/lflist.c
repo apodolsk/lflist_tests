@@ -91,6 +91,20 @@ static howok updx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
     return NOT;
 }
 
+static howok updx_modhelped(const char *f, int l, flx n, volatile flx *a, flx *e){
+    flx oe = *e;
+    casx(f, l, n, a, e);
+    if(eq2(*e, oe))
+        return *e = n, WON;
+    if(eq2(*e, n))
+        return OK;
+    if(eq2(*e, (flx){.nil=n.nil,n.locked,.pt=n.pt,n.gen})){
+        e->helped = 0;
+        return updx_ok(f, l, n, a, e);
+    }
+    return return updx_ok;
+}
+
 static bool updx_won(const char *f, int l,
                     flx n, volatile flx *a, flx *e){
     return WON == updx_ok(f, l, n, a, e);
@@ -148,7 +162,7 @@ flx (flinref_read)(volatile flx *from, flx **held, type *t){
             **held = (flx){};
         }
         if(eq2(old, a))
-            return (flx){};
+            return pp(old, a), (flx){};
         if(reused || !pt(a) || !flinref_up(&a, t))
             return a;
         old = a;
@@ -211,7 +225,8 @@ err (lflist_del)(flx a, type *t){
     else if(pt(np) != pt(a)) xadd(1, &naborts);
 
     if(pn_ok || pt(np) == pt(a))
-        assert(eq2(p, pt(a)->p));
+        assert(eq2(((flx){.nil=p.nil,0,0,.pt=p.pt, p.gen}), pt(a)->p) ||
+               eq2(p, pt(a)->p));
     if(pn_ok || pt(np) != pt(a))
         assert(n.pt == pt(a)->n.pt);
     
@@ -223,15 +238,16 @@ err (lflist_del)(flx a, type *t){
 
     flx onp = np;
     if(pt(np) == pt(a))
-        updx_ok((flx){.nil=p.nil, 0, np.helped, p.pt, np.gen + n.nil},
-                &pt(n)->p, &np);
+        updx_modhelped((flx){.nil=p.nil, 0, np.helped, p.pt, np.gen + n.nil},
+                       &pt(n)->p, &np);
 
     /* Clean up after an interrupted add of 'n'. In this case,
        a->n is the only reference to 'n' discoverable from nil,
        and we should finish the add before it gets cleared (next
        time a is added). */
     ppl(2, n, np, a, pn_ok);
-    if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){
+    if(np.helped && onp.gen == np.gen && pt(np)){
+        assert(!n.nil);
         flx nn = readx(&pt(n)->n);
         if(nn.nil && !nn.locked){
             flx nnp = readx(&pt(nn)->p);
@@ -340,6 +356,9 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
     newp:;
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
+        /* if(p->helped && !updx_ok((flx){.nil=p->nil,.pt=p->pt, p->gen}, */
+        /*                          &pt(a)->p, p)) */
+        /*     goto newp; */
         assert(a.nil || pt(*p) != pt(a));
         *pn = readx(&pt(*p)->n);
     }
@@ -352,6 +371,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     assert(!pt(a)->n.mp);
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
+    markp ap;
     flx p = {}, pn = {};
     flx oldp = {}, oldpn = {};
     for(int c = 0;;countloops(c)){
@@ -364,12 +384,14 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         oldp = p;
         oldpn = pn;
 
-        pt(a)->p.markp = (markp){.nil=p.nil,.helped=1,.pt=p.pt};
+        pt(a)->p.markp = ap = (markp){.nil=p.nil,.helped=1,.pt=p.pt};
         if(updx_won((flx){.helped=pn.helped, .pt=a.pt, pn.gen + 1},
                     &pt(p)->n, &pn))
             break;
     }
     casx((flx){a.mp, .gen=p.gen + 1}, &l->nil.p, (flx[]){p});
+    casx((flx){.nil=p.nil,.pt=p.pt,.gen=a.gen+1}, &pt(a)->p,
+         (flx[]){{.markp=ap, .gen=a.gen+1}});
     flinref_down(&p, t);
     return 0;
 }

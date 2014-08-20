@@ -146,6 +146,7 @@ static void *test_del(dbg_id id){
 
         lflist *l = &shared[wrand() % nlists];
         bool del_failed = false;
+        (void) del_failed;
         flx bx;
         node *b;
         if(randpcnt(33) && (b = cof(flptr(bx = lflist_deq(t, &priv)),
@@ -184,8 +185,8 @@ static void *test_del(dbg_id id){
                lflist_enq(x,..) == 0, which isn't true yet/ever. */
             /* assert((del_failed || b->owner != id) && */
             /*        flx_of(&b->flanc).gen != bx.gen); */
-            assert(del_failed || (b->owner != id &&
-                                  flx_of(&b->flanc).gen != bx.gen));
+            /* assert(del_failed || (b->owner != id && */
+            /*                       flx_of(&b->flanc).gen != bx.gen)); */
             /* (void) last_priv, (void) del_failed; */
         }
 
