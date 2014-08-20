@@ -77,8 +77,7 @@ static howok updx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
 
 static bool updx_won(const char *f, int l,
                     flx n, volatile flx *a, flx *e){
-    flx oe = *e;
-    return eq2(oe, casx(f, l, n, a, e));
+    return WON == updx_ok(casx(f, l, n, a, e));
 }
 
 static void countloops(cnt loops){
@@ -280,7 +279,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             if(pt(*pn) != pt(a)){
                 if(!a.nil)
                     return -1;
-                assert(!pn->nil && pt(*pn));
+                assert(pt(pt(*pn)->n)->n == pt(a) || !eq2(pt(a)->p, p));
                 if(!updx_ok((flx){.pt=pn->pt, .gen=p->gen + 1}, &pt(a)->p, p))
                     break;
                 break;
