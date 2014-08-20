@@ -305,7 +305,7 @@ static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
     flx op = *p, opn = *pn, oppn = {};
     for(cnt lps = 0;; progress(&op, *p, lps++)){
-        for(;; progress(&op, *pn, lps++)){
+        for(;; progress(&opn, *pn, lps++)){
             if(!eqx(&pt(a)->p, p, t))
                 break;
             if(pt(*pn) != pt(a)){
@@ -317,7 +317,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             }
             if(p->helped && !updx_ok((flx){.nil=p->nil,.pt=p->pt, a.gen},
                                      &pt(a)->p, p))
-            goto newp;
+                break;
 
             if(!pn->locked)
                 return 0;
@@ -325,7 +325,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             flx pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
             if(!pt(pp)){
                 must(!eqx(&pt(a)->p, p, t));
-                goto newp;
+                break;
             }
             for(flx ppn = oppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
                 if(!eqx(&pt(a)->p, p, t))
@@ -375,6 +375,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     assert(!pt(a)->n.mp);
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
+    assert(a.gen != UPTR_MAX);
     if(a.gen == UPTR_MAX)
         SUPER_RARITY("woahverflow");
 

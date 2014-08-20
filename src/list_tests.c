@@ -177,7 +177,9 @@ static void *test_del(dbg_id id){
                 for(; bx.gen - (pg = b->last_priv).gen < (UPTR_MAX >> 1);)
                     if(cas2_won(pgen(&priv, bx.gen + 1), &b->last_priv, &pg))
                         break;
-                if(bx.gen - pg.gen >= INT_MAX)
+                assert(pg.gen != bx.gen + 1);
+                pp(pg.gen, pg.p);
+                if(bx.gen - pg.gen >= (UPTR_MAX >> 1))
                     assert(b->owner != id && flx_of(&b->flanc).gen != bx.gen);
             }
         }else{
