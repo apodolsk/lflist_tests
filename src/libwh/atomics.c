@@ -5,7 +5,7 @@
 
 #define FUZZ_ATOMICS 1
 #define FUZZ_NS 9000
-#define FUZZ_PCNT 50
+#define FUZZ_PCNT 30
 #define FUZZ_MOD 2
 
 extern uptr (xadd)(iptr s, volatile uptr *p);
@@ -20,7 +20,7 @@ static void fuzz_atomics(){
     if(FUZZ_ATOMICS &&
        0 == mod_pow2(PUN(uptr, get_dbg_id()), FUZZ_MOD)
        && randpcnt(FUZZ_PCNT))
-        nanosleep(&(struct timespec){.tv_nsec = FUZZ_NS - (wrand() % FUZZ_NS)},
+        nanosleep(&(struct timespec){.tv_nsec = wrand() % FUZZ_NS},
                   NULL);
 }
 

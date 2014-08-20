@@ -33,7 +33,7 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 5
-#define FLANC_CHECK_FREQ 40
+#define FLANC_CHECK_FREQ 20
 #define MAX_LOOP 0
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
@@ -200,8 +200,8 @@ err (lflist_del)(flx a, type *t){
 
     flx onp = np;
     if(pt(np) == pt(a))
-        casx((flx){.nil=p.nil, 0, np.helped, p.pt, np.gen + n.nil},
-             &pt(n)->p, &np);
+        updx_ok((flx){.nil=p.nil, 0, np.helped, p.pt, np.gen + n.nil},
+                &pt(n)->p, &np);
 
     /* Clean up after an interrupted add of 'n'. In this case,
        a->n is the only reference to 'n' discoverable from nil,
@@ -260,22 +260,12 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
 static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
     flx op = {}, opn = {}, opp = {}, oppn = {};
-    goto newpn;
-    for(cnt lps = 0;;) {
+    for(cnt lps = 0;; ppl(2, *p)){
         /* progress(&op, *p, lps++) */
-        ppl(2, *p);
-        assert(a.nil || pt(*p) != pt(a));
-        if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
-            return -1;
-        *pn = readx(&pt(*p)->n);
-            
-        for(;;*pn = readx(&pt(*p)->n)){
-            /* progress(&opn, *pn, lps++) */
-            ppl(2, *pn);
-        newpn:
+        for(;; ppl(2, *pn)){
+            /* progress(&opn, *pn, lps++); */
             if(!eqx(&pt(a)->p, p, t))
                 break;
-            /* progress(&opn, *pn, lps++); */
             if(pt(*pn) != pt(a)){
                 if(!a.nil)
                     return -1;
@@ -289,7 +279,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             flx pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
             if(!pt(pp)){
                 must(!eqx(&pt(a)->p, p, t));
-                break;
+                goto newp;
             }
             for(flx ppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
                 if(!eqx(&pt(a)->p, p, t))
@@ -305,10 +295,11 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 }
                 if(!updx_ok((flx){.nil=a.nil, !ppn.locked, 1, a.pt, pn->gen + 1},
                             &pt(*p)->n, pn))
-                    goto newpn;
+                    break;
                 if(!pn->locked){
                     assert((eq2(pt(a)->p, *p) && pt(pp)->n.pt == p->pt)
-                           || !eq2(pt(*p)->n, *pn));
+                           || !eq2(pt(*p)->n, *pn)
+                           || !eq2(pt(*p)->p, pp));
                     return 0;
                 }
 
@@ -324,7 +315,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             }
         }
     newp:;
-        /* Down here so that loop increment gets evaluated. */
+        if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
+            return -1;
+        assert(a.nil || pt(*p) != pt(a));
+        *pn = readx(&pt(*p)->n);
     }
 }
 
