@@ -77,6 +77,7 @@ flx lflist_peek(lflist *l);
 flx lflist_next(flx p, lflist *l);
 
 bool lflist_valid(flx a);
+bool flanchor_valid(flx ax);
 
 #ifndef FAKELOCKFREE
 

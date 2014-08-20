@@ -1,8 +1,25 @@
 /**
  * A lockfree double linked list supporting queue operations and arbitrary
- * deletion. It only allows addition at the end of the list. Any lflist
- * anchor ("nodes") A can be immediately reused after a deletion, even if
- * other threads have yet to detect that A has died ("been deleted").
+ * deletion. It only allows addition at the end of the list.
+ *
+ * Nodes ("flanchors") and node references (double-word tagged pointers
+ * via "flx") have an associated generation incremented upon enq():
+ * 
+ * for flx N, flx N', flanchor pN, pN':
+ * flptr(N)==flptr(N') && N'.gen == N.gen + 1 
+ * && !enq(N)==0 && del(N')!=0, then flx_of(flptr(N)).gen ==
+ * N'.gen.
+ *
+ * flx A can be immediately reused after del(A)==0 and del(A') or enq(A')
+ * will promptly detect this, for all A'. If flptr(A) is a lineage,
+ * linfree(flptr(A)) will result in a 
+ *
+ * Multiple calls to del(A) will cooperate, but only one wins:
+ * 
+ * del(A)
+ *
+ * lflist structure and operation is much like that of a regular list with
+ * a dummy node. del(A) sets (N:=A->n)->p = P and (P:=A->p)->p = A and enq(A) 
  *
  * lflists are structured like regular dllists with a dummy node, except
  * n/p pointers have associated generation counters and status bits to
@@ -33,7 +50,7 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 5
-#define FLANC_CHECK_FREQ 20
+#define FLANC_CHECK_FREQ 40
 #define MAX_LOOP 0
 
 static flx flinref_read(volatile flx *from, flx **held, type *t);
@@ -41,7 +58,6 @@ static int flinref_up(flx *a, type *t);
 static void flinref_down(flx *a, type *t);
 static err help_next(flx a, flx *n, flx *np, type *t);
 static err help_prev(flx a, flx *p, flx *pn, type *t);
-static bool flanchor_valid(flx ax);
 
 #define flinref_up(as...) trace(LFLISTM, 5, flinref_up, as)
 #define flinref_down(as...) trace(LFLISTM, 5, flinref_down, as)
@@ -187,6 +203,13 @@ err (lflist_del)(flx a, type *t){
     if(!del_won)
         goto cleanup;
 
+    static cnt naborts;
+    static cnt paborts;
+    static cnt wins;
+    if(pn_ok) xadd(1, &wins);
+    else if(pt(np) == pt(a)) xadd(1, &paborts);
+    else if(pt(np) != pt(a)) xadd(1, &naborts);
+
     if(pn_ok || pt(np) == pt(a))
         assert(eq2(p, pt(a)->p));
     if(pn_ok || pt(np) != pt(a))
@@ -210,7 +233,7 @@ err (lflist_del)(flx a, type *t){
     ppl(2, n, np, a, pn_ok);
     if(!n.nil && np.helped && onp.gen == np.gen && pt(np)){
         flx nn = readx(&pt(n)->n);
-        if(nn.nil){
+        if(nn.nil && !nn.locked){
             flx nnp = readx(&pt(nn)->p);
             if(pt(nnp) == pt(a))
                 casx((flx){.pt=n.pt, nnp.gen + 1}, &pt(nn)->p, &nnp);
@@ -407,7 +430,6 @@ bool lflist_valid(flx a){
     return true;
 }
 
-static 
 bool flanchor_valid(flx ax){
     if(!randpcnt(FLANC_CHECK_FREQ) || pause_universe())
         return true;
@@ -425,9 +447,6 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
     if(retn) *retn = nx;
 
 
-    /* && (nx.locked || (nx.nil && px.locked)) */
-    /* && (!pt(n->n) || pt(pt(n->n)->p) != a)) */
-    
     /* Early enq(a) or late del(a). */
     if(!p || !n){
         assert(!ax.nil);
@@ -473,32 +492,40 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         assert(p != a && n != a);
         assert(nx.nil || n != p);
         if(!nx.locked){
-            /* Could be enq(a) at any stage or "equilibrium" before del(a)
-               sets anything. Unless enq(a) is in flight, pn==a. */
-            assert((pn == a && np == a) ||
-                   /* del(np) has set a->n=n but not n->p=a */
-                   (pn == a && pt(np->p) == a && pt(np->n) == n) ||
-                   (nx.nil && ((pn == n && np == p)
-                               || (pn == a && np == p)
-                               /* enq(a) has stale p and hasn't set p->n=a*/
-                               || (pn != a && np != p)
-                               /* enq(pn) has set p->n=pn but not nil->p=pn.
-                                  enq(a) will help in help_prev. */
-                               || (pn != n && np == p
-                                   && pt(pn->n) == n
-                                   && !pn->n.locked
-                                   && pn->p.helped
-                                   && (pt(pn->p) == p
-                                       /* del(p) is far enough along to
-                                          enable pn->p updates but hasn't
-                                          helped enq(pn) set a->n=p */
-                                       || (pt(pp->n) != p && p->n.locked)))
-                               || (pn == a && np != a
-                                   && !a->n.locked && a->p.helped
-                                   && pt(np->n) == a
-                                   && (np == p
-                                       || (np->n.locked
-                                           && pt(pt(np->p)->n) != np))))));
+            /* "equilibrium" after enq(a) and before del(a) sets anything,
+               or after it's been reset by del(n). pn == a 4 lyfe. */
+            if(!nx.nil)
+                assert((pn == a && np == a) ||
+                       /* del(np) has set a->n=n but not n->p=a */
+                       (pn == a && pt(np->p) == a && pt(np->n) == n));
+            /* enq(a) in progress. It gets messy. */
+            else
+                ((pn == n && np == p && px.helped)
+                 /* first step, and del(np) hasn't gone too far */
+                 || (pn == a && np == p && px.helped)
+                 /* finished. */
+                 || (pn == a && np == a)
+                 /* enq(a) has stale p so hasn't set p->n=a */
+                 || (pn != a && np != p && px.helped)
+                 /* enq(pn) has set p->n=pn but not nil->p=pn.
+                    enq(a) will help in help_prev. */
+                 || (pn != n && np == p
+                     && pt(pn->n) == n
+                     && !pn->n.locked
+                     && pn->p.helped
+                     /* del(p) hasn't made its first step */
+                     && (pt(pn->p) == p
+                         /* del(p) is far enough along to enable pn->p
+                            updates from del(pp) but hasn't helped enq(pn)
+                            set nil->p=pn */
+                         || (pt(pp->n) != p && p->n.locked)))
+                 /* Same as above, except now enq(a) is the one in
+                    trouble. It hasn't set nil->p=a but del(PRIV_P) has
+                    set a->p=PRIV_P->p but hasn't helped set n->p=a. */
+                 || (pn == a && np != p
+                     && !nx.locked && px.helped
+                     && pt(np->n) == a
+                     && pt(pt(np->p)->n) != np));
         
         }
         else

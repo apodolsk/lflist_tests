@@ -90,7 +90,7 @@ static void *test_reinsert(uint id){
     sem_wait(&parent_done);
 
     for(uint i = 0; i < niter; i++){
-        ppl(1, i);
+        ppl(2, i);
         if(randpcnt(10) && condxadd(1, &nb, nblocks) < nblocks){
             node *b = (node *) linalloc(node_h);
             lflist_enq(flx_of(&b->flanc), t, &priv);
@@ -109,7 +109,7 @@ static void *test_reinsert(uint id){
         }
     }
 
-    lprintf("done!");
+    log(2, "done!");
 
     for(flx bx; flptr(bx = lflist_deq(t, &priv));)
         lflist_enq(bx, t, &shared[0]), t->linref_down(flptr(bx));
@@ -134,13 +134,10 @@ static void *test_del(dbg_id id){
     heritage *node_h = &(heritage)POSIX_HERITAGE(perm_node_t);
     type *t = perm_node_t;
 
-    pp(0, getpgid(syscall(SYS_gettid)));
-
     for(uint i = 0; i < niter; i++){
-        ppl(1, i);
+        ppl(3, i);
         if(randpcnt(10) && condxadd(1, &nb, nblocks) < nblocks){
             node *b = (node *) linalloc(node_h);
-            pp(b);
             b->last_priv = (pgen){&priv, flx_of(&b->flanc).gen + 1};
             lflist_enq(flx_of(&b->flanc), t, &priv);
             b->owner = id;
@@ -149,7 +146,6 @@ static void *test_del(dbg_id id){
 
         lflist *l = &shared[wrand() % nlists];
         bool del_failed = false;
-        lflist *last_priv = &priv;
         flx bx;
         node *b;
         if(randpcnt(33) && (b = cof(flptr(bx = lflist_deq(t, &priv)),
@@ -157,9 +153,9 @@ static void *test_del(dbg_id id){
             assert((b->last_priv.p == &priv && b->last_priv.gen == bx.gen) ||
                    (b->owner != id && bx.gen != flx_of(&b->flanc).gen));
         else if(randpcnt(50) && (b = cof(flptr(bx = lflist_deq(t, l)),
-                                         node, flanc)))
-            last_priv = b->last_priv.p;
-        else{
+                                         node, flanc))){
+            assert(b->last_priv.gen != bx.gen);
+        }else{
             b = cof(list_deq(&perm), node, lanc);
             if(!b)
                 continue;
@@ -169,16 +165,21 @@ static void *test_del(dbg_id id){
             bx = flx_of(&b->flanc);
             if(lflist_del(bx, t))
                 del_failed = true;
-            last_priv = b->last_priv.p;
+            else
+                assert(flx_of(&b->flanc).gen == bx.gen);
         }
+        ppl(1, b, (void *) b->last_priv.p, b->last_priv.gen);
         lflist *nl = randpcnt(30) ? &priv : l;
         if(!lflist_enq(bx, t, nl)){
-            if(nl == &priv)
-                assert(cas2_won(pgen(&priv, bx.gen + 1), &b->last_priv,
-                                &pgen(last_priv, b->last_priv.gen))
-                       || (b->owner != id && flx_of(&b->flanc).gen != bx.gen));
-            ;
-        }else
+            if(nl == &priv){
+                pgen pg;
+                for(; bx.gen - (pg = b->last_priv).gen < INT_MAX;)
+                    if(cas2_won(pgen(&priv, bx.gen + 1), &b->last_priv, &pg))
+                        break;
+                if(bx.gen - pg.gen >= INT_MAX)
+                    assert(b->owner != id && flx_of(&b->flanc).gen != bx.gen);
+            }
+        }else{
             /* TODO: this'll test lflist_del(x,..) returns =>
                lflist_enq(x,..) == 0, which isn't true yet/ever. */
             /* assert((del_failed || b->owner != id) && */
@@ -186,11 +187,12 @@ static void *test_del(dbg_id id){
             assert(del_failed || (b->owner != id &&
                                   flx_of(&b->flanc).gen != bx.gen));
             /* (void) last_priv, (void) del_failed; */
+        }
 
         t->linref_down(flptr(bx));
     }
 
-    lprintf("done!");
+    log(1, "done!");
 
     for(flx bx; flptr(bx = lflist_deq(t, &priv));)
         lflist_enq(bx, t, &shared[0]), t->linref_down(flptr(bx));
@@ -278,7 +280,7 @@ static void *test_lin_reinsert(uint id){
         }
     }
 
-    lprintf("done!");
+    log(1, "done!");
 
     for(flx bx; flptr(bx = lflist_deq(perm_node_t, &priv));)
         lflist_enq(bx, perm_node_t, &shared[0]), perm_ref_down(flptr(bx), t);
@@ -385,12 +387,18 @@ static void launch_test(void *test(void *)){
 
     cnt all_size = list_size(&all);
     for(node *lost; (lost = cof(list_deq(&all), node, lanc));)
-        pp(1, &lost->flanc);
+        ppl(1, &lost->flanc);
     assert(!all_size);
     assert(!nb);
 
     for(node *b; (b = cof(list_deq(&done), node, lanc));)
         linfree(&b->lin);
+
+    extern cnt naborts;
+    extern cnt paborts;
+    extern cnt wins;
+    /* ppl(1, naborts, paborts, wins); */
+    ppl(1, "EXTRA");
 }
 
 int main(int argc, char **argv){
