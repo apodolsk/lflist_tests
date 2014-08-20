@@ -278,7 +278,7 @@ cleanup:
 
 static
 err (help_next)(flx a, flx *n, flx *np, type *t){
-    flx on = {}, onp = {};
+    flx on = *n, onp = *np;
     for(cnt lps = 0;; progress(&on, *n, lps++)){
         if(!pt(*n))
             return -1;
@@ -303,11 +303,9 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
 
 static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
-    flx op = {}, opn = {}, opp = {}, oppn = {};
-    for(cnt lps = 0;; ppl(2, *p)){
-        /* progress(&op, *p, lps++) */
-        for(;; ppl(2, *pn)){
-            /* progress(&opn, *pn, lps++); */
+    flx op = *p, opn = *pn, oppn = {};
+    for(cnt lps = 0;; progress(&op, *p, lps++)){
+        for(;; progress(&op, *pn, lps++)){
             if(!eqx(&pt(a)->p, p, t))
                 break;
             if(pt(*pn) != pt(a)){
@@ -329,7 +327,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 must(!eqx(&pt(a)->p, p, t));
                 goto newp;
             }
-            for(flx ppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
+            for(flx ppn = oppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
                 if(!eqx(&pt(a)->p, p, t))
                     goto newp;
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
