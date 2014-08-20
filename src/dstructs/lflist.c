@@ -77,7 +77,7 @@ static howok updx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
 
 static bool updx_won(const char *f, int l,
                     flx n, volatile flx *a, flx *e){
-    return WON == updx_ok(casx(f, l, n, a, e));
+    return WON == updx_ok(f, l, n, a, e);
 }
 
 static void countloops(cnt loops){
@@ -261,16 +261,16 @@ static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
     flx op = {}, opn = {}, opp = {}, oppn = {};
     goto newpn;
-    for(cnt lps = 0;; ) {
+    for(cnt lps = 0;;) {
         /* progress(&op, *p, lps++) */
         ppl(2, *p);
         assert(a.nil || pt(*p) != pt(a));
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
-        
-        for(;; ){
+        *pn = readx(&pt(*p)->n);
+            
+        for(;;*pn = readx(&pt(*p)->n)){
             /* progress(&opn, *pn, lps++) */
-            *pn = readx(&pt(*p)->n);
             ppl(2, *pn);
         newpn:
             if(!eqx(&pt(a)->p, p, t))
@@ -279,17 +279,18 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             if(pt(*pn) != pt(a)){
                 if(!a.nil)
                     return -1;
-                assert(pt(pt(*pn)->n)->n == pt(a) || !eq2(pt(a)->p, p));
-                if(!updx_ok((flx){.pt=pn->pt, .gen=p->gen + 1}, &pt(a)->p, p))
-                    break;
+                assert(pt(pt(*pn)->n) == pt(a) || !eq2(pt(a)->p, p));
+                updx_ok((flx){.pt=pn->pt, .gen=p->gen + 1}, &pt(a)->p, p);
                 break;
             }
             if(!pn->locked)
                 return 0;
 
             flx pp = flinref_read(&pt(*p)->p, ((flx*[]){&pp, NULL}), t);
-            if(!pt(pp))
-                continue;
+            if(!pt(pp)){
+                must(!eqx(&pt(a)->p, p, t));
+                break;
+            }
             for(flx ppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
                 if(!eqx(&pt(a)->p, p, t))
                     goto newp;
@@ -306,7 +307,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                             &pt(*p)->n, pn))
                     goto newpn;
                 if(!pn->locked){
-                    assert(ppn.locked);
+                    assert((eq2(pt(a)->p, *p) && pt(pp)->n.pt == p->pt)
+                           || !eq2(pt(*p)->n, *pn));
                     return 0;
                 }
 
@@ -315,6 +317,9 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                     assert(eq2(pt(a)->p, *p)
                            || pt(a)->p.pt == pp.pt
                            || !eq2(pt(pp)->n, ppn));
+                    assert(pt(*p)->n.locked
+                           || !pt(*p)->n.pt
+                           || !eq2(pp.gen, pt(*p)->p.gen));
                 }
             }
         }
