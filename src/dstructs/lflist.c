@@ -98,11 +98,12 @@ static howok updx_modhelped(const char *f, int l, flx n, volatile flx *a, flx *e
         return *e = n, WON;
     if(eq2(*e, n))
         return OK;
-    if(eq2(*e, (flx){.nil=n.nil,n.locked,.pt=n.pt,n.gen})){
-        e->helped = 0;
+    if(eq2(*e, ((flx){.nil=oe.nil,oe.locked,.pt=oe.pt,oe.gen}))){
+        *e = oe;
+        e->helped = n.helped = 0;
         return updx_ok(f, l, n, a, e);
     }
-    return return updx_ok;
+    return NOT;
 }
 
 static bool updx_won(const char *f, int l,
@@ -124,6 +125,7 @@ static void progress(flx *o, flx n, cnt loops){
 
 #define casx(as...) casx(__func__, __LINE__, as)
 #define updx_ok(as...) updx_ok(__func__, __LINE__, as)
+#define updx_modhelped(as...) updx_modhelped(__func__, __LINE__, as)
 #define updx_won(as...) updx_won(__func__, __LINE__, as)
 
 static flx readx(volatile flx *x){
@@ -263,6 +265,8 @@ err (lflist_del)(flx a, type *t){
 
     pt(a)->n = (flx){.gen = n.gen};
     pt(a)->p = (flx){.gen = a.gen};
+
+    assert(flanchor_valid(n));
 
 cleanup:
     if(pt(n))
