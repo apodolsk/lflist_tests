@@ -91,16 +91,17 @@ static howok updx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
     return NOT;
 }
 
-static howok updx_modhelped(const char *f, int l, flx n, volatile flx *a, flx *e){
+static howok updx_ok_modhelped(const char *f, int l, flx n,
+                               volatile flx *a, flx *e){
     flx oe = *e;
     casx(f, l, n, a, e);
     if(eq2(*e, oe))
         return *e = n, WON;
     if(eq2(*e, n))
         return OK;
-    if(eq2(*e, ((flx){.nil=oe.nil,oe.locked,.pt=oe.pt,oe.gen}))){
+    n.helped = oe.helped = 0;
+    if(eq2(*e, oe)){
         *e = oe;
-        e->helped = n.helped = 0;
         return updx_ok(f, l, n, a, e);
     }
     return NOT;
@@ -125,7 +126,7 @@ static void progress(flx *o, flx n, cnt loops){
 
 #define casx(as...) casx(__func__, __LINE__, as)
 #define updx_ok(as...) updx_ok(__func__, __LINE__, as)
-#define updx_modhelped(as...) updx_modhelped(__func__, __LINE__, as)
+#define updx_ok_modhelped(as...) updx_ok_modhelped(__func__, __LINE__, as)
 #define updx_won(as...) updx_won(__func__, __LINE__, as)
 
 static flx readx(volatile flx *x){
@@ -227,8 +228,7 @@ err (lflist_del)(flx a, type *t){
     else if(pt(np) != pt(a)) xadd(1, &naborts);
 
     if(pn_ok || pt(np) == pt(a))
-        assert(eq2(((flx){.nil=p.nil,0,0,.pt=p.pt, p.gen}), pt(a)->p) ||
-               eq2(p, pt(a)->p));
+        assert(eq2(p, pt(a)->p));
     if(pn_ok || pt(np) != pt(a))
         assert(n.pt == pt(a)->n.pt);
     
@@ -240,8 +240,8 @@ err (lflist_del)(flx a, type *t){
 
     flx onp = np;
     if(pt(np) == pt(a))
-        updx_modhelped((flx){.nil=p.nil, 0, np.helped, p.pt, np.gen + n.nil},
-                       &pt(n)->p, &np);
+        updx_ok_modhelped((flx){.nil=p.nil, 0, np.helped, p.pt, np.gen + n.nil},
+                          &pt(n)->p, &np);
 
     /* Clean up after an interrupted add of 'n'. In this case,
        a->n is the only reference to 'n' discoverable from nil,
@@ -293,8 +293,9 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
                 return -1;
             assert(pt(*np) && !np->locked);
 
-            if(updx_ok((flx){.nil=a.nil, 0, np->helped, a.pt, np->gen + n->nil}, &
-                       pt(*n)->p, np))
+            if(updx_ok_modhelped(
+                   (flx){.nil=a.nil, 0, np->helped, a.pt, np->gen + n->nil}, &
+                   pt(*n)->p, np))
                 return 0;
         }
     }
@@ -316,6 +317,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 updx_ok((flx){.pt=pn->pt, .gen=p->gen + 1}, &pt(a)->p, p);
                 break;
             }
+            if(p->helped && !updx_ok((flx){.nil=p->nil,.pt=p->pt, a.gen},
+                                     &pt(a)->p, p))
+            goto newp;
+
             if(!pn->locked)
                 return 0;
 
@@ -360,9 +365,6 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
     newp:;
         if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
             return -1;
-        /* if(p->helped && !updx_ok((flx){.nil=p->nil,.pt=p->pt, p->gen}, */
-        /*                          &pt(a)->p, p)) */
-        /*     goto newp; */
         assert(a.nil || pt(*p) != pt(a));
         *pn = readx(&pt(*p)->n);
     }
@@ -374,6 +376,9 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         return -1;
     assert(!pt(a)->n.mp);
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
+
+    if(a.gen == UPTR_MAX)
+        SUPER_RARITY("woahverflow");
 
     markp ap;
     flx p = {}, pn = {};

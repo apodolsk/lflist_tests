@@ -37,6 +37,8 @@ typedef int64_t dptr;
 typedef uint64_t udptr;
 #endif
 
+#define UPTR_MAX UINTPTR_MAX
+
 #define WORDBITS (8 * sizeof(void *))
 
 #endif

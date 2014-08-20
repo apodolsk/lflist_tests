@@ -174,7 +174,7 @@ static void *test_del(dbg_id id){
         if(!lflist_enq(bx, t, nl)){
             if(nl == &priv){
                 pgen pg;
-                for(; bx.gen - (pg = b->last_priv).gen < INT_MAX;)
+                for(; bx.gen - (pg = b->last_priv).gen < (UPTR_MAX >> 1);)
                     if(cas2_won(pgen(&priv, bx.gen + 1), &b->last_priv, &pg))
                         break;
                 if(bx.gen - pg.gen >= INT_MAX)
