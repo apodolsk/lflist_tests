@@ -260,15 +260,15 @@ cleanup:
 
 static
 err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
-    flx onp = *np;
-    for(cnt lps = 0;; progress(on, *n, lps++)){
+    for(cnt nl = 0, npl = 0;; progress(on, *n, nl++)){
         if(!pt(*n))
             return -1;
         /* if(refupd(*n, *on, t)){ */
         /*     *n = readx(&pt(a)->n); */
         /*     continue; */
         /* } */
-        for(*np = readx(&pt(*n)->p);; progress(&onp, *np, lps++)){
+        flx onp = *np;
+        for(*np = readx(&pt(*n)->p);; progress(&onp, *np, nl + npl++)){
             if(pt(*np) == pt(a))
                 return 0;
             if(!eqx(&pt(a)->n, n))
@@ -280,8 +280,8 @@ err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
             assert(pt(*np) && !np->locked);
 
             if(updx_ok_modhelped(
-                   (flx){.nil=a.nil, 0, np->helped, a.pt, np->gen + n->nil}, &
-                   pt(*n)->p, np))
+                   (flx){.nil=a.nil, 0, np->helped, a.pt, np->gen + n->nil},
+                   &pt(*n)->p, np))
                 return 0;
         }
     }
@@ -370,17 +370,11 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
     markp ap;
-    flx p = {}, pn = {};
-    flx oldp = {}, oldpn = {};
+    flx op = {}, opn = {}, p = {}, pn = {};
     for(int c = 0;;countloops(c)){
         if(help_prev(((flx){.nil=1, .pt=mpt(&l->nil)}), &p, &pn, t))
             EWTF();
-        assert(pt(p) != pt(a));
-        assert(!p.locked && !p.helped && !pn.locked
-               && pt(pn) && pn.nil && pt(p) != pt(a) &&
-               (!eq2(oldp, p) || !eq2(oldpn, pn)));
-        oldp = p;
-        oldpn = pn;
+        assert(!eq2(op, p) || !eq2(opn, pn)), op = p, opn = pn;
 
         pt(a)->p.markp = ap = (markp){.nil=p.nil,.helped=1,.pt=p.pt};
         if(updx_won((flx){.helped=pn.helped, .pt=a.pt, pn.gen + 1},
