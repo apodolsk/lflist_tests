@@ -187,7 +187,7 @@ err (lflist_del)(flx a, type *t){
     if(!pt(p) || p.gen != a.gen)
         return -1;
     flx pn = readx(&pt(p)->n);
-    flx np, on = {}, n = readx(&pt(a)->n);
+    flx np, n = readx(&pt(a)->n), on = n;
     ppl(2, p, n);
     for(int lps = 0;; progress(&on, n, lps++)){
         if(help_next(a, &n, &np, &on, t))
@@ -196,12 +196,11 @@ err (lflist_del)(flx a, type *t){
             break;
         assert(pt(pn) == pt(a) && pt(np) == pt(a) && pn.st < COMMIT);
 
-        flx on2 = on;
         howok lock_ok = updx_ok(fl(n, COMMIT, n.gen + 1), &pt(a)->n, &n);
         if(!lock_ok)
             continue;
-        assert(!del_won || lock_ok != WON || on2.st >= ABORT);
-        del_won = lock_ok == WON && on2.st < ABORT;
+        assert(!del_won || lock_ok != WON || on.st >= ABORT);
+        del_won = lock_ok == WON && on.st < ABORT;
 
         pn_ok = updx_ok(fl(n, umax(RDY, pn.st), pn.gen + 1), &pt(p)->n, &pn);
         if(pn_ok)
@@ -282,7 +281,7 @@ err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
                 break;
             if(n->st == ADD || n->st == COMMIT)
                 return -1;
-            assert(pt(*np) && np->st != COMMIT && np->st != ADD);
+            assert(pt(*np) && (np->st == RDY || np->st == ADD));
 
             if(updx_ok_modhlp(fl(a, RDY, np->gen + n->nil), &pt(*n)->p, np))
                 return 0;
@@ -382,6 +381,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         pt(a)->p.markp = amp = fl(p, ADD, 0).markp;
         if(updx_won(fl(a, umax(pn.st, RDY), pn.gen + 1), &pt(p)->n, &pn))
             break;
+        assert(flanchor_valid((flx){.nil=1, .pt=mpt(&l->nil)}));
     }
     casx(fl(a, RDY, p.gen + 1), &l->nil.p, (flx[]){p});
     casx(fl(p, RDY, a.gen + 1), &pt(a)->p, &(flx){.markp=amp, a.gen + 1});
@@ -469,7 +469,7 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
     if(!p || !n){
         assert(!ax.nil);
                /* a's on no list. */
-        assert((!p && !n && px.st == ABORT)
+        assert((!p && !n && px.st == ADD)
                /* enq(a) has locked a->p */
                || (!n && !p && px.st == COMMIT)
                /* enq(a, l) set a->n=&l->nil  */
@@ -518,7 +518,7 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
             assert(np == a || (nx.nil && np == p && nx.st == ADD));
             break;
         case RDY:
-            assert(np == a || (pt(np->p) == a && np->n.st == COMMIT));
+            assert(np == a || (pn != a && nx.st == COMMIT));
             break;
         case COMMIT:
             assert(nx.st == COMMIT);
@@ -526,7 +526,6 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         }
         switch(nx.st){
         case ADD:
-            assert(px.st == ADD);
             assert(nx.nil);
             assert((pn == n && np == p)
                    /* first step, and del(np) hasn't gone too far */
