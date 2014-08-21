@@ -196,8 +196,7 @@ err (lflist_del)(flx a, type *t){
         assert(!del_won || on.hlp || on.lk);
         del_won |= lock_ok == WON && !on.hlp && !on.lk;
 
-        pn_ok = updx_ok((flx){.nil=n.nil, 0, 1, n.pt, pn.gen+1},
-                        &pt(p)->n, &pn);
+        pn_ok = updx_ok((flx){.nil=n.nil, 0, 1, n.pt, pn.gen+1}, &pt(p)->n, &pn);
         if(pn_ok)
             break;
     }
