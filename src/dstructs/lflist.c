@@ -303,9 +303,9 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
 
 static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
-    flx op = *p, opn = *pn, oppn = {};
-    for(cnt lps = 0;; progress(&op, *p, lps++)){
-        for(;; progress(&opn, *pn, lps++)){
+    flx op = *p, opn = *pn;
+    for(cnt pl = 0;; opn = (flx){}, progress(&op, *p, pl++)){
+        for(cnt pnl;; progress(&opn, *pn, pnl++)){
             if(!eqx(&pt(a)->p, p, t))
                 break;
             if(pt(*pn) != pt(a)){
@@ -327,7 +327,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 must(!eqx(&pt(a)->p, p, t));
                 break;
             }
-            for(flx ppn = oppn = readx(&pt(pp)->n);;progress(&oppn, ppn, lps++)){
+            flx ppn = readx(&pt(pp)->n), oppn = {};
+            for(cnt ppnl;;progress(&oppn, ppn, ppnl++)){
                 if(!eqx(&pt(a)->p, p, t))
                     goto newp;
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
@@ -412,7 +413,7 @@ flx (lflist_deq)(type *t, lflist *l){
             EWTF();
         if(pt(n) == &l->nil)
             return (flx){};
-        if(!lflist_del(((flx){n.mp, np.gen}), t))
+        if(!(lflist_del)(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};
     }
 }

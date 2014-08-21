@@ -21,7 +21,7 @@
 
 #define MAXWRITE 8
 typedef align(sizeof(dptr)) struct{
-    lflist *p;
+    dbg_id owner;
     uptr gen;
 } pgen;
 #define pgen(as...) ((pgen){as})
@@ -33,7 +33,7 @@ typedef struct{
     };
     flanchor flanc;
     dbg_id owner;
-    pgen last_priv;
+    volatile pgen last_priv;
 } node;
 
 uint nlists = 1;
@@ -134,12 +134,14 @@ static void *test_del(dbg_id id){
     heritage *node_h = &(heritage)POSIX_HERITAGE(perm_node_t);
     type *t = perm_node_t;
 
+    pp(priv);
     for(uint i = 0; i < niter; i++){
         ppl(3, i);
         if(randpcnt(10) && condxadd(1, &nb, nblocks) < nblocks){
             node *b = (node *) linalloc(node_h);
-            b->last_priv = (pgen){&priv, flx_of(&b->flanc).gen + 1};
-            lflist_enq(flx_of(&b->flanc), t, &priv);
+            pp(&b->flanc);
+            muste(lflist_enq(flx_of(&b->flanc), t, &priv));
+            b->last_priv = (pgen){id, flx_of(&b->flanc).gen};
             b->owner = id;
             list_enq(&b->lanc, &perm);
         }
@@ -151,7 +153,7 @@ static void *test_del(dbg_id id){
         node *b;
         if(randpcnt(33) && (b = cof(flptr(bx = lflist_deq(t, &priv)),
                                     node, flanc)))
-            assert((b->last_priv.p == &priv && b->last_priv.gen == bx.gen) ||
+            assert((b->last_priv.owner == id && b->last_priv.gen == bx.gen) ||
                    (b->owner != id && bx.gen != flx_of(&b->flanc).gen));
         else if(randpcnt(50) && (b = cof(flptr(bx = lflist_deq(t, l)),
                                          node, flanc))){
@@ -169,26 +171,27 @@ static void *test_del(dbg_id id){
             else
                 assert(flx_of(&b->flanc).gen == bx.gen);
         }
-        ppl(1, b, (void *) b->last_priv.p, b->last_priv.gen);
+        pgen pg = b->last_priv;
         lflist *nl = randpcnt(30) ? &priv : l;
+        pp(&b->flanc, pg.owner, pg.gen, bx);
         if(!lflist_enq(bx, t, nl)){
             if(nl == &priv){
-                pgen pg;
                 for(; bx.gen - (pg = b->last_priv).gen < (UPTR_MAX >> 1);)
-                    if(cas2_won(pgen(&priv, bx.gen + 1), &b->last_priv, &pg))
+                    if(cas2_won(pgen(id, bx.gen + 1), &b->last_priv, &pg))
                         break;
-                assert(pg.gen != bx.gen + 1);
-                pp(pg.gen, pg.p);
-                if(bx.gen - pg.gen >= (UPTR_MAX >> 1))
+                pp(pg.gen, pg.owner);
+                if(bx.gen - pg.gen >= (UPTR_MAX >> 1)){
+                    assert(pg.gen != bx.gen + 1);
                     assert(b->owner != id && flx_of(&b->flanc).gen != bx.gen);
+                }
             }
         }else{
             /* TODO: this'll test lflist_del(x,..) returns =>
                lflist_enq(x,..) == 0, which isn't true yet/ever. */
             /* assert((del_failed || b->owner != id) && */
             /*        flx_of(&b->flanc).gen != bx.gen); */
-            /* assert(del_failed || (b->owner != id && */
-            /*                       flx_of(&b->flanc).gen != bx.gen)); */
+            assert(del_failed || (b->owner != id &&
+                                  flx_of(&b->flanc).gen != bx.gen));
             /* (void) last_priv, (void) del_failed; */
         }
 

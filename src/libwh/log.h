@@ -22,7 +22,7 @@
                  MAP(pu_ref,, as);                                      \
              }),                                                        \
              as)
-#define pp(as...) ppl(0, as)
+#define pp(as...) ppl(1, as)
 
 #define log(lvl, fmt, as...) log_cond(lvl, MODULE, lprintf(fmt, ##as), 0)
 
