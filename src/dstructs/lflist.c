@@ -267,7 +267,7 @@ err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
         /*     *n = readx(&pt(a)->n); */
         /*     continue; */
         /* } */
-        flx onp = *np;
+        flx onp = {};
         for(*np = readx(&pt(*n)->p);; progress(&onp, *np, nl + npl++)){
             if(pt(*np) == pt(a))
                 return 0;
@@ -390,7 +390,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
 
 flx (lflist_deq)(type *t, lflist *l){
     flx a = (flx){.nil=1,.pt=mpt(&l->nil)};
-    flx np, on = {}, n = readx(&pt(a)->n);
+    flx np = {}, on = {}, n = readx(&pt(a)->n);
     for(cnt lps = 0;;progress(&on, n, lps++)){
         if(help_next(a, &n, &np, &on, t))
             EWTF();
