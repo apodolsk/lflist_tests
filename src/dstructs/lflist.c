@@ -31,8 +31,8 @@
  * the invariant that there's at most one dead anchor between any two live
  * ones. To delete A, T1 finds P and N such that P == pt(A->p), pt(P->n)
  * == A, N == pt(A->n) and pt(N->p) == A (this isn't trivial). Then T1
- * marks A->n.locked = true and then writes P->n = N and N->p = P. If T2
- * is deleting N, it sees A->n.locked and attempts to complete all of T1's
+ * marks A->n.lk = true and then writes P->n = N and N->p = P. If T2
+ * is deleting N, it sees A->n.lk and attempts to complete all of T1's
  * aforementioned writes. It's important that T2 will succeed iff T1 will
  * succeed.
  *
@@ -92,7 +92,7 @@ static howok updx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
     return NOT;
 }
 
-static howok updx_ok_modhelped(const char *f, int l, flx n,
+static howok updx_ok_modhlp(const char *f, int l, flx n,
                                volatile flx *a, flx *e){
     flx oe = *e;
     casx(f, l, n, a, e);
@@ -100,7 +100,7 @@ static howok updx_ok_modhelped(const char *f, int l, flx n,
         return *e = n, WON;
     if(eq2(*e, n))
         return OK;
-    n.helped = oe.helped = 0;
+    n.hlp = oe.hlp = 0;
     if(eq2(*e, oe)){
         *e = oe;
         return updx_ok(f, l, n, a, e);
@@ -127,7 +127,7 @@ static void progress(flx *o, flx n, cnt loops){
 
 #define casx(as...) casx(__func__, __LINE__, as)
 #define updx_ok(as...) updx_ok(__func__, __LINE__, as)
-#define updx_ok_modhelped(as...) updx_ok_modhelped(__func__, __LINE__, as)
+#define updx_ok_modhlp(as...) updx_ok_modhlp(__func__, __LINE__, as)
 #define updx_won(as...) updx_won(__func__, __LINE__, as)
 
 static flx readx(volatile flx *x){
@@ -186,17 +186,17 @@ err (lflist_del)(flx a, type *t){
             break;
         if(help_prev(a, &p, &pn, t))
             break;
-        assert(pt(pn) == pt(a) && pt(np) == pt(a) && !pn.locked);
+        assert(pt(pn) == pt(a) && pt(np) == pt(a) && !pn.lk);
 
         flx on = n;
         howok lock_ok = updx_ok((flx){.nil=n.nil,1,0,n.pt, n.gen + 1},
                                 &pt(a)->n, &n);
         if(!lock_ok)
             continue;
-        assert(!del_won || on.helped || on.locked);
-        del_won |= lock_ok == WON && !on.helped && !on.locked;
+        assert(!del_won || on.hlp || on.lk);
+        del_won |= lock_ok == WON && !on.hlp && !on.lk;
 
-        pn_ok = updx_ok((flx){.nil=n.nil, 0, pn.helped, n.pt, pn.gen+1},
+        pn_ok = updx_ok((flx){.nil=n.nil, 0, 1, n.pt, pn.gen+1},
                         &pt(p)->n, &pn);
         if(pn_ok)
             break;
@@ -224,7 +224,7 @@ err (lflist_del)(flx a, type *t){
 
     flx onp = np;
     if(pt(np) == pt(a))
-        updx_ok_modhelped((flx){.nil=p.nil, 0, np.helped, p.pt, np.gen + n.nil},
+        updx_ok_modhlp((flx){.nil=p.nil, 0, np.hlp, p.pt, np.gen + n.nil},
                           &pt(n)->p, &np);
 
     /* Clean up after an interrupted add of 'n'. In this case,
@@ -232,17 +232,17 @@ err (lflist_del)(flx a, type *t){
        and we should finish the add before it gets cleared (next
        time a is added). */
     ppl(2, n, np, a, pn_ok);
-    if(np.helped && onp.gen == np.gen && pt(np)){
+    if(np.hlp && onp.gen == np.gen && pt(np)){
         assert(!n.nil);
         flx nn = readx(&pt(n)->n);
-        if(nn.nil && !nn.locked){
+        if(nn.nil && !nn.lk){
             flx nnp = readx(&pt(nn)->p);
             if(pt(nnp) == pt(a))
                 casx((flx){.pt=n.pt, nnp.gen + 1}, &pt(nn)->p, &nnp);
         }
     }
 
-    assert(pt(a)->n.locked &&
+    assert(pt(a)->n.lk &&
            pt(a)->p.gen == a.gen &&
            (pt(np) != pt(a) || eq2(p, pt(a)->p)) &&
            n.pt == pt(a)->n.pt);
@@ -275,12 +275,12 @@ err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
                 return 0;
             if(!eqx(&pt(a)->n, n))
                 break;
-            if(n->locked || !n->helped)
+            if(n->lk || !n->hlp)
                 return -1;
-            assert(pt(*np) && !np->locked);
+            assert(pt(*np) && !np->lk);
 
-            if(updx_ok_modhelped(
-                   (flx){.nil=a.nil, 0, np->helped, a.pt, np->gen + n->nil},
+            if(updx_ok_modhlp(
+                   (flx){.nil=a.nil, 0, np->hlp, a.pt, np->gen + n->nil},
                    &pt(*n)->p, np))
                 return 0;
         }
@@ -304,10 +304,10 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 updx_ok((flx){.pt=pn->pt, .gen=p->gen + 1}, &pt(a)->p, p);
                 break;
             }
-            if(p->helped && !updx_ok((flx){.nil=p->nil,.pt=p->pt, a.gen},
+            if(p->hlp && !updx_ok((flx){.nil=p->nil,.pt=p->pt, a.gen},
                                      &pt(a)->p, p))
                 break;
-            if(!pn->locked)
+            if(!pn->lk)
                 return 0;
 
         readpp:;
@@ -333,29 +333,29 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                     /* TODO: can avoid the a->p recheck. */
                     break;
                 }
-                if(!updx_ok((flx){.nil=a.nil,!ppn.locked,1,a.pt,pn->gen + 1},
+                if(!updx_ok((flx){.nil=a.nil, !ppn.lk, pn->hlp, a.pt, pn->gen + 1},
                             &pt(*p)->n, pn))
                     break;
-                if(!pn->locked){
+                if(!pn->lk){
                     assert((eq2(pt(a)->p, *p) && pt(pp)->n.pt == p->pt)
                            || !eq2(pt(*p)->n, *pn)
                            || !eq2(pt(*p)->p, pp));
                     return 0;
                 }
 
-                if(updx_ok((flx){.nil=a.nil, 0, ppn.helped, a.pt, ppn.gen + 1},
+                if(updx_ok((flx){.nil=a.nil, 0, 1, a.pt, ppn.gen + 1},
                            &pt(pp)->n, &ppn)){
                     assert(eq2(pt(a)->p, *p)
                            || pt(a)->p.pt == pp.pt
                            || !eq2(pt(pp)->n, ppn));
-                    assert(pt(*p)->n.locked
+                    assert(pt(*p)->n.lk
                            || !pt(*p)->n.pt
                            || !eq2(pp.gen, pt(*p)->p.gen));
                 }
             }
         }
     newp:;
-        if(!a.nil && (!pt(*p) || p->locked || p->gen != a.gen))
+        if(!a.nil && (!pt(*p) || p->lk || p->gen != a.gen))
             return -1;
         assert(a.nil || pt(*p) != pt(a));
         *pn = readx(&pt(*p)->n);
@@ -363,7 +363,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
-    if(!updx_won((flx){.locked=1, .gen=a.gen + 1}, &pt(a)->p,
+    if(!updx_won((flx){.lk=1, .gen=a.gen + 1}, &pt(a)->p,
                  &(flx){.gen=a.gen}))
         return -1;
     assert(!pt(a)->n.mp);
@@ -376,8 +376,8 @@ err (lflist_enq)(flx a, type *t, lflist *l){
             EWTF();
         assert(!eq2(op, p) || !eq2(opn, pn)), op = p, opn = pn;
 
-        pt(a)->p.markp = ap = (markp){.nil=p.nil,.helped=1,.pt=p.pt};
-        if(updx_won((flx){.helped=pn.helped, .pt=a.pt, pn.gen + 1},
+        pt(a)->p.markp = ap = (markp){.nil=p.nil,.hlp=1,.pt=p.pt};
+        if(updx_won((flx){.hlp=1, .pt=a.pt, pn.gen + 1},
                     &pt(p)->n, &pn))
             break;
     }
@@ -389,16 +389,17 @@ err (lflist_enq)(flx a, type *t, lflist *l){
 }
 
 flx (lflist_deq)(type *t, lflist *l){
-    flx a = (flx){.nil=1,.pt=mpt(&l->nil)};
-    flx np = {}, on = {}, n = readx(&pt(a)->n);
-    for(cnt lps = 0;;progress(&on, n, lps++)){
+    flx on = {}, a = (flx){.nil=1,.pt=mpt(&l->nil)};
+    for(cnt lps = 0;; countloops(lps++)){
+        flx np = {}, n = readx(&pt(a)->n);
         if(help_next(a, &n, &np, &on, t))
             EWTF();
+        if(eq2(n, on))
+            return (flx){};
         if(pt(n) == &l->nil)
             return (flx){};
         if(!(lflist_del)(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};
-        n = readx(&pt(a)->n);
     }
 }
 
@@ -467,16 +468,16 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         assert(!ax.nil);
                /* a's on no list. */
         assert((!px.mp && !nx.mp)
-               /* enq(a) has locked a->p */
-               || (!nx.mp && px.locked)
+               /* enq(a) has lk a->p */
+               || (!nx.mp && px.lk)
                /* enq(a, l) set a->n=&l->nil  */
-               || (!p && n && px.locked
+               || (!p && n && px.lk
                    && pt(n->p) != a
                    && (!pt(n->n) || pt(pt(n->n)->p) != a))
-               /* last stage of del(a). It should have helped enq("n")
+               /* last stage of del(a). It should have hlp enq("n")
                   first. */
-               || (!n && p && pt(p->n) != a && !px.locked
-                   /* try to check that del(a) helped enq(n) */
+               || (!n && p && pt(p->n) != a && !px.lk
+                   /* try to check that del(a) hlp enq(n) */
                    && (!pt(pt(p->n)->n) ||
                         pt(pt(pt(p->n)->n)->p) != a)));
     if(retn) *retn = (flx){};
@@ -494,62 +495,66 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         if(on)
             *on = cof(a, lflist, nil);
         assert(p && n && pn && np && pp && nn);
-        assert(!px.locked && !px.helped && !nx.locked && !px.helped);
+        assert(nx.hlp && !px.lk && !px.hlp && !nx.lk);
         assert(np == a
-               || (pt(np->p) == a && pt(np->n) == n && np->n.locked));
+               || (pt(np->p) == a && pt(np->n) == n && np->n.lk));
         assert(pn == a
-               || (!pn->n.locked
-                   && pn->p.helped
+               || (!pn->n.lk
+                   && pn->p.hlp
                    && pt(pn->n) == a
                    && (pt(pn->p) == p || pt(pp->n) != p)));
     }else{
         assert(!on || *on != cof(a, lflist, nil));
         assert(p != a && n != a);
-        assert(nx.nil || n != p);
-        if(!nx.locked){
+        assert(n != p || (nx.nil && n == p));
+        assert(nx.hlp || nx.nil);
+        assert((pn == n && nx.nil) || p->n.hlp);
+        if(!nx.lk){
             /* "equilibrium" after enq(a) and before del(a) sets anything,
                or after it's been reset by del(n). pn == a 4 lyfe. */
-            if(!nx.nil)
+            if(!nx.nil){
                 assert((pn == a && np == a) ||
                        /* del(np) has set a->n=n but not n->p=a */
                        (pn == a && pt(np->p) == a && pt(np->n) == n));
+            }
             /* enq(a) in progress. It gets messy. */
             else
-                ((pn == n && np == p && px.helped)
+                ((pn == n && np == p && px.hlp)
                  /* first step, and del(np) hasn't gone too far */
-                 || (pn == a && np == p && px.helped)
+                 || (pn == a && np == p && px.hlp && !nx.hlp)
                  /* finished. */
                  || (pn == a && np == a)
                  /* enq(a) has stale p so hasn't set p->n=a */
-                 || (pn != a && np != p && px.helped)
+                 || (pn != a && np != p && px.hlp && !nx.hlp)
                  /* enq(pn) has set p->n=pn but not nil->p=pn.
                     enq(a) will help in help_prev. */
-                 || (pn != n && np == p
-                     && pt(pn->n) == n
-                     && !pn->n.locked
-                     && pn->p.helped
+                 || (pn != n && np == p && pt(pn->n) == n
+                     && !pn->n.lk && !pn->n.hlp && pn->p.hlp
                      /* del(p) hasn't made its first step */
                      && (pt(pn->p) == p
                          /* del(p) is far enough along to enable pn->p
                             updates from del(pp) but hasn't helped enq(pn)
                             set nil->p=pn */
-                         || (pt(pp->n) != p && p->n.locked)))
-                 /* Same as above, except now enq(a) is the one in
-                    trouble. It hasn't set nil->p=a but del(PRIV_P) has
-                    set a->p=PRIV_P->p but hasn't helped set n->p=a. */
+                         || (pt(pp->n) != p && p->n.lk)))
+                 /* Similar to above, except now enq(a) is the one in
+                    trouble. It hasn't set nil->p=a but del(PREV_P) has
+                    set a->p=PREV_P->p but hasn't helped set n->p=a and
+                    thus hasn't cleared PREV_P->n. */
                  || (pn == a && np != p
-                     && !nx.locked && px.helped
+                     && px.hlp && !nx.lk && !nx.hlp
                      && pt(np->n) == a
                      && pt(pt(np->p)->n) != np));
         
         }
-        else
+        else{
+            assert(nx.hlp);
             /* Stages of del(a) after locking a->n. If np!=a, then pn!=a,
                but not vice-versa. */
             assert((pn == a && np == a) ||
                    (pn == n && np == a) ||
                    (pn == n && np == p) ||
                    (pn != a && np != a));
+        }
     }
 
     

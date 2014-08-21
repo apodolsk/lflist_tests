@@ -12,8 +12,8 @@ typedef union mptr mptr;
 
 typedef struct markp{
     uptr nil:1;
-    uptr locked:1;
-    uptr helped:1;
+    uptr lk:1;
+    uptr hlp:1;
     uptr pt:WORDBITS-3;
 } markp;
 
@@ -82,7 +82,7 @@ bool flanchor_valid(flx ax);
 #ifndef FAKELOCKFREE
 
 #define pudef (flx, "{%:%:%:%, %}", (void *)(uptr)(a->pt << 3), (uptr) a->nil, \
-               (uptr) a->locked, (uptr) a->helped, a->gen)
+               (uptr) a->lk, (uptr) a->hlp, a->gen)
 #include <pudef.h>
 #define pudef (flanchor, "n:%, p:%", a->n, a->p)
 #include <pudef.h>
