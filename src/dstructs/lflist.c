@@ -338,6 +338,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                                 &pt(a)->p, p))
                         goto newp;
                     *pn = ppn;
+                    opn = oppn;
                     break;
                 }
                 if(!updx_ok((flx){.nil=a.nil, !ppn.locked, 1, a.pt, pn->gen + 1},
