@@ -365,7 +365,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
-    if(!updx_won(fl((flx){}, COMMIT, a.gen), &pt(a)->p,
+    if(!updx_won(fl((flx){}, COMMIT, a.gen + 1), &pt(a)->p,
                  &(flx){.st=ADD, .gen=a.gen}))
         return -1;
     assert(!pt(a)->n.mp);
@@ -399,7 +399,7 @@ flx (lflist_deq)(type *t, lflist *l){
             return (flx){};
         if(pt(n) == &l->nil)
             return (flx){};
-        if(!(lflist_del)(((flx){.pt=n.pt, np.gen}), t))
+        if(!lflist_del(((flx){.pt=n.pt, np.gen}), t))
             return (flx){n.mp, np.gen};
     }
 }
