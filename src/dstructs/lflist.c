@@ -53,10 +53,9 @@
 #define FLANC_CHECK_FREQ 40
 #define MAX_LOOP 0
 
-static flx flinref_read(volatile flx *from, flx **held, type *t);
 static int flinref_up(flx *a, type *t);
 static void flinref_down(flx *a, type *t);
-static err help_next(flx a, flx *n, flx *np, type *t);
+static err help_next(flx a, flx *n, flx *np, flx *on, type *t);
 static err help_prev(flx a, flx *p, flx *pn, type *t);
 
 #define flinref_up(as...) trace(LFLISTM, 5, flinref_up, as)
@@ -77,6 +76,8 @@ flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
     flx oe = *e;
     *e = cas2(n, a, oe);
     log(2, "% %:%- found:% addr:%", eq2(*e, oe)? "WON" : "LOST", f, l, *e, a);
+    if(e->gen > n.gen && e->gen - n.gen >= (UPTR_MAX >> 1))
+        SUPER_RARITY("woahverflow");
     assert(!pt(n) || flanchor_valid(n));
     return *e;
 }
@@ -140,10 +141,10 @@ static flx readx(volatile flx *x){
 }
 
 static err refupd(flx n, flx held, type *t){
-    if(pt(n) != pt(held) && flinref_up(&n, t))
-        return -1;
-    if(pt(held))
-        flinref_down(&held, t);
+    /* if(pt(n) != pt(held) && flinref_up(&n, t)) */
+    /*     return -1; */
+    /* if(pt(held)) */
+    /*     flinref_down(&held, t); */
     return 0;
 }
 
@@ -151,27 +152,6 @@ static bool eqx(volatile flx *a, flx *b){
     flx old = *b;
     *b = readx(a);
     return eq2(old, *b);
-}
-
-static
-flx (flinref_read)(volatile flx *from, flx **held, type *t){
-    flx old = (flx){};
-    for(int c = 0;; countloops(c)){
-        flx a = readx(from);
-        flx *reused = NULL;
-        for(; *held; held++){
-            if(!reused && pt(a) == pt(**held))
-                reused = *held;
-            else if(pt(**held))
-                flinref_down(*held, t);
-            **held = (flx){};
-        }
-        if(eq2(old, a))
-            return pp(old, a), (flx){};
-        if(reused || !pt(a) || !flinref_up(&a, t))
-            return a;
-        old = a;
-    }
 }
 
 static
@@ -198,9 +178,9 @@ err (lflist_del)(flx a, type *t){
     flx pn = {}, p = {};
     if(help_prev(a, &p, &pn, t))
         goto cleanup;
-    flx np, n = flinref_read(&pt(a)->n, (flx*[]){NULL}, t);
-    for(int lps = 0;;){
-        if(help_next(a, &n, &np, t))
+    flx np, on = {}, n = readx(&pt(a)->n);
+    for(int lps = 0;; progress(&on, n, lps++)){
+        if(help_next(a, &n, &np, &on, t))
             break;
         if(help_prev(a, &p, &pn, t))
             break;
@@ -236,8 +216,8 @@ err (lflist_del)(flx a, type *t){
     
     /* Must be p abort */
     if(!pn_ok && pt(np) == pt(a)){
-        n = flinref_read(&pt(a)->n, ((flx* []){&n, NULL}), t);
-        np = readx(&pt(n)->p);
+        n = readx(&pt(a)->n);
+        np = refupd(n, on, t) ? (flx){} : readx(&pt(n)->p);
     }
 
     flx onp = np;
@@ -279,11 +259,15 @@ cleanup:
 }
 
 static
-err (help_next)(flx a, flx *n, flx *np, type *t){
-    flx on = *n, onp = *np;
-    for(cnt lps = 0;; progress(&on, *n, lps++)){
+err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
+    flx onp = *np;
+    for(cnt lps = 0;; progress(on, *n, lps++)){
         if(!pt(*n))
             return -1;
+        /* if(refupd(*n, *on, t)){ */
+        /*     *n = readx(&pt(a)->n); */
+        /*     continue; */
+        /* } */
         for(*np = readx(&pt(*n)->p);; progress(&onp, *np, lps++)){
             if(pt(*np) == pt(a))
                 return 0;
@@ -305,10 +289,10 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
 
 static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
-    flx op = *p;
+    flx op = *p, opn = *pn;
     for(cnt pl = 0;; progress(&op, *p, pl++)){
-        if(refupd(*p, op, t))
-            goto newp;
+        /* if(refupd(*p, op, t)) */
+        /*     goto newp; */
         flx opp = {};
         for(cnt pnl = 0;; progress(&(flx){}, (flx){}, pl + pnl++)){
             if(!eqx(&pt(a)->p, p))
@@ -332,7 +316,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 must(!eqx(&pt(a)->p, p));
                 break;
             }
-            progress(&opp, pp, 0);
+            assert(!eq2(pn, opn) || !eq2(pp, opp));
             if(refupd(pp, opp, t))
                 goto readpp;
             flx ppn = readx(&pt(pp)->n), oppn = {};
@@ -385,10 +369,6 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     assert(!pt(a)->n.mp);
     pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
-    assert(a.gen != UPTR_MAX);
-    if(a.gen == UPTR_MAX)
-        SUPER_RARITY("woahverflow");
-
     markp ap;
     flx p = {}, pn = {};
     flx oldp = {}, oldpn = {};
@@ -415,15 +395,16 @@ err (lflist_enq)(flx a, type *t, lflist *l){
 }
 
 flx (lflist_deq)(type *t, lflist *l){
-    flx np, oldn = {}, n = {};
-    for(cnt lps = 0;;progress(&oldn, n, lps++)){
-        n = flinref_read(&l->nil.n, ((flx*[]){&n, NULL}), t);
-        if(help_next(((flx){.nil = 1, .pt = mpt(&l->nil)}), &n, &np, t))
+    flx a = (flx){.nil=1,.pt=mpt(&l->nil)};
+    flx np, on = {}, n = readx(&pt(a)->n);
+    for(cnt lps = 0;;progress(&on, n, lps++)){
+        if(help_next(a, &n, &np, &on, t))
             EWTF();
         if(pt(n) == &l->nil)
             return (flx){};
         if(!(lflist_del)(((flx){n.mp, np.gen}), t))
             return (flx){n.mp, np.gen};
+        n = readx(&pt(a)->n);
     }
 }
 
