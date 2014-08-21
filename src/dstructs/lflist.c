@@ -138,6 +138,14 @@ static flx readx(volatile flx *x){
     /* return r; */
     return cas2((flx){}, x, (flx){});
 }
+
+static err refupd(flx n, flx held, type *t){
+    if(pt(n) != pt(held) && flinref_up(n, t))
+        return -1;
+    flinref_down(held);
+    return 0;
+}
+
 static bool eqx(volatile flx *a, flx *b, type *t){
     flx old = *b;
     *b = readx(a);
@@ -303,9 +311,10 @@ err (help_next)(flx a, flx *n, flx *np, type *t){
 
 static
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
-    flx op = *p, opn = *pn;
-    for(cnt pl = 0;; opn = (flx){}, progress(&op, *p, pl++)){
-        for(cnt pnl;; progress(&opn, *pn, pnl++)){
+    flx op = *p;
+    for(cnt pl = 0;; progress(&op, *p, pl++)){
+        for(cnt pnl = 0;; progress(&(flx){}, (flx){}, pnl++)){
+        newnp:
             if(!eqx(&pt(a)->p, p, t))
                 break;
             if(pt(*pn) != pt(a)){
@@ -328,17 +337,18 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 break;
             }
             flx ppn = readx(&pt(pp)->n), oppn = {};
-            for(cnt ppnl;;progress(&oppn, ppn, ppnl++)){
+            for(cnt ppnl = 0;;progress(&oppn, ppn, ppnl++)){
                 if(!eqx(&pt(a)->p, p, t))
                     goto newp;
-                if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
+                if(pt(ppn) != pt(*p) && pt(ppn) != pt(a)){
+                    assert(!eq2(pt(*p)->p, pp));
                     break;
+                }
                 if(pt(ppn) == pt(a)){
                     if(!updx_ok((flx){.nil=pp.nil, .pt=pp.pt, p->gen},
                                 &pt(a)->p, p))
                         goto newp;
                     *pn = ppn;
-                    opn = oppn;
                     break;
                 }
                 if(!updx_ok((flx){.nil=a.nil, !ppn.locked, 1, a.pt, pn->gen + 1},
