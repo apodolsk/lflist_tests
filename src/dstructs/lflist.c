@@ -202,7 +202,8 @@ err (lflist_del)(flx a, type *t){
         assert(!del_won || lock_ok != WON || on.st >= ABORT);
         del_won = lock_ok == WON && on.st < ABORT;
 
-        pn_ok = updx_ok(fl(n, umax(RDY, pn.st), pn.gen + 1), &pt(p)->n, &pn);
+        assert(pn.st > ADD);
+        pn_ok = updx_ok(fl(n, pn.st, pn.gen + 1), &pt(p)->n, &pn);
         if(pn_ok)
             break;
     }
