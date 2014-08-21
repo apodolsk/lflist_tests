@@ -46,17 +46,19 @@ struct flanchor{
     volatile flx n;
     volatile flx p;
 };
-#define FLANCHOR(list)                                  \
-    {.n.constexp = (list) ? 1 + (uptr) (list) : 0,      \
-     .p.constexp = (list) ? 1 + (uptr) (list) : 0}
+#define FLANCHOR(list)                                \
+    {.n.constexp = (list) ? 3 + (uptr) (list) : 0,    \
+     .p.constexp = (list) ? 3 + (uptr) (list) : 0}
 CASSERT(offsetof(list, nil) == 0);
 
 typedef volatile struct lflist{
     flanchor nil;
 }lflist;
 #define LFLIST(l, elem)                                                 \
-    {{.n = {.constexp = (elem) ? (uptr) (elem) : 1 + (uptr) &(l)->nil}, \
-      .p = {.constexp = (elem) ? (uptr) (elem) : 1 + (uptr) &(l)->nil}}}
+    {{.n = {.constexp =                                     \
+            (elem) ? 2 + (uptr) (elem) : 3 + (uptr) (l)},         \
+      .p = {.constexp =                                     \
+            (elem) ? 2 + (uptr) (elem) : 3 + (uptr) (l)}}}
 
 #endif  /* FAKELOCKFREE */
 
@@ -88,7 +90,7 @@ bool flanchor_valid(flx ax);
 
 static inline
 const char *flstatestr(flstate s){
-    return (const char *[]){"ADD", "DEL", "ABORT", "COMMIT"}[s];
+    return (const char *[]){"ADD", "RDY", "ABORT", "COMMIT"}[s];
 }
 
 #define pudef (flx, "{%:%:%, %}", (void *)(uptr)(a->pt << 3), (uptr) a->nil, \

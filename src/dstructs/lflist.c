@@ -200,8 +200,8 @@ err (lflist_del)(flx a, type *t){
         howok lock_ok = updx_ok(fl(n, COMMIT, n.gen + 1), &pt(a)->n, &n);
         if(!lock_ok)
             continue;
-        assert(!del_won || on.st >= ABORT);
-        del_won = on.st < ABORT;
+        assert(!del_won || lock_ok != WON || on2.st >= ABORT);
+        del_won = lock_ok == WON && on2.st < ABORT;
 
         pn_ok = updx_ok(fl(n, umax(RDY, pn.st), pn.gen + 1), &pt(p)->n, &pn);
         if(pn_ok)
@@ -209,6 +209,7 @@ err (lflist_del)(flx a, type *t){
     }
     if(!del_won)
         goto cleanup;
+    log(2, "del_won! %", a);
 
     static cnt naborts;
     static cnt paborts;
@@ -252,7 +253,7 @@ err (lflist_del)(flx a, type *t){
            (pt(np) != pt(a) || eq2(p, pt(a)->p)) &&
            n.pt == pt(a)->n.pt);
 
-    pt(a)->n.markp = pt(a)->p.markp = (markp){.st = COMMIT};
+    pt(a)->n.markp = pt(a)->p.markp = (markp){.st = ADD};
     
     assert(flanchor_valid(n));
 
@@ -365,11 +366,11 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
-    if(!updx_won(fl((flx){}, ADD, a.gen), &pt(a)->p,
-                 &(flx){.st=COMMIT, .gen=a.gen}))
+    if(!updx_won(fl((flx){}, COMMIT, a.gen), &pt(a)->p,
+                 &(flx){.st=ADD, .gen=a.gen}))
         return -1;
     assert(!pt(a)->n.mp);
-    pt(a)->n = fl(flx_of(&l->nil), ADD, pt(a)->n.gen + 1);
+    pt(a)->n = (flx){.nil=1, ADD, mpt(&l->nil), pt(a)->n.gen + 1};
 
     markp amp;
     flx op = {}, opn = {}, p = {}, pn = {};
@@ -398,7 +399,7 @@ flx (lflist_deq)(type *t, lflist *l){
             return (flx){};
         if(pt(n) == &l->nil)
             return (flx){};
-        if(!(lflist_del)(((flx){n.mp, np.gen}), t))
+        if(!(lflist_del)(((flx){.pt=n.pt, np.gen}), t))
             return (flx){n.mp, np.gen};
     }
 }
@@ -517,10 +518,11 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
             assert(np == a || (nx.nil && np == p && nx.st == ADD));
             break;
         case RDY:
-            assert(np == a || np );
+            assert(np == a || (pt(np->p) == a && np->n.st == COMMIT));
             break;
         case COMMIT:
             assert(nx.st == COMMIT);
+            break;
         }
         switch(nx.st){
         case ADD:
