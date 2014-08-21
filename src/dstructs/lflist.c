@@ -364,8 +364,9 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     if(!updx_won((flx){.locked=1, .gen=a.gen + 1}, &pt(a)->p,
                  &(flx){.gen=a.gen}))
         return -1;
-    assert(!pt(a)->n.mp);
-    pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
+    pt(a)->n.nil = 1;
+    flx an = pt(a)->n;
+    assert(!pt(an));
 
     markp ap;
     flx op = {}, opn = {}, p = {}, pn = {};
@@ -379,6 +380,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
                     &pt(p)->n, &pn))
             break;
     }
+    casx((flx){.nil=1,.pt=mpt(&l->nil),.gen=an.gen + 1}, &pt(a)->n, &an);
     casx((flx){a.mp, .gen=p.gen + 1}, &l->nil.p, (flx[]){p});
     casx((flx){.nil=p.nil,.pt=p.pt,.gen=a.gen+1}, &pt(a)->p,
          (flx[]){{.markp=ap, .gen=a.gen+1}});
