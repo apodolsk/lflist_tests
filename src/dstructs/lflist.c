@@ -71,7 +71,7 @@ flanchor *pt(flx a){
 
 static inline
 flx fl(flx p, flstate s, uptr gen){
-    return (flx){.nil=p.nil, s & 1, s & 2, gen};
+    return (flx){.nil=p.nil, .st=s, .pt=p.pt, gen};
 }
 
 static
@@ -343,9 +343,11 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                            || !eq2(pt(*p)->p, pp));
                     return 0;
                 }
+                assert(ppn.st <= ABORT);
 
-                if(updx_ok(fl(a, umax(ppn.st, RDY), ppn.gen + 1),
-                           &pt(pp)->n, &ppn)){
+                if(updx_ok(fl(a, umax(ppn.st, RDY), ppn.gen + 1), &pt(pp)->n,
+                           &ppn))
+                {
                     assert(eq2(pt(a)->p, *p)
                            || pt(a)->p.pt == pp.pt
                            || !eq2(pt(pp)->n, ppn));
@@ -363,7 +365,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
-    if(!updx_won(fl((flx){}, COMMIT, a.gen), &pt(a)->p, &(flx){.gen=a.gen}))
+    if(!updx_won(fl((flx){}, ADD, a.gen), &pt(a)->p,
+                 &(flx){.st=COMMIT, .gen=a.gen}))
         return -1;
     assert(!pt(a)->n.mp);
     pt(a)->n = fl(flx_of(&l->nil), ADD, pt(a)->n.gen + 1);
@@ -459,7 +462,7 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
     flanchor *p = pt(px), *n = pt(nx);
     if(retn) *retn = nx;
 
-    assert(px.st == ADD || px.st == ABORT || px.st == COMMIT);
+    assert(px.st == RDY || px.st == COMMIT || px.st == ADD);
 
     /* Early enq(a) or late del(a). */
     if(!p || !n){

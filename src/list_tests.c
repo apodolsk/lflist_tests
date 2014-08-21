@@ -393,7 +393,7 @@ static void launch_test(void *test(void *)){
 
     cnt all_size = list_size(&all);
     for(node *lost; (lost = cof(list_deq(&all), node, lanc));)
-        ppl(1, &lost->flanc);
+        ppl(0, &lost->flanc);
     assert(!all_size);
     assert(!nb);
 
