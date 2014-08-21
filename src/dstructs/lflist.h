@@ -9,11 +9,16 @@
 typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
 typedef union mptr mptr;
+typedef enum flstate flstate;
 
 typedef struct markp{
     uptr nil:1;
-    uptr lk:1;
-    uptr hlp:1;
+    enum flstate{
+        ADD,
+        RDY,
+        ABORT,
+        COMMIT
+    } st:2;
     uptr pt:WORDBITS-3;
 } markp;
 
@@ -81,8 +86,13 @@ bool flanchor_valid(flx ax);
 
 #ifndef FAKELOCKFREE
 
-#define pudef (flx, "{%:%:%:%, %}", (void *)(uptr)(a->pt << 3), (uptr) a->nil, \
-               (uptr) a->lk, (uptr) a->hlp, a->gen)
+static inline
+const char *flstatestr(flstate s){
+    return (const char *[]){"ADD", "DEL", "ABORT", "COMMIT"}[s];
+}
+
+#define pudef (flx, "{%:%:%, %}", (void *)(uptr)(a->pt << 3), (uptr) a->nil, \
+               flstatestr(a->st), a->gen)
 #include <pudef.h>
 #define pudef (flanchor, "n:%, p:%", a->n, a->p)
 #include <pudef.h>
