@@ -175,8 +175,12 @@ err (lflist_del)(flx a, type *t){
 
     howok pn_ok = NOT;
     bool del_won = false;
-    flx pn = {}, p = {};
+    flx p = readx(&pt(a)->p);
+    if(!pt(p) || p.gen != a.gen)
+        return -1;
+    flx pn = readx(&pt(p)->n);
     flx np, on = {}, n = readx(&pt(a)->n);
+    ppl(2, p, n);
     for(int lps = 0;; progress(&on, n, lps++)){
         if(help_next(a, &n, &np, &on, t))
             break;
@@ -271,9 +275,7 @@ err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
                 return 0;
             if(!eqx(&pt(a)->n, n))
                 break;
-            if(n->locked)
-                return -1;
-            if(!a.nil && n->nil && pt(a)->p.gen != a.gen)
+            if(n->locked || !n->helped)
                 return -1;
             assert(pt(*np) && !np->locked);
 
@@ -364,9 +366,8 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     if(!updx_won((flx){.locked=1, .gen=a.gen + 1}, &pt(a)->p,
                  &(flx){.gen=a.gen}))
         return -1;
-    pt(a)->n.nil = 1;
-    flx an = pt(a)->n;
-    assert(!pt(an));
+    assert(!pt(a)->n.mp);
+    pt(a)->n = (flx){.nil=1, .pt=mpt(&l->nil), .gen = pt(a)->n.gen + 1};
 
     markp ap;
     flx op = {}, opn = {}, p = {}, pn = {};
@@ -380,7 +381,6 @@ err (lflist_enq)(flx a, type *t, lflist *l){
                     &pt(p)->n, &pn))
             break;
     }
-    casx((flx){.nil=1,.pt=mpt(&l->nil),.gen=an.gen + 1}, &pt(a)->n, &an);
     casx((flx){a.mp, .gen=p.gen + 1}, &l->nil.p, (flx[]){p});
     casx((flx){.nil=p.nil,.pt=p.pt,.gen=a.gen+1}, &pt(a)->p,
          (flx[]){{.markp=ap, .gen=a.gen+1}});
