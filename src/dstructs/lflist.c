@@ -176,8 +176,6 @@ err (lflist_del)(flx a, type *t){
     howok pn_ok = NOT;
     bool del_won = false;
     flx pn = {}, p = {};
-    if(help_prev(a, &p, &pn, t))
-        goto cleanup;
     flx np, on = {}, n = readx(&pt(a)->n);
     for(int lps = 0;; progress(&on, n, lps++)){
         if(help_next(a, &n, &np, &on, t))
