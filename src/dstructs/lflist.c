@@ -243,7 +243,7 @@ err (lflist_del)(flx a, type *t){
         if(nn.nil && nn.st == ADD){
             flx nnp = readx(&pt(nn)->p);
             if(pt(nnp) == pt(a))
-                casx((flx){.pt=n.pt, nnp.gen + 1}, &pt(nn)->p, &nnp);
+                casx(fl(n, RDY, nnp.gen + 1), &pt(nn)->p, &nnp);
         }
     }
 
@@ -514,8 +514,10 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         assert(nx.nil || nx.st != ADD);
         switch(px.st){
         case ADD:
-            assert(nx.st == ADD || nx.st == RDY || nx.st == COMMIT);
-            assert(np == a || (nx.nil && np == p && nx.st == ADD));
+            assert(nx.st == ADD || nx.st == RDY);
+            assert(np == a ||
+                   pn != a ||
+                   (nx.nil && pt(np->n) == a && nx.st == ADD));
             break;
         case RDY:
             assert(np == a || (pn != a && nx.st == COMMIT));
