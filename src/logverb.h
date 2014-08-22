@@ -1,6 +1,6 @@
 #pragma once
 
-#define LOG_MASTER 0
+#define LOG_MASTER 1
 
 #define LOG_LIST_TESTSM 0
 #define LOG_NALLOC_TESTSM 0

@@ -50,8 +50,8 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 5
-#define FLANC_CHECK_FREQ 40
-#define MAX_LOOP 0
+#define FLANC_CHECK_FREQ 90
+#define MAX_LOOP 256
 
 static int flinref_up(flx *a, type *t);
 static void flinref_down(flx *a, type *t);
@@ -77,6 +77,7 @@ flx fl(flx p, flstate s, uptr gen){
 static
 flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
     assert(n.nil || (a != &pt(n)->p && a != &pt(n)->n));
+    assert(n.pt || !e->pt);
     assert(!eq2(n, *e));
     log(2, "CAS! %:% - % if %, addr:%", f, l, n, *e, a);
     flx oe = *e;
@@ -297,7 +298,7 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
         /* if(refupd(*p, op, t)) */
         /*     goto newp; */
         flx opp = {};
-        for(cnt pnl = 0;; progress(&(flx){}, (flx){}, pl + pnl++)){
+        for(cnt pnl = 0;; countloops(pl + pnl++)){
             if(!eqx(&pt(a)->p, p))
                 break;
             if(pt(*pn) != pt(a)){
@@ -374,6 +375,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     markp amp;
     flx op = {}, opn = {}, p = {}, pn = {};
     for(int c = 0;;countloops(c)){
+        assert(flanchor_valid((flx){.nil=1, .pt=mpt(&l->nil)}));
         if(help_prev(((flx){.nil=1, .pt=mpt(&l->nil)}), &p, &pn, t))
             EWTF();
         assert(!eq2(op, p) || !eq2(opn, pn)), op = p, opn = pn;
@@ -381,7 +383,6 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         pt(a)->p.markp = amp = fl(p, ADD, 0).markp;
         if(updx_won(fl(a, umax(pn.st, RDY), pn.gen + 1), &pt(p)->n, &pn))
             break;
-        assert(flanchor_valid((flx){.nil=1, .pt=mpt(&l->nil)}));
     }
     casx(fl(a, RDY, p.gen + 1), &l->nil.p, (flx[]){p});
     casx(fl(p, RDY, a.gen + 1), &pt(a)->p, &(flx){.markp=amp, a.gen + 1});
@@ -520,7 +521,9 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
                    (nx.nil && pt(np->n) == a && nx.st == ADD));
             break;
         case RDY:
-            assert(np == a || (pn != a && nx.st == COMMIT));
+            assert(np == a
+                   || (pn != a && nx.st == COMMIT)
+                   || (pt(np->p) == a && nx.st < COMMIT && nx.st > ADD));
             break;
         case COMMIT:
             assert(nx.st == COMMIT);
