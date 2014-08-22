@@ -303,8 +303,6 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             if(pt(*pn) != pt(a)){
                 if(!a.nil)
                     return -1;
-                assert((pt(pt(*pn)->n) == pt(a) && pt(*pn)->n.st == ADD)
-                       || !eq2(pt(a)->p, p));
                 updx_ok(fl(*pn, RDY, p->gen + 1), &pt(a)->p, p);
                 break;
             }
@@ -344,15 +342,16 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                            || !eq2(pt(*p)->p, pp));
                     return 0;
                 }
-                assert(ppn.st <= ABORT);
+                assert(ppn.st < COMMIT);
+                assert(ppn.st > ADD);
 
-                if(updx_ok(fl(a, umax(ppn.st, RDY), ppn.gen + 1), &pt(pp)->n,
-                           &ppn))
+                if(updx_ok(fl(a, ppn.st, ppn.gen + 1), &pt(pp)->n, &ppn))
                 {
                     assert(eq2(pt(a)->p, *p)
                            || pt(a)->p.pt == pp.pt
                            || !eq2(pt(pp)->n, ppn));
                     assert(pt(*p)->n.st == COMMIT
+                           || !pt(*p)->n.st
                            || !eq2(pp.gen, pt(*p)->p.gen));
                 }
             }
