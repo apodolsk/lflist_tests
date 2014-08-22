@@ -49,9 +49,9 @@
 
 #ifndef FAKELOCKFREE
 
-#define LIST_CHECK_FREQ 5
-#define FLANC_CHECK_FREQ 40
-#define MAX_LOOP 256
+#define LIST_CHECK_FREQ 0
+#define FLANC_CHECK_FREQ 0
+#define MAX_LOOP 0
 
 cnt naborts;
 cnt paborts;
@@ -196,10 +196,10 @@ err (lflist_del)(flx a, type *t){
     for(int lps = 0;; progress(&on, n, lps++)){
         if(help_next(a, &n, &np, &on, t))
             break;
-        assert(pt(np) == pt(a) && pn.st < COMMIT);
+        assert(pt(np) == pt(a));
         if(help_prev(a, &p, &pn, t))
             break;
-        assert(pt(pn) == pt(a));
+        assert(pt(pn) == pt(a) && pn.st < COMMIT);
 
         if(!updx_won(fl(n, COMMIT, n.gen + 1), &pt(a)->n, &n))
             continue;
