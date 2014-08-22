@@ -201,7 +201,7 @@ err (lflist_del)(flx a, type *t){
         if(!lock_ok)
             continue;
         assert(!del_won || lock_ok != WON || on.st >= ABORT);
-        del_won = lock_ok == WON && on.st < ABORT;
+        del_won = del_won || (lock_ok == WON && on.st < ABORT);
 
         assert(pn.st > ADD);
         pn_ok = updx_ok(fl(n, pn.st, pn.gen + 1), &pt(p)->n, &pn);
@@ -566,7 +566,7 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
             assert((pn == a && np == a)
                    || (pn == n && np == a)
                    || (pn == n && np == p)
-                   || (pn != n && pn != a && np != a));
+                   || (pn != a && np != a));
             break;
         }
     }
