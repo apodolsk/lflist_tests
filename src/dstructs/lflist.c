@@ -516,9 +516,9 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         switch(px.st){
         case ADD:
             assert(nx.st == ADD || nx.st == RDY);
-            assert(np == a ||
-                   pn != a ||
-                   (nx.nil && pt(np->n) == a && nx.st == ADD));
+            /* assert(np == a || */
+            /*        pn != a || */
+            /*        (nx.nil && pt(np->n) == a && nx.st == ADD)); */
             break;
         case RDY:
             assert(np == a
