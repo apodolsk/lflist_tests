@@ -47,7 +47,7 @@
 #include <libthread.h>
 
 #define HEAP_DBG 1
-#define LINREF_ACCOUNT_DBG 0
+#define LINREF_ACCOUNT_DBG 1
 #define NALLOC_MAGIC_INT 0x01FA110C
 
 typedef struct tyx tyx;
