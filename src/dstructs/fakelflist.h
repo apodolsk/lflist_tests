@@ -4,9 +4,13 @@
 #include <pthread.h>
 
 typedef struct{
+    uptr gen;
+    struct lflist *host;
+}stx;
+
+typedef struct{
     lanchor lanc;
-    volatile uptr gen;
-    volatile struct lflist *host;
+    stx;
 } flanchor;
 #define FLANCHOR(list)                          \
     {LANCHOR(list), .host = list}

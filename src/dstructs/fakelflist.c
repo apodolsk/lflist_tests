@@ -32,7 +32,7 @@ err (lflist_del)(flx a, type *h){
     (void) h;
     lflist *l;
     while(1){
-        l = (lflist *) a.a->host;
+        l = a.a->host;
         if(!l || a.a->gen != a.gen)
             return -1;
         lock_lflist(l);
@@ -56,6 +56,7 @@ flx (lflist_deq)(type *h, lflist *l){
     flanchor *r = cof(list_deq(&l->l), flanchor, lanc);
     if(r){
         rlx = (flx){r, r->gen};
+        assert(r->host == l);
         r->host = NULL;
     }
     unlock_lflist(l);
@@ -67,13 +68,8 @@ err (lflist_enq)(flx a, type *h, lflist *l){
     if(a.a->gen != a.gen)
         return -1;
     lock_lflist(l);
-    if(!cas_won(l, &a.a->host, (flanchor *[]){NULL}))
+    if(!cas2_won(((stx){a.gen + 1, l}), &a.a->stx, (&(stx){a.gen, NULL})))
         return unlock_lflist(l), -1;
-    if(a.a->gen != a.gen){
-        a.a->host = NULL;
-        return unlock_lflist(l), -1;
-    }
-    a.a->gen++;
     list_enq(&a.a->lanc, &l->l);
     assert(a.a->host == l);
     assert(a.a->gen == a.gen + 1);
