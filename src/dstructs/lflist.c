@@ -285,7 +285,7 @@ err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
                 return -1;
             assert(pt(*np) && (np->st == RDY || np->st == ADD));
 
-            if(updx_ok_modhlp(fl(a, np.st, np->gen + n->nil), &pt(*n)->p, np))
+            if(updx_ok_modhlp(fl(a, np->st, np->gen + n->nil), &pt(*n)->p, np))
                 return 0;
         }
     }
