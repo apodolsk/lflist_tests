@@ -51,7 +51,7 @@
 
 #define LIST_CHECK_FREQ 0
 #define FLANC_CHECK_FREQ 0
-#define MAX_LOOP 0
+#define MAX_LOOP 64
 
 cnt naborts;
 cnt paborts;
@@ -268,7 +268,7 @@ cleanup:
     return -!del_won;
 }
 
-static
+static noinline
 err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
     for(cnt nl = 0, npl = 0;; progress(on, *n, nl++)){
         if(!pt(*n))
@@ -293,7 +293,7 @@ err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
     }
 }
 
-static
+static noinline
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
     flx op = *p, opn = *pn;
     for(cnt pl = 0;; progress(&op, *p, pl++)){

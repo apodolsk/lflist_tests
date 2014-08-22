@@ -36,11 +36,11 @@ typedef struct{
     volatile pgen last_priv;
 } node;
 
-uint nlists = 1;
-uint nthreads = 2;
-uint niter = 1000;
-uint nblocks = 100;
-uint nwrites = 8;
+cnt nlists = 1;
+cnt nthreads = 2;
+cnt niter = 1000;
+cnt nblocks = 100;
+cnt nwrites = 8;
 
 /* GDB starts counting threads at 1, so the first child is 2. Urgh. */
 const uptr firstborn = 2;

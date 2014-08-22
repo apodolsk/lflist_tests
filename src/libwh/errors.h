@@ -28,8 +28,12 @@
 
 extern noreturn void panic(const char *, ...);
 
+#if DBG > 0
 #define assert(expr...)                                               \
     (!(expr) ? TODO("Failed assertion: %.", #expr) : 0)
+#else
+#define assert(expr...) (0 ? expr : 0)
+#endif
 
 /* --- Fatal Errors (for the kernel) --- */
 
