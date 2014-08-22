@@ -64,6 +64,12 @@ static err help_prev(flx a, flx *p, flx *pn, type *t);
 #define help_prev(as...) trace(LFLISTM, 3, help_prev, as)
 #define flinref_read(as...) trace(LFLISTM, 4, flinref_read, as)
 
+#define progress(o, n, loops) progress(o, ppl(2, n), loops)
+#define casx(as...) casx(__func__, __LINE__, as)
+#define updx_ok(as...) updx_ok(__func__, __LINE__, as)
+#define updx_ok_modhlp(as...) updx_ok_modhlp(__func__, __LINE__, as)
+#define updx_won(as...) updx_won(__func__, __LINE__, as)
+
 static inline
 flanchor *pt(flx a){
     return (flanchor *) (uptr)(a.pt << 3);
@@ -75,7 +81,7 @@ flx fl(flx p, flstate s, uptr gen){
 }
 
 static
-flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
+flx (casx)(const char *f, int l, flx n, volatile flx *a, flx *e){
     assert(n.nil || (a != &pt(n)->p && a != &pt(n)->n));
     assert(n.pt || !e->pt);
     assert(!eq2(n, *e));
@@ -89,9 +95,9 @@ flx casx(const char *f, int l, flx n, volatile flx *a, flx *e){
     return *e;
 }
 
-static howok updx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
+static howok (updx_ok)(const char *f, int l, flx n, volatile flx *a, flx *e){
     flx oe = *e;
-    casx(f, l, n, a, e);
+    (casx)(f, l, n, a, e);
     if(eq2(*e, oe))
         return *e = n, WON;
     if(eq2(*e, n))
@@ -99,10 +105,10 @@ static howok updx_ok(const char *f, int l, flx n, volatile flx *a, flx *e){
     return NOT;
 }
 
-static howok updx_ok_modhlp(const char *f, int l, flx n,
-                               volatile flx *a, flx *e){
+static howok (updx_ok_modhlp)(const char *f, int l, flx n,
+                              volatile flx *a, flx *e){
     flx oe = *e;
-    casx(f, l, n, a, e);
+    (casx)(f, l, n, a, e);
     if(eq2(*e, oe))
         return *e = n, WON;
     if(eq2(*e, n))
@@ -111,15 +117,15 @@ static howok updx_ok_modhlp(const char *f, int l, flx n,
         oe.st = n.st = RDY;
         if(eq2(*e, oe)){
             *e = oe;
-            return updx_ok(f, l, n, a, e);
+            return (updx_ok)(f, l, n, a, e);
         }
     }
     return NOT;
 }
 
-static bool updx_won(const char *f, int l,
-                    flx n, volatile flx *a, flx *e){
-    return WON == updx_ok(f, l, n, a, e);
+static bool (updx_won)(const char *f, int l,
+                       flx n, volatile flx *a, flx *e){
+    return WON == (updx_ok)(f, l, n, a, e);
 }
 
 static void countloops(cnt loops){
@@ -127,17 +133,11 @@ static void countloops(cnt loops){
         SUPER_RARITY("LOTTA LOOPS: %", loops);
 }
 
-static void progress(flx *o, flx n, cnt loops){
+static void (progress)(flx *o, flx n, cnt loops){
     assert(!pt(*o) || !eq2(*o, n));
     *o = n;
     countloops(loops);
 }
-#define progress(o, n, loops) progress(o, ppl(2, n), loops)
-
-#define casx(as...) casx(__func__, __LINE__, as)
-#define updx_ok(as...) updx_ok(__func__, __LINE__, as)
-#define updx_ok_modhlp(as...) updx_ok_modhlp(__func__, __LINE__, as)
-#define updx_won(as...) updx_won(__func__, __LINE__, as)
 
 static flx readx(volatile flx *x){
     /* assert(aligned_pow2(x, sizeof(dptr))); */
@@ -197,11 +197,10 @@ err (lflist_del)(flx a, type *t){
             break;
         assert(pt(pn) == pt(a) && pt(np) == pt(a) && pn.st < COMMIT);
 
-        howok lock_ok = updx_ok(fl(n, COMMIT, n.gen + 1), &pt(a)->n, &n);
-        if(!lock_ok)
+        if(!updx_won(fl(n, COMMIT, n.gen + 1), &pt(a)->n, &n))
             continue;
-        assert(!del_won || lock_ok != WON || on.st >= ABORT);
-        del_won = del_won || (lock_ok == WON && on.st < ABORT);
+        assert(!del_won || on.st >= ABORT);
+        del_won = del_won || on.st < ABORT;
 
         assert(pn.st > ADD);
         pn_ok = updx_ok(fl(n, pn.st, pn.gen + 1), &pt(p)->n, &pn);
@@ -334,8 +333,8 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                     /* TODO: can avoid the a->p recheck. */
                     break;
                 }
-                if(!updx_ok(fl(a, ppn.st == COMMIT ? ABORT : COMMIT, pn->gen + 1),
-                            &pt(*p)->n, pn))
+                if(!updx_won(fl(a, ppn.st == COMMIT ? ABORT : COMMIT, pn->gen + 1),
+                             &pt(*p)->n, pn))
                     break;
                 if(pn->st == ABORT){
                     assert((eq2(pt(a)->p, *p) && pt(pp)->n.pt == p->pt)
