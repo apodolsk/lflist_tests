@@ -136,24 +136,26 @@ static void countloops(cnt loops){
 }
 
 static bool (progress)(flx *o, flx n, cnt loops){
-    bool eq = !pt(*o) || eq2(*o, n);
+    bool eq = eq2(*o, n);
     *o = n;
     countloops(loops);
-    return eq;
+    return !eq;
 }
 
 static flx readx(volatile flx *x){
     return cas2((flx){}, x, (flx){});
 }
 
-static err (refupd)(flx n, flx held, type *t){
-    if(pt(n) != pt(held)){
-       if(flinref_up(&n, t))
-           return -1;
-       else 
-           flinref_down(&held, t);
-    }
-    return 0;
+static err (refupd)(flx *n, flx *held, volatile flx *src, type *t){
+    if(pt(*n) == pt(*held))
+        return 0;
+    flinref_down(held, t);
+    if(!flinref_up(n, t))
+        return 0;
+    TODO();
+    if(src)
+        *n = readx(src);
+    return -1;
 }
 
 static bool eqx(volatile flx *a, flx *b){
@@ -187,7 +189,7 @@ err (lflist_del)(flx a, type *t){
     howok pn_ok = NOT;
     bool del_won = false;
     flx pn, p = {};
-    flx np, n = readx(&pt(a)->n), on = {};
+    flx np, on = {}, n = readx(&pt(a)->n);
     for(int lps = 0;; countloops(lps++)){
         if(help_next(a, &n, &np, &on, t))
             break;
@@ -222,17 +224,15 @@ err (lflist_del)(flx a, type *t){
     /* Must be p abort */
     if(!pn_ok && pt(np) == pt(a)){
         n = readx(&pt(a)->n);
-        np = refupd(n, on, t) ? (flx){} : readx(&pt(n)->p);
+        np = refupd(&n, &on, NULL, t) ? (flx){} : readx(&pt(n)->p);
     }
 
     flx onp = np;
     if(pt(np) == pt(a))
         updx_ok_modhlp(fl(p, np.st, np.gen + n.nil), &pt(n)->p, &np);
 
-    /* Clean up after an interrupted add of 'n'. In this case,
-       a->n is the only reference to 'n' discoverable from nil,
-       and we should finish the add before it gets cleared (next
-       time a is added). */
+    /* Clean up after an interrupted add of n. In this case, a->n is the
+       only reference to n reachable from nil. */
     ppl(2, n, np, a, pn_ok);
     if(pt(np) && np.st == ADD){
     /* if(pt(np) && np.st == ADD && onp.gen == np.gen){ */
@@ -267,13 +267,9 @@ cleanup:
 
 static 
 err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
-    for(cnt nl = 0, npl = 0;; progress(on, *n, nl++)){
-        if(!pt(*n))
-            return -1;
-        if(refupd(*n, *on, t)){
-            *n = readx(&pt(a)->n);
-            continue;
-        }
+    for(cnt nl = 0, npl = 0;; must(progress(on, *n, nl++))){
+        do if(!pt(*n)) return -1;
+        while(refupd(n, on, &pt(a)->n, t));
         flx onp = {};
         for(*np = readx(&pt(*n)->p);; progress(&onp, *np, nl + npl++)){
             if(pt(*np) == pt(a))
@@ -310,19 +306,18 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
                 return 0;
 
         readpp:;
-            pp = readx(&pt(*p)->p);
-            if(!pt(pp) || pp.st == COMMIT || pp.st == ADD){
-                must(!eqx(&pt(a)->p, p));
-                break;
-            }
-            assert(!eq2(pn, opn) || !eq2(pp, opp));
-            if(refupd(pp, opp, t))
-                goto readpp;
+            flx pp = readx(&pt(*p)->p);
+        newpp:;
+            do if(!pt(pp) || pp.st == COMMIT || pp.st == ADD){
+                    must(!eqx(&pt(a)->p, p));
+                    goto newp;
+                } else assert(!eq2(pn, opn) || !eq2(pp, opp));
+            while(refupd(&pp, &opp, &pt(*p)->p, t));
             opp = pp;
             flx ppn = readx(&pt(pp)->n), oppn = {};
             for(cnt ppnl = 0;;progress(&oppn, ppn, pl + pnl + ppnl++)){
-                if(!eqx(&pt(a)->p, p))
-                    goto newp;
+                if(!eqx(&pt(*p)->p, &pp))
+                    goto newpp;
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
                     goto readpp;
                 if(pt(ppn) == pt(a)){
@@ -357,12 +352,9 @@ err (help_prev)(flx a, flx *p, flx *pn, type *t){
             }
         }
     newp:;
-        if(!a.nil && (!pt(*p) || p->st == COMMIT || p->gen != a.gen))
-            return -1;
-        if(refupd(*p, op, t)){
-            must(!eqx(&pt(a)->p, p));
-            goto newp;
-        }
+        do if(!a.nil && (!pt(*p) || p->st == COMMIT || p->gen != a.gen))
+               return -1;
+        while(refupd(p, &op, &pt(a)->p, t));
 
         assert(a.nil || pt(*p) != pt(a));
         *pn = readx(&pt(*p)->n);
