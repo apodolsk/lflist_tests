@@ -50,8 +50,8 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 0
-#define FLANC_CHECK_FREQ 0
-#define MAX_LOOP 64
+#define FLANC_CHECK_FREQ 20
+#define MAX_LOOP 0
 
 cnt naborts;
 cnt paborts;
@@ -86,9 +86,9 @@ flx fl(flx p, flstate s, uptr gen){
 
 static
 flx (casx)(const char *f, int l, flx n, volatile flx *a, flx *e){
-    assert(n.nil || (a != &pt(n)->p && a != &pt(n)->n));
-    assert(n.pt || !e->pt);
-    assert(!eq2(n, *e));
+    /* assert(n.nil || (a != &pt(n)->p && a != &pt(n)->n)); */
+    /* assert(n.pt || !e->pt); */
+    /* assert(!eq2(n, *e)); */
     log(2, "CAS! %:% - % if %, addr:%", f, l, n, *e, a);
     flx oe = *e;
     *e = cas2(n, a, oe);
@@ -143,13 +143,15 @@ static void (progress)(flx *o, flx n, cnt loops){
     countloops(loops);
 }
 
+/* static flx readx(volatile flx *x){ */
+/*     assert(aligned_pow2(x, sizeof(dptr))); */
+/*     flx r; */
+/*     r.gen = atomic_read(&x->gen); */
+/*     r.mp = atomic_read(&x->mp); */
+/*     return r; */
+/* } */
+
 static flx readx(volatile flx *x){
-    /* assert(aligned_pow2(x, sizeof(dptr))); */
-    /* flx r; */
-    /* r.gen = atomic_read(&x->gen); */
-    /* r.mp = atomic_read(&x->mp); */
-    /* pp(1, r); */
-    /* return r; */
     return cas2((flx){}, x, (flx){});
 }
 
@@ -160,6 +162,13 @@ static err refupd(flx n, flx held, type *t){
     /*     flinref_down(&held, t); */
     return 0;
 }
+
+/* static bool eqx(volatile flx *a, flx *b){ */
+/*     flx old = *b; */
+/*     b->gen = atomic_read(&a->gen); */
+/*     b->mp = atomic_read(&a->mp); */
+/*     return eq2(old, *b); */
+/* } */
 
 static bool eqx(volatile flx *a, flx *b){
     flx old = *b;
@@ -238,7 +247,8 @@ err (lflist_del)(flx a, type *t){
        and we should finish the add before it gets cleared (next
        time a is added). */
     ppl(2, n, np, a, pn_ok);
-    if(pt(np) && np.st == ADD && onp.gen == np.gen){
+    if(pt(np) && np.st == ADD){
+    /* if(pt(np) && np.st == ADD && onp.gen == np.gen){ */
         assert(!n.nil);
         flx nn = readx(&pt(n)->n);
         if(nn.nil && nn.st == ADD){
@@ -268,15 +278,15 @@ cleanup:
     return -!del_won;
 }
 
-static noinline
+static 
 err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
     for(cnt nl = 0, npl = 0;; progress(on, *n, nl++)){
         if(!pt(*n))
             return -1;
-        /* if(refupd(*n, *on, t)){ */
-        /*     *n = readx(&pt(a)->n); */
-        /*     continue; */
-        /* } */
+        if(refupd(*n, *on, t)){
+            *n = readx(&pt(a)->n);
+            continue;
+        }
         flx onp = {};
         for(*np = readx(&pt(*n)->p);; progress(&onp, *np, nl + npl++)){
             if(pt(*np) == pt(a))
@@ -293,12 +303,12 @@ err (help_next)(flx a, flx *n, flx *np, flx *on, type *t){
     }
 }
 
-static noinline
+static 
 err (help_prev)(flx a, flx *p, flx *pn, type *t){
     flx op = *p, opn = *pn;
     for(cnt pl = 0;; progress(&op, *p, pl++)){
-        /* if(refupd(*p, op, t)) */
-        /*     goto newp; */
+        if(refupd(*p, op, t))
+            goto newp;
         flx opp = {};
         for(cnt pnl = 0;; countloops(pl + pnl++)){
             if(!eqx(&pt(a)->p, p))

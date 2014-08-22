@@ -3,9 +3,9 @@
 #include <atomics.h>
 #include <asm.h>
 
-#define FUZZ_ATOMICS 0
+#define FUZZ_ATOMICS 1
 #define FUZZ_NS 9000
-#define FUZZ_PCNT 80
+#define FUZZ_PCNT 50
 #define FUZZ_MOD 2
 
 extern uptr (xadd)(iptr s, volatile uptr *p);
