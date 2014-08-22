@@ -50,7 +50,7 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 5
-#define FLANC_CHECK_FREQ 90
+#define FLANC_CHECK_FREQ 40
 #define MAX_LOOP 256
 
 static int flinref_up(flx *a, type *t);
@@ -189,7 +189,6 @@ err (lflist_del)(flx a, type *t){
         return -1;
     flx pn = readx(&pt(p)->n);
     flx np, n = readx(&pt(a)->n), on = n;
-    ppl(2, p, n);
     for(int lps = 0;; progress(&on, n, lps++)){
         if(help_next(a, &n, &np, &on, t))
             break;
@@ -209,7 +208,6 @@ err (lflist_del)(flx a, type *t){
     }
     if(!del_won)
         goto cleanup;
-    log(2, "del_won! %", a);
 
     static cnt naborts;
     static cnt paborts;
@@ -253,7 +251,8 @@ err (lflist_del)(flx a, type *t){
            (pt(np) != pt(a) || eq2(p, pt(a)->p)) &&
            n.pt == pt(a)->n.pt);
 
-    pt(a)->n.markp = pt(a)->p.markp = (markp){.st = ADD};
+    pt(a)->n.markp = (markp){.st = ADD};
+    pt(a)->p.markp = (markp){.st = ADD};
     
     assert(flanchor_valid(n));
 
