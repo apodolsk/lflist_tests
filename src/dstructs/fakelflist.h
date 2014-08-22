@@ -5,8 +5,8 @@
 
 typedef struct{
     lanchor lanc;
-    uptr gen;
-    struct lflist *host;
+    volatile uptr gen;
+    volatile struct lflist *host;
 } flanchor;
 #define FLANCHOR(list)                          \
     {LANCHOR(list), .host = list}

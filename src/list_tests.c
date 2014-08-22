@@ -93,6 +93,7 @@ static void *test_reinsert(uint id){
         ppl(2, i);
         if(randpcnt(10) && condxadd(1, &nb, nblocks) < nblocks){
             node *b = (node *) linalloc(node_h);
+            assert(b);
             lflist_enq(flx_of(&b->flanc), t, &priv);
             list_enq(&b->lanc, &perm);
         }

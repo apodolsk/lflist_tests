@@ -15,6 +15,8 @@ bool _cas2_won(dptr n, volatile dptr *p, dptr *old);
 
 uptr _condxadd(uptr n, volatile uptr *p, uptr lim);
 
+void fuzz_atomics();
+
 typedef enum{
     NOT = 0,
     WON = 1,

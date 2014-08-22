@@ -1,5 +1,5 @@
 #pragma once
-/* #define FAKELOCKFREE */
+#define FAKELOCKFREE
 #ifdef FAKELOCKFREE
 #include <fakelflist.h>
 #else

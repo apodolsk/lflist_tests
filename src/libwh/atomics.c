@@ -14,7 +14,7 @@ extern uptr (cmpxchg)(uptr n, volatile uptr *p, uptr old);
 extern dptr (cmpxchg2)(dptr n, volatile dptr *p, dptr old);
     
 #include <time.h>
-static void fuzz_atomics(){
+void fuzz_atomics(){
     if(!interrupts_enabled())
         return;
     if(FUZZ_ATOMICS &&

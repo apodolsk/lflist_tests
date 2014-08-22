@@ -10,18 +10,14 @@ static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 static
 void lock_lflist(lflist *l){
-    (void) l;
+    fuzz_atomics();
     pthread_mutex_lock(&l->mut);
-    /* pthread_mutex_lock(&mut); */
-    /* disable_interrupts(); */
 }
 
 static
 void unlock_lflist(lflist *l){
-    (void) l;
+    fuzz_atomics();
     pthread_mutex_unlock(&l->mut);
-    /* pthread_mutex_unlock(&mut); */
-    /* enable_interrupts(); */
 }
 
 flx flx_of(flanchor *a){
@@ -36,18 +32,18 @@ err (lflist_del)(flx a, type *h){
     (void) h;
     lflist *l;
     while(1){
-        l = a.a->host;
-        if(!l)
+        l = (lflist *) a.a->host;
+        if(!l || a.a->gen != a.gen)
             return -1;
         lock_lflist(l);
         if(a.a->host == l)
             break;
         unlock_lflist(l);
     }
-    if(a.a->gen != a.gen || !a.a->lanc.n || ((uptr) a.a->lanc.n & 1))
+    if(a.a->gen != a.gen)
         return unlock_lflist(l), -1;
     list_remove(&a.a->lanc, &l->l);
-    a.a->lanc = (lanchor) LANCHOR(NULL);
+    assert(a.a->host == l);
     a.a->host = NULL;
     unlock_lflist(l);
     return 0;
@@ -60,7 +56,6 @@ flx (lflist_deq)(type *h, lflist *l){
     flanchor *r = cof(list_deq(&l->l), flanchor, lanc);
     if(r){
         rlx = (flx){r, r->gen};
-        r->lanc = (lanchor) LANCHOR(NULL);
         r->host = NULL;
     }
     unlock_lflist(l);
@@ -69,11 +64,19 @@ flx (lflist_deq)(type *h, lflist *l){
 
 err (lflist_enq)(flx a, type *h, lflist *l){
     (void) h;
+    if(a.a->gen != a.gen)
+        return -1;
     lock_lflist(l);
-    if(!cas_ok(a.gen + 2, &a.a->gen, a.gen) || a.a->lanc.n)
+    if(!cas_won(l, &a.a->host, (flanchor *[]){NULL}))
         return unlock_lflist(l), -1;
-    a.a->host = l; 
+    if(a.a->gen != a.gen){
+        a.a->host = NULL;
+        return unlock_lflist(l), -1;
+    }
+    a.a->gen++;
     list_enq(&a.a->lanc, &l->l);
+    assert(a.a->host == l);
+    assert(a.a->gen == a.gen + 1);
     unlock_lflist(l);
     return 0;
 }
