@@ -53,6 +53,10 @@
 #define FLANC_CHECK_FREQ 40
 #define MAX_LOOP 256
 
+cnt naborts;
+cnt paborts;
+cnt wins;
+
 static int flinref_up(flx *a, type *t);
 static void flinref_down(flx *a, type *t);
 static err help_next(flx a, flx *n, flx *np, flx *on, type *t);
@@ -192,9 +196,10 @@ err (lflist_del)(flx a, type *t){
     for(int lps = 0;; progress(&on, n, lps++)){
         if(help_next(a, &n, &np, &on, t))
             break;
+        assert(pt(np) == pt(a) && pn.st < COMMIT);
         if(help_prev(a, &p, &pn, t))
             break;
-        assert(pt(pn) == pt(a) && pt(np) == pt(a) && pn.st < COMMIT);
+        assert(pt(pn) == pt(a));
 
         if(!updx_won(fl(n, COMMIT, n.gen + 1), &pt(a)->n, &n))
             continue;
@@ -209,12 +214,9 @@ err (lflist_del)(flx a, type *t){
     if(!del_won)
         goto cleanup;
 
-    static cnt naborts;
-    static cnt paborts;
-    static cnt wins;
-    if(pn_ok) xadd(1, &wins);
-    else if(pt(np) == pt(a)) xadd(1, &paborts);
-    else if(pt(np) != pt(a)) xadd(1, &naborts);
+    if(pn_ok) assert(xadd(1, &wins), 1);
+    else if(pt(np) == pt(a)) assert(xadd(1, &paborts), 1);
+    else if(pt(np) != pt(a)) assert(xadd(1, &naborts), 1);
 
     if(pn_ok || pt(np) == pt(a))
         assert(eq2(p, pt(a)->p));
@@ -250,6 +252,8 @@ err (lflist_del)(flx a, type *t){
            pt(a)->p.gen == a.gen &&
            (pt(np) != pt(a) || eq2(p, pt(a)->p)) &&
            n.pt == pt(a)->n.pt);
+    assert(pt(a)->n.pt);
+    assert(pt(a)->p.pt);
 
     pt(a)->n.markp = (markp){.st = ADD};
     pt(a)->p.markp = (markp){.st = ADD};
