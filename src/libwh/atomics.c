@@ -3,7 +3,7 @@
 #include <atomics.h>
 #include <asm.h>
 
-#define FUZZ_ATOMICS 1
+#define FUZZ_ATOMICS 0
 #define FUZZ_NS 9000
 #define FUZZ_PCNT 80
 #define FUZZ_MOD 2

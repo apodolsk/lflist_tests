@@ -89,9 +89,9 @@ heritage *poly_heritage_of(size size){
 
 void *(malloc)(size size){
     if(!size)
-        return NULL;
+        return TODO(), NULL;
     if(size > MAX_BLOCK)
-        return RARITY(), NULL;
+        return TODO(), NULL;
     block *b = (linalloc)(poly_heritage_of(size));
     /* if(b) */
     /*     assert(magics_valid(b, poly_heritage_of(size)->t->size)); */
@@ -298,9 +298,25 @@ void linref_account_close(linref_account *a){
         assert(T->nallocin.linrefs_held == a->baseline);
 }
 
-int posix_memalign(void **mptr, size align, size sz){return -1;}
-void *memalign(size align, size sz){return NULL;}
-void *pvalloc(size sz){return NULL;}
-void *aligned_alloc(size align, size sz){return NULL;}
-void *valloc(size sz){ return NULL; }
+void *memalign(size align, size sz){
+    EWTF();
+    assert(sz <= MAX_BLOCK
+           && align < PAGE_SIZE
+           && align * (sz / align) == align);
+    if(!is_pow2(align) || align < sizeof(void *))
+        return NULL;
+    return malloc(sz);
+}
+int posix_memalign(void **mptr, size align, size sz){
+    return (*mptr = memalign(align, sz)) ? 0 : -1;
+}
+void *pvalloc(size sz){
+    EWTF();
+}
+void *aligned_alloc(size align, size sz){
+    return memalign(align, sz);
+}
+void *valloc(size sz){
+    EWTF();
+}
 

@@ -3,6 +3,16 @@
 #include <list.h>
 #include <stack.h>
 
+#define smalloc nasmalloc
+#define sfree nasfree
+#define malloc namalloc
+#define smalloc nasmalloc
+#define realloc narealloc
+#define calloc nacalloc
+#define free nafree
+#define linalloc nalinalloc
+#define linfree nalinfree
+
 typedef struct {
     sanchor sanc;
 } block;
@@ -107,14 +117,14 @@ typedef struct{
                a->wayward_blocks.size)
 #include <pudef.h>
 
-#define smalloc(as...) trace(NALLOC, 1, smalloc, as)
-#define sfree(as...) trace(NALLOC, 1, sfree, as)
-#define malloc(as...) trace(NALLOC, 1, malloc, as)
-#define smalloc(as...) trace(NALLOC, 1, smalloc, as)
-#define realloc(as...) trace(NALLOC, 1, realloc, as)
-#define calloc(as...) trace(NALLOC, 1, calloc, as)
-#define free(as...) trace(NALLOC, 4, free, as)
-#define linalloc(as...) trace(NALLOC, 1, linalloc, as)
-#define linfree(as...) trace(NALLOC, 1, linfree, as)
-/* #define linref_up(as...) nalloc_trace(linref_up, as) */
-/* #define linref_down(as...) nalloc_trace(linref_down, as) */
+/* #define smalloc(as...) trace(NALLOC, 1, smalloc, as) */
+/* #define sfree(as...) trace(NALLOC, 1, sfree, as) */
+/* #define malloc(as...) trace(NALLOC, 1, malloc, as) */
+/* #define smalloc(as...) trace(NALLOC, 1, smalloc, as) */
+/* #define realloc(as...) trace(NALLOC, 1, realloc, as) */
+/* #define calloc(as...) trace(NALLOC, 1, calloc, as) */
+/* #define free(as...) trace(NALLOC, 4, free, as) */
+/* #define linalloc(as...) trace(NALLOC, 1, linalloc, as) */
+/* #define linfree(as...) trace(NALLOC, 1, linfree, as) */
+        
+        
