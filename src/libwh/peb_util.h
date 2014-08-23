@@ -42,6 +42,13 @@ static inline void *subtract_if_not_null(uptr p, cnt s){
 
 #define eq(a, b) ({ typeof(b) __eqa = a; (PUN(uptr, __eqa) == PUN(uptr, b)); })
 
+#define swap(ap, bp)({                             \
+            typeof(*(ap)) __swap_tmp = *(ap);      \
+            *(ap) = *(bp);                         \
+            *(bp) = __swap_tmp;                    \
+    })                                             \
+
+
 /* #define eq2(a, b) ({ typeof(b) __eq2a = a; (PUN(dptr, __eq2a) == PUN(dptr, b)); }) */
 #define eq2(a, b) _eq2(PUN(dptr, a), PUN(dptr, b))
 static inline bool _eq2(dptr a, dptr b){
