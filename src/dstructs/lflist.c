@@ -58,7 +58,7 @@ cnt paborts;
 cnt wins;
 
 static err help_next(flx a, flx *n, flx *np, flx *refn, type *t);
-static err help_prev(flx a, flx *p, flx *pn, flx *refp, type *t);
+static err help_prev(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t);
 
 #define help_next(as...) trace(LFLISTM, 3, help_next, as)
 #define help_prev(as...) trace(LFLISTM, 3, help_prev, as)
@@ -196,13 +196,13 @@ err (lflist_del)(flx a, type *t){
 
     howok pn_ok = NOT;
     bool del_won = false;
-    flx pn, refp = {}, p = {};
+    flx pn, refp = {}, refpp = {}, p = {};
     flx np, refn = {}, n = readx(&pt(a)->n);
     for(int lps = 0;; countloops(lps++)){
         if(help_next(a, &n, &np, &refn, t))
             break;
         assert(pt(np) == pt(a));
-        if(help_prev(a, &p, &pn, &refp, t))
+        if(help_prev(a, &p, &pn, &refp, &refpp, t))
             break;
         assert(pt(pn) == pt(a) && pn.st < COMMIT);
 
@@ -268,6 +268,7 @@ err (lflist_del)(flx a, type *t){
 cleanup:
     flinref_down(&refn, t);
     flinref_down(&refp, t);
+    flinref_down(&refpp, t);
     return -!del_won;
 }
 
@@ -295,22 +296,22 @@ err (help_next)(flx a, flx *n, flx *np, flx *refn, type *t){
 }
 
 static 
-err (help_prev)(flx a, flx *p, flx *pn, flx *refp, type *t){
-    flx op = *p, opn = *pn, opp = {};
+err (help_prev)(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t){
+    flx op = *p, opn = *pn;
     for(cnt pl = 0;; progress(&op, *p, pl++)){
         for(cnt pnl = 0;; countloops(pl + pnl++)){
             if(!eqx(&pt(a)->p, p))
                 break;
             if(pt(*pn) != pt(a)){
                 if(!a.nil)
-                    return flinref_down(&opp, t), -1;
+                    return -1;
                 updx_ok(fl(*pn, RDY, p->gen + 1), &pt(a)->p, p);
                 break;
             }
             if(p->st == ADD && !updx_ok(fl(*p, RDY, a.gen), &pt(a)->p, p))
                 break;
             if(pn->st < COMMIT)
-                return flinref_down(&opp, t), 0;
+                return 0;
 
         readpp:;
             flx pp = readx(&pt(*p)->p);
@@ -318,8 +319,8 @@ err (help_prev)(flx a, flx *p, flx *pn, flx *refp, type *t){
             do if(!pt(pp) || pp.st == COMMIT || pp.st == ADD){
                     must(!eqx(&pt(a)->p, p));
                     goto newp;
-                } else assert(!eq2(pn, opn) || !eq2(pp, opp));
-            while(refupd(&pp, &opp, &pt(*p)->p, t));
+                } else assert(!eq2(pn, opn) || !eq2(pp, refpp));
+            while(refupd(&pp, refpp, &pt(*p)->p, t));
             
             flx ppn = readx(&pt(pp)->n), oppn = {};
             for(cnt ppnl = 0;;progress(&oppn, ppn, pl + pnl + ppnl++)){
@@ -330,7 +331,7 @@ err (help_prev)(flx a, flx *p, flx *pn, flx *refp, type *t){
                 if(pt(ppn) == pt(a)){
                     if(!updx_ok(fl(pp, RDY, p->gen), &pt(a)->p, p))
                         goto newp;
-                    swap(&opp, refp);
+                    swap(refpp, refp);
                     *pn = ppn;
                     /* TODO: can avoid the a->p recheck. */
                     break;
@@ -342,7 +343,6 @@ err (help_prev)(flx a, flx *p, flx *pn, flx *refp, type *t){
                     assert((eq2(pt(a)->p, *p) && pt(pp)->n.pt == p->pt)
                            || !eq2(pt(*p)->n, *pn)
                            || !eq2(pt(*p)->p, pp));
-                    flinref_down(&pp, t);
                     return 0;
                 }
                 assert(ppn.st < COMMIT);
@@ -374,15 +374,15 @@ err (lflist_enq)(flx a, type *t, lflist *l){
                  &(flx){.st=ADD, .gen=a.gen}))
         return -1;
     assert(!pt(a)->n.mp);
-    pt(a)->n = (flx){.nil=1, ADD, mpt(&l->nil), pt(a)->n.gen + 1};
+    flx nil = pt(a)->n = (flx){.nil=1, ADD, mpt(&l->nil), pt(a)->n.gen + 1};
 
     markp amp;
-    flx op = {}, opn = {}, refp = {}, p = {}, pn = {};
+    flx op = {}, opn = {}, refpp = {}, p = {}, pn = {};
     for(int c = 0;; countloops(c++)){
-        assert(flanchor_valid((flx){.nil=1, .pt=mpt(&l->nil)}));
-        if(help_prev(((flx){.nil=1, .pt=mpt(&l->nil)}), &p, &pn, &refp, t))
+        assert(flanchor_valid(nil));
+        
+        if(help_prev(nil, &p, &pn, (flx[]){p}, &refpp, t))
             EWTF();
-        assert(pt(refp), pt(p));
         assert(!eq2(op, p) || !eq2(opn, pn)), op = p, opn = pn;
 
         pt(a)->p.markp = amp = fl(p, ADD, 0).markp;
@@ -392,6 +392,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     casx(fl(a, RDY, p.gen + 1), &l->nil.p, (flx[]){p});
     casx(fl(p, RDY, a.gen + 1), &pt(a)->p, &(flx){.markp=amp, a.gen + 1});
     flinref_down(&p, t);
+    flinref_down(&refpp, t);
     return 0;
 }
 
