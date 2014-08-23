@@ -1,42 +1,37 @@
 /**
- * A lockfree double linked list supporting queue operations and arbitrary
- * deletion. It only allows addition at the end of the list.
+ * A totally lockfree double linked list. It supports queue operations and
+ * arbitrary deletion but only allows addition at the end of the
+ * list. It's uniquely robust in that it neither calls malloc nor forbids
+ * the immediate reuse of deleted nodes. Concurrent calls to del(a) will
+ * cooperate up to a key point (see lflist.h) but del(a) can't always
+ * abort enq(a), and vice-versa.
  *
- * Nodes ("flanchors") and node references (double-word tagged pointers
- * via "flx") have an associated generation incremented upon enq():
- * 
- * for flx N, flx N', flanchor pN, pN':
- * flptr(N)==flptr(N') && N'.gen == N.gen + 1 
- * && !enq(N)==0 && del(N')!=0, then flx_of(flptr(N)).gen ==
- * N'.gen.
+ * Nodes ("flanchors") have a generation count incremented upon enq(). So
+ * do node references (doubleword "flx"). del() and enq() abort if called
+ * with an flx of the wrong gen, so you can achieve things like "remove a
+ * from set s iff a is still in state x."
  *
- * flx A can be immediately reused after del(A)==0 and del(A') or enq(A')
- * will promptly detect this, for all A'. If flptr(A) is a lineage,
- * linfree(flptr(A)) will result in a 
+ * An lflist works a lot like a regular list with a dummy ("nil")
+ * node. del(a) "basically" sets n->p=p; p->n=n and enq(a, l) sets
+ * l->nil.p->n = a; l->nil.p = a.
  *
- * Multiple calls to del(A) will cooperate, but only one wins:
- * 
- * del(A)
+ * This works because for flanchor a, a', del(a') writes a->n iff a->n ==
+ * a' and help_prev(a') deduced or ensured that a->n == a' and a'->p == a
+ * and, for all p, no del(a) will make any successful writes to p->n
+ * before it reads a->n.
  *
- * lflist structure and operation is much like that of a regular list with
- * a dummy node. del(A) sets (N:=A->n)->p = P and (P:=A->p)->p = A and enq(A) 
+ * The trick is that 'a' maintains a transaction counter and state flags
+ * in a->n.gen and a->n.st.
  *
- * lflists are structured like regular dllists with a dummy node, except
- * n/p pointers have associated generation counters and status bits to
- * allow functions on anchors ("nodes") adjacent to A to detect and help
- * conflicting functions on A. See lflist.h for details on each one.
+ * Before reading a->p, del(a) reads ngen := a->n.gen. After help_prev(a)
+ * in del(a) finds p s.t. p and a were in a state where a p->n write could
+ * be attempted, del(a) will set a->n.gen = ngen + 1 and a->n.st = COMMIT
+ * iff a->n.gen == ngen. If it succeeds there, it'll write p->n = a iff
+ * p->n.gen hasn't been updated since it last read p->n. If it fails
+ * either step, it restarts. (This iff behavior is achieved by CAS)
  *
- * Deletion is the hard part. To avoid traversing chains of deleted
- * anchors, and to thus allow their immediate reuse, the lflist maintains
- * the invariant that there's at most one dead anchor between any two live
- * ones. To delete A, T1 finds P and N such that P == pt(A->p), pt(P->n)
- * == A, N == pt(A->n) and pt(N->p) == A (this isn't trivial). Then T1
- * marks A->n.lk = true and then writes P->n = N and N->p = P. If T2
- * is deleting N, it sees A->n.lk and attempts to complete all of T1's
- * aforementioned writes. It's important that T2 will succeed iff T1 will
- * succeed.
- *
- * Fuck this.
+ * So if help_prev(n) reads pn := a->n and pn.st == COMMIT, 
+ *  
  *
  * Alex Podolsky <apodolsk@andrew.cmu.edu>
  */
@@ -50,7 +45,7 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 0
-#define FLANC_CHECK_FREQ 30
+#define FLANC_CHECK_FREQ 0
 #define MAX_LOOP 0
 
 cnt naborts;
@@ -167,6 +162,16 @@ flx readx(volatile flx *x){
     return cas2((flx){}, x, (flx){});
 }
 
+/* static */
+/* flx readx(volatile flx *x){ */
+/*     flx r; */
+/*     do{ */
+/*         r.gen = atomic_read(&x->gen); */
+/*         r.markp = atomic_read(&x->markp); */
+/*     }while(atomic_read(&x->gen) != r.gen); */
+/*     return r; */
+/* } */
+
 static
 bool eqx(volatile flx *a, flx *b){
     flx old = *b;
@@ -275,9 +280,10 @@ cleanup:
 static 
 err (help_next)(flx a, flx *n, flx *np, flx *refn, type *t){
     flx on = *refn;
-    for(cnt nl = 0, npl = 0;; progress(&on, *n, nl++)){
+    for(cnt nl = 0, npl = 0;; assert(progress(&on, *n, nl++))){
         do if(!pt(*n)) return *np = (flx){}, -1;
         while(refupd(n, refn, &pt(a)->n, t));
+        
         for(flx onp = *np = readx(&pt(*n)->p);;
             progress(&onp, *np, nl + npl++))
         {
@@ -298,7 +304,7 @@ err (help_next)(flx a, flx *n, flx *np, flx *refn, type *t){
 static 
 err (help_prev)(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t){
     flx op = *p, opn = *pn;
-    for(cnt pl = 0;; progress(&op, *p, pl++)){
+    for(cnt pl = 0;; assert(progress(&op, *p, pl++))){
         for(cnt pnl = 0;; countloops(pl + pnl++)){
             if(!eqx(&pt(a)->p, p))
                 break;
@@ -577,7 +583,7 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
     }
 
     
-    /* Detect unpaused universe or reordering weirdness. */
+    /* Sniff out for unpaused universe or reordering weirdness. */
     assert(eq2(a->p, px));
     assert(eq2(a->n, nx));
     

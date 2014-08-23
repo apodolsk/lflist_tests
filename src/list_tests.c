@@ -37,7 +37,7 @@ typedef struct{
 } node;
 
 cnt nlists = 1;
-cnt nthreads = 2;
+cnt nthreads = 100;
 cnt niter = 1000;
 cnt nblocks = 100;
 cnt nwrites = 8;
