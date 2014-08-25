@@ -14,10 +14,10 @@ typedef enum flstate flstate;
 typedef struct markp{
     uptr nil:1;
     enum flstate{
-        ADD,
-        RDY,
-        ABORT,
-        COMMIT
+        FL_ADD,
+        FL_RDY,
+        FL_ABORT,
+        FL_COMMIT
     } st:2;
     uptr pt:WORDBITS-3;
 } markp;
@@ -80,6 +80,8 @@ err lflist_del(flx a, type *t);
 err lflist_enq(flx a, type *t, lflist *l);
 flx lflist_deq(type *t, lflist *l);
 
+err lflist_jam_enq(flx a);
+
 flx lflist_peek(lflist *l);
 flx lflist_next(flx p, lflist *l);
 
@@ -103,9 +105,11 @@ const char *flstatestr(flstate s){
 
 #endif
 
+#define LOG_LFLISTM 1
+
 #define lflist_del(as...) linref_account(0, trace(LFLISTM, 1, lflist_del, as))
 #define lflist_deq(as...)                       \
-    linref_account(flptr(account_expr) ? 1 : 0, trace(LFLISTM, 1, lflist_deq, as))
+    linref_account(flptr(account_expr) ? 1 : 0, trace(LFLISTM, 2, lflist_deq, as))
 #define lflist_enq(as...) linref_account(0, trace(LFLISTM, 1, lflist_enq, as))
 #define lflist_peek(as...) trace(LFLISTM, 2, lflist_peek, as)
 #define lflist_next(as...) trace(LFLISTM, 2, lflist_next, as)

@@ -49,6 +49,7 @@
 #define HEAP_DBG 1
 #define LINREF_ACCOUNT_DBG 1
 #define NALLOC_MAGIC_INT 0x01FA110C
+#define LINREF_VERB 1
 
 typedef struct tyx tyx;
 
@@ -63,7 +64,7 @@ static err magics_valid(block *b, size bytes);
 static void slab_ref_down(slab *s, lfstack *hot_slabs);
 
 #define slab_new(as...) trace(NALLOC, 2, slab_new, as)
-#define slab_ref_down(as...) trace(NALLOC, 2, slab_ref_down, as)
+#define slab_ref_down(as...) trace(NALLOC, LINREF_VERB, slab_ref_down, as)
 
 lfstack hot_slabs = LFSTACK;
 
@@ -214,11 +215,14 @@ void (slab_ref_down)(slab *s, lfstack *hot_slabs){
 
 err (linref_up)(volatile void *l, type *t){
     assert(l);
+    if(l < heap_start() || l > heap_end())
+        return -1;
+    
     slab *s = slab_of((void *) l);
     for(tyx tx = s->tx;;){
         if(tx.t != t || !tx.linrefs)
             return EARG("Wrong type.");
-        ppl(2, l, t, tx.linrefs);
+        ppl(LINREF_VERB, l, t, tx.linrefs);
         assert(tx.linrefs > 0);
         if(cas2_won(((tyx){t, tx.linrefs + 1}), &s->tx, &tx))
             return T->nallocin.linrefs_held++, 0;
@@ -287,6 +291,15 @@ int magics_valid(block *b, size bytes){
     for(size i = 0; i < (bytes - sizeof(*b))/sizeof(*magics); i++)
         assert(magics[i] == NALLOC_MAGIC_INT);
     return 1;
+}
+
+err fake_linref_up(void){
+    T->nallocin.linrefs_held++;
+    return 0;
+}
+
+void fake_linref_down(void){
+    T->nallocin.linrefs_held--;
 }
 
 void linref_account_open(linref_account *a){

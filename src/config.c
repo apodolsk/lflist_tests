@@ -45,6 +45,22 @@ bool interrupts_enabled(void){
     return true;
 }
 
+err kyield(tid t){
+    assert(t == -1);
+    pthread_yield();
+    return 0;
+}
+
+void *heap_start(){
+    extern void *end;
+    return &end;
+}
+
+/* TODO: /proc/self/nonsense */
+void *heap_end(){
+    return (void *) 0x0101010101010101;
+}
+
 #include <stdio.h>
 inline
 void breakpoint(void){

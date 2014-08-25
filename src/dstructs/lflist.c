@@ -1,13 +1,13 @@
 /**
- * A totally lockfree double linked list. It supports queue operations and
+ * A lockfree double linked list. It supports queue operations and
  * arbitrary deletion but only allows addition at the end of the
  * list. It's uniquely robust in that it neither calls malloc nor forbids
  * the immediate reuse of deleted nodes. Concurrent calls to del(a) will
- * cooperate up to a key point (see lflist.h) but del(a) can't always
- * abort enq(a), and vice-versa.
+ * cooperate up to the point where no subsequent deq() will return a, but
+ * del(a) can't abort enq(a), and vice-versa.
  *
  * Nodes ("flanchors") have a generation count incremented upon enq(). So
- * do node references (doubleword "flx"). del() and enq() abort if called
+ * do double word node references ("flx"). del() and enq() abort if called
  * with an flx of the wrong gen, so you can achieve things like "remove a
  * from set s iff a is still in state x."
  *
@@ -39,6 +39,8 @@
 
 #define MODULE LFLISTM
 
+#define E_LFLISTM DBG, BRK, LVL_TODO
+
 #include <atomics.h>
 #include <lflist.h>
 #include <nalloc.h>
@@ -48,6 +50,11 @@
 #define LIST_CHECK_FREQ 0
 #define FLANC_CHECK_FREQ 0
 #define MAX_LOOP 0
+
+#define ADD FL_ADD
+#define ABORT FL_ABORT
+#define RDY FL_RDY
+#define COMMIT FL_COMMIT
 
 cnt naborts;
 cnt paborts;
@@ -198,7 +205,7 @@ err (lflist_del)(flx a, type *t){
     assert(!a.nil);
 
     if(pt(a)->p.gen != a.gen || !pt(pt(a)->p))
-        return -1;
+        return EARG("Early gen abort: %", a);
 
     howok pn_ok = NOT;
     bool del_won = false;
@@ -248,8 +255,7 @@ err (lflist_del)(flx a, type *t){
     /* Clean up after an interrupted add of n. In this case, a->n is the
        only reference to n reachable from nil. */
     ppl(2, n, np, a, pn_ok);
-    if(pt(np) && np.st == ADD){
-    /* if(pt(np) && np.st == ADD && onp.gen == np.gen){ */
+    if(pt(np) && np.st == ADD && onp.gen == np.gen){
         assert(!n.nil);
         flx nn = readx(&pt(n)->n);
         if(nn.nil && nn.st == ADD){
@@ -311,7 +317,7 @@ err (help_prev)(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t){
                 break;
             if(pt(*pn) != pt(a)){
                 if(!a.nil)
-                    return -1;
+                    return EARG("P abort %:%", a, pn);
                 updx_ok(fl(*pn, RDY, p->gen + 1), &pt(a)->p, p);
                 break;
             }
@@ -368,7 +374,7 @@ err (help_prev)(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t){
         }
     newp:;
         do if(!a.nil && (!pt(*p) || p->st == COMMIT || p->gen != a.gen))
-               return -1;
+               return EARG("Gen p abort %:%", a, p);
         while(refupd(p, refp, &pt(a)->p, t));
 
         assert(a.nil || pt(*p) != pt(a));
@@ -401,6 +407,11 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     flinref_down(&p, t);
     flinref_down(&refpp, t);
     return 0;
+}
+
+err lflist_jam_enq(flx a){
+    return -!updx_won((flx){.st=ADD, .gen=a.gen + 1}, &pt(a)->p,
+                      &(flx){.st=ADD, .gen=a.gen});
 }
 
 flx (lflist_deq)(type *t, lflist *l){

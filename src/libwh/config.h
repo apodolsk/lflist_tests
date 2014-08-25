@@ -4,7 +4,7 @@
 #define PAGE_SIZE   (1 << PAGE_SHIFT)
 #define CACHELINE_SIZE 64
 
-#define SLAB_SIZE (4 * PAGE_SIZE)
+#define SLAB_SIZE (PAGE_SIZE)
 
 #include <tid.h>
 
