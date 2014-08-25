@@ -18,7 +18,7 @@
     log_cond(lvl, MODULE,                                               \
              ({                                                         \
                  MAP_NOCOMMA(pu_store,, as);                            \
-                 lprintf(STRLIT(MAP(NAMEFMT, _, as)), ##as);            \
+                 lprintf(STRLIT(MAP(NAMEFMT,, as)), ##as);              \
                  MAP(pu_ref,, as);                                      \
              }),                                                        \
              as)
@@ -29,6 +29,9 @@
 #define trace(module, lvl, f, as...)            \
     log_cond(lvl, module, putrace(lprintf, f, ##as), f(as))
 #endif
+
+#define log_cond(lvl, module, e, or...)                             \
+    CONCAT(log_cond, CONCAT2(CONCAT3(LOG_, module), lvl) ) (e, or)
 
 /* The point of this is to cut down on compilation time. Consider the
    alternative of generating complicated _Generic() expressions that'll
@@ -69,6 +72,3 @@
 #define log_cond53(e, or...) e
 #define log_cond54(e, or...) e
 #define log_cond55(e, or...) e
-
-#define log_cond(lvl, module, e, or...)                             \
-    CONCAT(log_cond, CONCAT2(CONCAT3(LOG_, module), lvl) ) (e, or)

@@ -6,6 +6,15 @@
 
 /* Default break, print, and dbg levels. */
 
+#define LVL_EWTF 0
+#define LVL_TODO 1
+#define LVL_SUPER_EARG 1
+#define LVL_OVERCOMMIT 2
+#define LVL_SUPER_RARITY 2
+#define LVL_EOOR 3
+#define LVL_EARG 4
+#define LVL_RARITY 5
+
 #define FIRST(as...) _FIRST(as)
 #define SECOND(as...) _SECOND(as)
 #define THIRD(as...) _THIRD(as)
@@ -30,7 +39,7 @@ extern noreturn void panic(const char *, ...);
 
 #if DBG > 0
 #define assert(expr...)                                               \
-    (!(expr) ? TODO("Failed assertion: %.", #expr) : 0)
+    (!(expr) ? TODO("Failed assertion: %.", #expr), 1 : 1)
 #else
 #define assert(expr...) (0 ? expr : 0)
 #endif
@@ -47,7 +56,7 @@ extern noreturn void panic(const char *, ...);
 
 #define TODO(fmt, as...)                                            \
     ({                                                              \
-        elog(1, "My creator has abandoned me. %:%:%. " fmt  \
+        elog(0, "My creator has abandoned me. %:%:%. " fmt  \
              , __FILE__ , __func__ , __LINE__, ##as);               \
         ebreakpoint(0);                                             \
     })                                            
@@ -56,12 +65,12 @@ extern noreturn void panic(const char *, ...);
 /* --- Recoverable Errors (for the kernel) --- */
 
 /* Sequel to EARG on the NES. */
-#define SUPER_EARG(fmt, as...)                                  \
-    ({                                                          \
+#define SUPER_EARG(fmt, as...)                          \
+    ({                                                  \
         elog(1, "Super bad input error. %:%:%. "fmt,    \
-             __FILE__, __func__, __LINE__, ##as);               \
-        ebreakpoint(1);                                              \
-        -1;                                                     \
+             __FILE__, __func__, __LINE__, ##as);       \
+        ebreakpoint(1);                                 \
+        (dptr) -1;                                       \
     })
 
 #define OVERCOMMIT_ERROR(fmt, as...)                    \
@@ -69,32 +78,32 @@ extern noreturn void panic(const char *, ...);
         elog(2,"Overcommit error. %:%:%. "      \
              fmt, __FILE__, __func__, __LINE__, ##as);  \
         ebreakpoint(2);                                      \
-        -1;                                             \
+        (dptr) -1;                                            \
     })
 
 #define SUPER_RARITY(fmt, as...)                        \
     ({                                                  \
-        elog(2,"Super rare event. %:%:%. "      \
+        elog(2,"Super rare event. %:%:%. "              \
              fmt, __FILE__, __func__, __LINE__, ##as);  \
-        ebreakpoint(2);                                      \
-        -1;                                             \
+        ebreakpoint(2);                                 \
+        (dptr) -1;                                      \
     })                                                  \
 
-#define EOOR(fmt, as...)                                \
-    ({                                                  \
-        elog(3,"Out of resources. %:%:%. " fmt  \
-             , __FILE__, __func__, __LINE__, ##as);     \
-        ebreakpoint(3);                                      \
-        -1;                                             \
+#define EOOR(fmt, as...)                            \
+    ({                                              \
+        elog(3,"Out of resources. %:%:%. " fmt      \
+             , __FILE__, __func__, __LINE__, ##as); \
+        ebreakpoint(3);                             \
+        (dptr) -1;                                  \
     })                                                         
 
         
 #define EARG(fmt, as...)                            \
     ({                                              \
-        elog(4, "Input error. %:%:%. " fmt  \
+        elog(4, "Input error. %:%:%. " fmt          \
              , __FILE__, __func__, __LINE__, ##as); \
-        ebreakpoint(4);                                  \
-        -1;                                         \
+        ebreakpoint(4);                             \
+        (dptr) -1;                                  \
     })
 
 #define RARITY(fmt, as...)                              \

@@ -3,15 +3,15 @@
 #include <list.h>
 #include <stack.h>
 
-#define smalloc nasmalloc
-#define sfree nasfree
-#define malloc namalloc
-#define smalloc nasmalloc
-#define realloc narealloc
-#define calloc nacalloc
-#define free nafree
-#define linalloc nalinalloc
-#define linfree nalinfree
+/* #define smalloc nasmalloc */
+/* #define sfree nasfree */
+/* #define malloc namalloc */
+/* #define smalloc nasmalloc */
+/* #define realloc narealloc */
+/* #define calloc nacalloc */
+/* #define free nafree */
+/* #define linalloc nalinalloc */
+/* #define linfree nalinfree */
 
 typedef struct {
     sanchor sanc;
@@ -68,14 +68,18 @@ typedef void (*linit)(void *);
    == 0 and linalloc(h') != ret for all h'. */
 checked void *linalloc(heritage *h);
 void linfree(lineage *l);
-/* If !ret and no corresponding call to linref_down(l) has been made, then
-   there's a set of heritages H where:
+/* If !ret and no (corresponding) call to linref_down(l) has been made,
+   then there's a set of heritages H where:
    - linalloc(h') != l for all h' not in H.
    - linref_up(l, t') != 0 for all t' != t.
    - h->t == t for h in H.
    - t->lin_init(l) has been called. Apart from that, no nalloc function
    has written to the t->size - sizeof(lineage) bytes following l, even if
-   linfree(l) has been called. */
+   linfree(l) has been called.
+
+   If you use this right, you can deduce that l has the type you associate
+   with t.
+*/
 checked err linref_up(volatile void *l, type *t);
 void linref_down(volatile void *l);
 
@@ -91,6 +95,8 @@ typedef struct{
 } linref_account;
 void linref_account_open(linref_account *a);
 void linref_account_close(linref_account *a);
+err fake_linref_up(void);
+void fake_linref_down(void);
 
 typedef struct{
     int linrefs_held;
@@ -100,11 +106,11 @@ typedef struct{
 #define linref_account(balance, e...)           \
     ({                                          \
         linref_account laccount = (linref_account){};  \
-        linref_account_open(&laccount);                \
+        linref_account_open(&laccount);                 \
         typeof(e) account_expr = e;                     \
         laccount.baseline += balance;                   \
         linref_account_close(&laccount);               \
-        account_expr;                                   \
+        account_expr;                                  \
     })                                          \
 
 
@@ -117,14 +123,14 @@ typedef struct{
                a->wayward_blocks.size)
 #include <pudef.h>
 
-/* #define smalloc(as...) trace(NALLOC, 1, smalloc, as) */
-/* #define sfree(as...) trace(NALLOC, 1, sfree, as) */
-/* #define malloc(as...) trace(NALLOC, 1, malloc, as) */
-/* #define smalloc(as...) trace(NALLOC, 1, smalloc, as) */
-/* #define realloc(as...) trace(NALLOC, 1, realloc, as) */
-/* #define calloc(as...) trace(NALLOC, 1, calloc, as) */
-/* #define free(as...) trace(NALLOC, 4, free, as) */
-/* #define linalloc(as...) trace(NALLOC, 1, linalloc, as) */
-/* #define linfree(as...) trace(NALLOC, 1, linfree, as) */
+#define smalloc(as...) trace(NALLOC, 1, smalloc, as)
+#define sfree(as...) trace(NALLOC, 1, sfree, as)
+#define malloc(as...) trace(NALLOC, 1, malloc, as)
+#define smalloc(as...) trace(NALLOC, 1, smalloc, as)
+#define realloc(as...) trace(NALLOC, 1, realloc, as)
+#define calloc(as...) trace(NALLOC, 1, calloc, as)
+#define free(as...) trace(NALLOC, 4, free, as)
+#define linalloc(as...) trace(NALLOC, 1, linalloc, as)
+#define linfree(as...) trace(NALLOC, 1, linfree, as)
         
         

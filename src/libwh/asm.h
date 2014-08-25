@@ -42,7 +42,7 @@ void outd(uint16_t port, uint32_t val);
 /** Delay 1/8 microsecond */
 void iodelay(void);
 
-#define enable_interrupts() trace(SCHED, 3, enable_interrupts)
-#define disable_interrupts() trace(SCHED, 3, disable_interrupts)
+/* #define enable_interrupts() trace(SCHED, 3, enable_interrupts) */
+/* #define disable_interrupts() trace(SCHED, 3, disable_interrupts) */
 
 #endif /* !X86_ASM_H */

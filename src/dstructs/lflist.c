@@ -12,25 +12,26 @@
  * from set s iff a is still in state x."
  *
  * An lflist works a lot like a regular list with a dummy ("nil")
- * node. del(a) "basically" sets n->p=p; p->n=n and enq(a, l) sets
+ * node. del(a) still "basically" sets n->p=p; p->n=n and enq(a, l) sets
  * l->nil.p->n = a; l->nil.p = a.
  *
  * This works because for flanchor a, a', del(a') writes a->n iff a->n ==
- * a' and help_prev(a') deduced or ensured that a->n == a' and a'->p == a
- * and, for all p, no del(a) will make any successful writes to p->n
- * before it reads a->n.
+ * a' and help_prev(a') deduced or ensured that a'->p == a and, for all p,
+ * no del(a) will make any successful writes to p->n before it reads a->n.
  *
- * The trick is that 'a' maintains a transaction counter and state flags
- * in a->n.gen and a->n.st.
+ * The first condition is given by CAS and the trick to ensuring the other
+ * two is that 'a' maintains a transaction counter and state flags in
+ * a->n.gen and a->n.st.
  *
  * Before reading a->p, del(a) reads ngen := a->n.gen. After help_prev(a)
- * in del(a) finds p s.t. p and a were in a state where a p->n write could
- * be attempted, del(a) will set a->n.gen = ngen + 1 and a->n.st = COMMIT
- * iff a->n.gen == ngen. If it succeeds there, it'll write p->n = a iff
- * p->n.gen hasn't been updated since it last read p->n. If it fails
- * either step, it restarts. (This iff behavior is achieved by CAS)
+ * in del(a) finds p | a p->n write could be attempted, del(a) will set
+ * a->n.gen = ngen + 1 and a->n.st = COMMIT iff a->n.gen == ngen. If it
+ * succeeds there, it'll write p->n = a iff p->n.gen hasn't been updated
+ * since it last read p->n. If it fails either step, it restarts. (This
+ * iff behavior is achieved by CAS)
  *
- * So if help_prev(n) reads pn := a->n and pn.st == COMMIT, 
+ * So if help_prev(n) finds an := a->n | an.st == COMMIT, it reads p :=
+ * a->p
  *  
  *
  * Alex Podolsky <apodolsk@andrew.cmu.edu>

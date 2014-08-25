@@ -9,7 +9,10 @@
 #define noreturn __attribute__((noreturn))
 #define packed __attribute__((packed))
 #define align(ment) __attribute__((__aligned__(ment)))
+#define aliasing __attribute__((may_alias))
 #define checked __attribute__((warn_unused_result))
+#define dbg __attribute__((unused))
+#define transparent __attribute__((transparent_union))
 
 #include <whtypes.h>
 #include <limits.h>

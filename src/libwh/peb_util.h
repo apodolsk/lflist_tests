@@ -38,6 +38,15 @@ static inline void *subtract_if_not_null(uptr p, cnt s){
 #define PUN(t, s)                                               \
     (((union {__typeof__(s) str; t i;}) (s)).i)
 
+/* Execute (first, as) with comma operator sequencing, except evaluate to
+   first rather than the last argument. */
+#define seq_first(first, as...) ({              \
+            typeof(first) __first = first;      \
+            0, ##as;                            \
+            __first;                            \
+        })
+
+
 /* #define PUN(t, s) (*(t*)(typeof(s)[]){s}) */
 
 #define eq(a, b) ({ typeof(b) __eqa = a; (PUN(uptr, __eqa) == PUN(uptr, b)); })
@@ -65,17 +74,17 @@ static inline uptr _umax(uptr a, uptr b){
     return a < b ? b : a;
 }
 
-static inline int must(int i){
+static int must(int i){
     assert(i);
     return i;
 }
 
-static inline err muste(err e){
+static err muste(err e){
     assert(!e);
     return e;
 }
 
-static inline void *mustp(void *p){
+static void *mustp(void *p){
     assert(p);
     return p;
 }

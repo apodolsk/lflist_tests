@@ -1,9 +1,10 @@
 #define MODULE ATOMICS
 
 #include <atomics.h>
+#include <race.h>
 #include <asm.h>
 
-#define FUZZ_ATOMICS 1
+#define FUZZ_ATOMICS 0
 #define FUZZ_NS 9000
 #define FUZZ_PCNT 50
 #define FUZZ_MOD 2
@@ -15,13 +16,8 @@ extern dptr (cmpxchg2)(dptr n, volatile dptr *p, dptr old);
     
 #include <time.h>
 void fuzz_atomics(){
-    if(!interrupts_enabled())
-        return;
-    if(FUZZ_ATOMICS &&
-       0 == mod_pow2(PUN(uptr, get_dbg_id()), FUZZ_MOD)
-       && randpcnt(FUZZ_PCNT))
-        nanosleep(&(struct timespec){.tv_nsec = wrand() % FUZZ_NS},
-                  NULL);
+    if(FUZZ_ATOMICS)
+        race(FUZZ_NS, FUZZ_PCNT, FUZZ_MOD);
 }
 
 uptr _xadd(iptr s, volatile uptr *p){
