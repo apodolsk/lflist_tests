@@ -3,15 +3,15 @@
 #include <list.h>
 #include <stack.h>
 
-/* #define smalloc nasmalloc */
-/* #define sfree nasfree */
-/* #define malloc namalloc */
-/* #define smalloc nasmalloc */
-/* #define realloc narealloc */
-/* #define calloc nacalloc */
-/* #define free nafree */
-/* #define linalloc nalinalloc */
-/* #define linfree nalinfree */
+#define smalloc nasmalloc
+#define sfree nasfree
+#define malloc namalloc
+#define smalloc nasmalloc
+#define realloc narealloc
+#define calloc nacalloc
+#define free nafree
+#define linalloc nalinalloc
+#define linfree nalinfree
 
 typedef struct {
     sanchor sanc;
@@ -142,14 +142,14 @@ void byte_account_close(byte_account *a);
                a->wayward_blocks.size)
 #include <pudef.h>
 
-#define smalloc(as...) trace(NALLOC, 1, smalloc, as)
-#define sfree(as...) trace(NALLOC, 1, sfree, as)
-#define malloc(as...) trace(NALLOC, 1, malloc, as)
-#define smalloc(as...) trace(NALLOC, 1, smalloc, as)
-#define realloc(as...) trace(NALLOC, 1, realloc, as)
-#define calloc(as...) trace(NALLOC, 1, calloc, as)
-#define free(as...) trace(NALLOC, 1, free, as)
-#define linalloc(as...) trace(NALLOC, 1, linalloc, as)
-#define linfree(as...) trace(NALLOC, 1, linfree, as)
+/* #define smalloc(as...) trace(NALLOC, 1, smalloc, as) */
+/* #define sfree(as...) trace(NALLOC, 1, sfree, as) */
+/* #define malloc(as...) trace(NALLOC, 1, malloc, as) */
+/* #define smalloc(as...) trace(NALLOC, 1, smalloc, as) */
+/* #define realloc(as...) trace(NALLOC, 1, realloc, as) */
+/* #define calloc(as...) trace(NALLOC, 1, calloc, as) */
+/* #define free(as...) trace(NALLOC, 1, free, as) */
+/* #define linalloc(as...) trace(NALLOC, 1, linalloc, as) */
+/* #define linfree(as...) trace(NALLOC, 1, linfree, as) */
         
         

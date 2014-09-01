@@ -10,9 +10,8 @@ SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 CFLAGS:=$(INC)\
-	-O2 \
+	-O0 \
 	-g\
-	-fno-inline-functions \
 	-D_GNU_SOURCE\
 	-Wall \
 	-Wextra \
@@ -33,10 +32,10 @@ CFLAGS:=$(INC)\
 	-include "global.h"\
 	-m64
 LD:=$(CC)
-LDFLAGS:=-fvisibility=hidden -lprofiler -pthread -lrt $(CFLAGS)
+LDFLAGS:=-fvisibility=hidden $(CFLAGS)
 
 test: $(DIRS) $(SRCD)/TAGS $(OBJS) 
-		+ $(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS)
+		+ $(LD) $(LDFLAGS) -o $@ $(OBJS)
 
 $(DIRS):
 	mkdir -p $@
