@@ -384,8 +384,8 @@ void consumer_child(struct child_args *shared){
     profile_report();
 }
 
-#define NBYTES (64000 * PAGE_SIZE)
-/* #define NBYTES 128 */
+/* #define NBYTES (64000 * PAGE_SIZE) */
+#define NBYTES 128
 #define REPS 10000
 volatile uptr update_mem[NBYTES];
 
