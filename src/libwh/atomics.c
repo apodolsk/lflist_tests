@@ -4,7 +4,7 @@
 #include <race.h>
 #include <asm.h>
 
-#define FUZZ_ATOMICS 1
+#define FUZZ_ATOMICS 0
 #define FUZZ_NS 9000
 #define FUZZ_PCNT 50
 #define FUZZ_MOD 2
@@ -85,6 +85,12 @@ bool _cas2_won(dptr n, volatile dptr *p, dptr *old){
 uptr _atomic_read(volatile uptr *p){
     fuzz_atomics();
     return *p;
+}
+
+void _atomic_write2(dptr n, volatile dptr *p){
+    for(dptr o = *p;;)
+        if(_cas2_won(n, p, &o))
+            return;
 }
 
 uptr _condxadd(uptr n, volatile uptr *p, uptr lim){

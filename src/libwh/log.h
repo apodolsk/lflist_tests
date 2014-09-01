@@ -18,11 +18,11 @@
     log_cond(lvl, MODULE,                                               \
              ({                                                         \
                  MAP_NOCOMMA(pu_store,, as);                            \
-                 lprintf(STRLIT(MAP(NAMEFMT,, as)), ##as);              \
+                 lprintf(STRLIT(MAP(NAMEFMT,, ##as)), as);              \
                  MAP(pu_ref,, as);                                      \
              }),                                                        \
              as)
-#define pp(as...) ppl(1, as)
+#define pp(as...) ppl(1, ##as)
 
 #define log(lvl, fmt, as...) log_cond(lvl, MODULE, lprintf(fmt, ##as), 0)
 

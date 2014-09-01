@@ -35,14 +35,14 @@ typedef struct heritage{
     type *t;
     struct slab *(*new_slabs)(cnt nslabs);
 } heritage;
-#define HERITAGE(t, ms, sab, ns)                    \
-    {LFSTACK, &hot_slabs, ms, sab, t, ns}
+#define HERITAGE(t, ms, sab, ns, override...)       \
+    {LFSTACK, &hot_slabs, ms, sab, t, ns, override}
 #define KERN_HERITAGE(t) HERITAGE(t, 16, 1, new_slabs)
 #define POSIX_HERITAGE(t) KERN_HERITAGE(t)
 
 extern lfstack hot_slabs;
 
-typedef struct slabfoot{
+typedef volatile struct slabfoot{
     sanchor sanc;
     stack free_blocks;
     cnt cold_blocks;
@@ -52,6 +52,7 @@ typedef struct slabfoot{
         type *t;
         iptr linrefs;
     } tx;
+    lfstack *hot_slabs;
     lfstack wayward_blocks;
 } slabfoot;
 #define SLABFOOT {.free_blocks = STACK, .wayward_blocks = LFSTACK}
@@ -80,6 +81,10 @@ void linfree(lineage *l);
    If you use this right, you can deduce that l has the type you associate
    with t.
 */
+
+dbg extern iptr slabs_used;
+dbg extern cnt bytes_used;
+
 checked err linref_up(volatile void *l, type *t);
 void linref_down(volatile void *l);
 
@@ -103,17 +108,31 @@ typedef struct{
 } nalloc_info;
 #define NALLOC_INFO {}
 
-#define linref_account(balance, e...)           \
-    ({                                          \
-        linref_account laccount = (linref_account){};  \
+#define linref_account(balance, e...)({                 \
+        linref_account laccount = (linref_account){};   \
         linref_account_open(&laccount);                 \
         typeof(e) account_expr = e;                     \
         laccount.baseline += balance;                   \
-        linref_account_close(&laccount);               \
-        account_expr;                                  \
-    })                                          \
+        linref_account_close(&laccount);                \
+        account_expr;                                   \
+    })                                                  \
 
+typedef struct{
+    cnt baseline;
+} byte_account;
+void byte_account_open(byte_account *a);
+void byte_account_close(byte_account *a);
 
+#define byte_account(balance, e...)({                   \
+        byte_account baccount = (byte_account){};       \
+        byte_account_open(&baccount);                   \
+        typeof(e) account_expr = e;                     \
+        baccount.baseline += balance;                   \
+        byte_account_close(&baccount);                  \
+        account_expr;                                   \
+    })                                                  \
+
+        
 #define pudef (type, "(typ){%}", a->name)
 #include <pudef.h>
 #define pudef (heritage, "(her){%, nslabs:%}", a->t, a->slabs.size)
@@ -129,7 +148,7 @@ typedef struct{
 #define smalloc(as...) trace(NALLOC, 1, smalloc, as)
 #define realloc(as...) trace(NALLOC, 1, realloc, as)
 #define calloc(as...) trace(NALLOC, 1, calloc, as)
-#define free(as...) trace(NALLOC, 4, free, as)
+#define free(as...) trace(NALLOC, 1, free, as)
 #define linalloc(as...) trace(NALLOC, 1, linalloc, as)
 #define linfree(as...) trace(NALLOC, 1, linfree, as)
         

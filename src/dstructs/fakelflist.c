@@ -28,8 +28,8 @@ flanchor *flptr(flx a){
     return a.a;
 }
 
-err (lflist_del)(flx a, type *h){
-    (void) h;
+err (lflist_del)(flx a, type *t){
+    (void) t;
     lflist *l;
     while(1){
         l = a.a->host;
@@ -49,8 +49,7 @@ err (lflist_del)(flx a, type *h){
     return 0;
 }
 
-flx (lflist_deq)(type *h, lflist *l){
-    (void) h;
+flx (lflist_deq)(type *t, lflist *l){
     lock_lflist(l);
     flx rlx = (flx){};
     flanchor *r = cof(list_deq(&l->l), flanchor, lanc);
@@ -58,13 +57,14 @@ flx (lflist_deq)(type *h, lflist *l){
         rlx = (flx){r, r->gen};
         assert(r->host == l);
         r->host = NULL;
+        muste(t->linref_up(r, t));
     }
     unlock_lflist(l);
     return rlx;
 }
 
-err (lflist_enq)(flx a, type *h, lflist *l){
-    (void) h;
+err (lflist_enq)(flx a, type *t, lflist *l){
+    (void) t;
     if(a.a->gen != a.gen)
         return -1;
     lock_lflist(l);

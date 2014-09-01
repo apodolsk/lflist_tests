@@ -24,18 +24,18 @@
 
 typedef void *(entrypoint)(void *);
 
+extern cnt nthreads;
+extern cnt nallocs;
+extern cnt nwrites;
+extern cnt niter;
+bool print_profile = 0;
+
 #define _yield(tid) do{ (void) tid; pthread_yield();} while(0)
 #define exit(val) pthread_exit((void *) val)
 #define kfork(entry, arg, flag)                 \
     pthread_create(&kids[i], NULL, entry, arg)  \
 
-static uint numhreads = 12;
-static uint num_allocations = 1000;
-static uint ops_mult = 1000;
-static uint max_writes = 0;
-static uint print_profile = 0;
-
-#define NUM_OPS ((ops_mult * num_allocations) / numhreads)
+#define NUM_OPS ((niter * nallocs) / nthreads)
 
 #define NUM_STACKS 32
 #define NUM_LISTS 16
@@ -46,6 +46,7 @@ static uint print_profile = 0;
 #define CAVG_BIAS .05
 static __thread double malloc_cavg;
 static __thread double free_cavg;
+
 
 struct tblock{
     union{
@@ -73,13 +74,13 @@ struct child_args{
 static volatile int rdy;
 
 void write_magics(struct tblock *b, int tid){
-    size max = umin(b->size - sizeof(*b), max_writes) / sizeof(b->magics[0]);
+    size max = umin(b->size - sizeof(*b), nwrites) / sizeof(b->magics[0]);
     for(uint i = b->write_start_idx = (uint) wrand() % max; i < max; i++)
         b->magics[i] = tid;
 }
 
 void check_magics(struct tblock *b, int tid){
-    size max = umin(b->size - sizeof(*b), max_writes) / sizeof(b->magics[0]);
+    size max = umin(b->size - sizeof(*b), nwrites) / sizeof(b->magics[0]);
     for(uint i = b->write_start_idx; i < max; i++)
         assert(b->magics[i] == tid);
 }
@@ -117,14 +118,14 @@ void profile_report(void){}
 void mt_child_rand(int parentid);
 
 void mallocest_randsize(){
-    pthread_t kids[numhreads];
-    for(uint i = 0; i < numhreads; i++)
+    pthread_t kids[nthreads];
+    for(uint i = 0; i < nthreads; i++)
         assert(!kfork((entrypoint *) mt_child_rand,
                       (void *) get_dbg_id(), KERN_ONLY));
     
     rdy = true;
 
-    for(uint i = 0; i < numhreads; i++)
+    for(uint i = 0; i < nthreads; i++)
         assert(!pthread_join(kids[i], (void *[]){NULL}));
 }
 
@@ -144,9 +145,9 @@ void mt_child_rand(int parentid){
         int size;
         list *blocks = &block_lists[wrand() % NUM_LISTS];
         int malloc_prob =
-            blocks->size < num_allocations/2 ? 75 :
-            blocks->size < num_allocations ? 50 :
-            blocks->size < num_allocations * 2 ? 25 :
+            blocks->size < nallocs/2 ? 75 :
+            blocks->size < nallocs ? 50 :
+            blocks->size < nallocs * 2 ? 25 :
             0;
         
         if(randpcnt(malloc_prob)){
@@ -185,14 +186,14 @@ void mallocest_sharing(){
     for(uint i = 0; i < NUM_STACKS; i++)
         shared.block_stacks[i].s = (lfstack) LFSTACK;
 
-    pthread_t kids[numhreads];
-    for(uint i = 0; i < numhreads; i++)
+    pthread_t kids[nthreads];
+    for(uint i = 0; i < nthreads; i++)
         if(kfork((entrypoint *) mt_sharing_child, &shared, KERN_ONLY) < 0)
             EWTF("Failed to fork.");
 
     rdy = true;
 
-    for(uint i = 0; i < numhreads; i++)
+    for(uint i = 0; i < nthreads; i++)
         assert(!pthread_join(kids[i], (void *[]){NULL}));
 }
 
@@ -214,9 +215,9 @@ void mt_sharing_child(struct child_args *shared){
         int size;
         lfstack *blocks= &shared->block_stacks[wrand() % NUM_STACKS].s;
         int malloc_prob =
-            num_blocks < num_allocations/2 ? 75 :
-            num_blocks < num_allocations ? 50 :
-            num_blocks < 2 * num_allocations ? 25 :
+            num_blocks < nallocs/2 ? 75 :
+            num_blocks < nallocs ? 50 :
+            num_blocks < 2 * nallocs ? 25 :
             0;
 
         if(randpcnt(malloc_prob)){
@@ -266,8 +267,8 @@ void producerest(void){
     for(uint i = 0; i < NUM_STACKS; i++)
         shared.block_stacks[i].s = (lfstack) LFSTACK;
 
-    pthread_t kids[numhreads];
-    for(uint i = 0; i < numhreads; i++)
+    pthread_t kids[nthreads];
+    for(uint i = 0; i < nthreads; i++)
         if(kfork((entrypoint *) mt_sharing_child, &shared, KERN_ONLY) < 0)
             EWTF("Failed to fork.");
 
@@ -275,7 +276,7 @@ void producerest(void){
 
     produce(&shared);
 
-    for(uint i = 0; i < numhreads; i++)
+    for(uint i = 0; i < nthreads; i++)
         assert(!pthread_join(kids[i], (void *[]){NULL}));
 
     for(uint i = 0; i < NUM_STACKS; i++){
@@ -297,9 +298,9 @@ void produce(struct child_args *shared){
         int size;
         lfstack *blocks= &shared->block_stacks[wrand() % NUM_STACKS].s;
         int malloc_prob =
-            num_blocks < numhreads * num_allocations/2 ? 90 :
-            num_blocks < numhreads * num_allocations ? 70 :
-            num_blocks < numhreads * num_allocations * 2 ? 25 :
+            num_blocks < nthreads * nallocs/2 ? 90 :
+            num_blocks < nthreads * nallocs ? 70 :
+            num_blocks < nthreads * nallocs * 2 ? 25 :
             0;
 
         if(randpcnt(malloc_prob)){
@@ -352,9 +353,9 @@ void consumer_child(struct child_args *shared){
     for(uint i = 0; i < NUM_OPS; i++){
         lfstack *blocks= &shared->block_stacks[wrand() % NUM_STACKS].s;
         int free_prob = 
-            num_blocks < num_allocations/2 ? 25 :
-            num_blocks < num_allocations ? 50 :
-            num_blocks < num_allocations * 2 ? 75 :
+            num_blocks < nallocs/2 ? 25 :
+            num_blocks < nallocs ? 50 :
+            num_blocks < nallocs * 2 ? 75 :
             100;
 
         if(randpcnt(free_prob)){
@@ -396,8 +397,8 @@ void plain_update_kid(void){
 }
 
 void plain_update(void){
-    pthread_t kids[numhreads];
-    for(uint i = 0; i < numhreads; i++)
+    pthread_t kids[nthreads];
+    for(uint i = 0; i < nthreads; i++)
         if(kfork((entrypoint *) plain_update_kid, NULL, KERN_ONLY) < 0)
             EWTF("Failed to fork.");
 }
@@ -409,23 +410,13 @@ void cas_update_kid(void){
 }
 
 void cas_update(void){
-    pthread_t kids[numhreads];
-    for(uint i = 0; i < numhreads; i++)
+    pthread_t kids[nthreads];
+    for(uint i = 0; i < nthreads; i++)
         if(kfork((entrypoint *) cas_update_kid, NULL, KERN_ONLY) < 0)
             EWTF("Failed to fork.");
 }
 
 int malloc_test_main(int program){
-    extern cnt nthreads;
-    extern cnt nblocks;
-    extern cnt nwrites;
-    extern cnt niter;
-
-    numhreads = nthreads;
-    num_allocations = nblocks;
-    max_writes = nwrites;
-    ops_mult = niter;
-
     profile_init();
 
     switch(program){

@@ -85,6 +85,8 @@ err lflist_jam_enq(flx a);
 flx lflist_peek(lflist *l);
 flx lflist_next(flx p, lflist *l);
 
+bool flanchor_unused(flanchor *a);
+
 bool lflist_valid(flx a);
 bool flanchor_valid(flx ax);
 
@@ -105,7 +107,9 @@ const char *flstatestr(flstate s){
 
 #endif
 
-#define LOG_LFLISTM 1
+#ifndef LOG_LFLISTM
+#define LOG_LFLISTM 0
+#endif
 
 #define lflist_del(as...) linref_account(0, trace(LFLISTM, 1, lflist_del, as))
 #define lflist_deq(as...)                       \

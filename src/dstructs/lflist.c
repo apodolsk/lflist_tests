@@ -56,9 +56,9 @@
 #define RDY FL_RDY
 #define COMMIT FL_COMMIT
 
-cnt naborts;
-cnt paborts;
-cnt wins;
+dbg cnt naborts;
+dbg cnt paborts;
+dbg cnt wins;
 
 static err help_next(flx a, flx *n, flx *np, flx *refn, type *t);
 static err help_prev(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t);
@@ -101,12 +101,48 @@ void (flinref_down)(flx *a, type *t){
 }
 
 static
+flx readx(volatile flx *x){
+    flx r;
+    do{
+        r.gen = atomic_read(&x->gen);
+        r.markp = atomic_read(&x->markp);
+    }while(atomic_read(&x->gen) != r.gen);
+    return r;
+}
+
+static
+flx soft_readx(volatile flx *x){
+    flx r;
+    r.markp = atomic_read(&x->markp);
+    r.gen = atomic_read(&x->gen);
+    return r;
+}
+
+
+static
+bool eqx(volatile flx *a, flx *b){
+    flx old = *b;
+    *b = readx(a);
+    return eq2(old, *b);
+}
+
+static
+bool soft_eqx(volatile flx *a, flx *b){
+    flx old = *b;
+    *b = soft_readx(a);
+    return eq2(old, *b);
+}
+
+static
 flx (casx)(const char *f, int l, flx n, volatile flx *a, flx *e){
     /* assert(n.nil || (a != &pt(n)->p && a != &pt(n)->n)); */
     /* assert(n.pt || !e->pt); */
     /* assert(!eq2(n, *e)); */
     log(2, "CAS! %:% - % if %, addr:%", f, l, n, *e, a);
     flx oe = *e;
+    /* *e = readx(a); */
+    /* if(!eq2(*e, oe)) */
+    /*     return *e; */
     *e = cas2(n, a, oe);
     log(2, "% %:%- found:% addr:%", eq2(*e, oe)? "WON" : "LOST", f, l, *e, a);
     if(e->gen > n.gen && e->gen - n.gen >= (UPTR_MAX >> 1))
@@ -165,27 +201,10 @@ bool (progress)(flx *o, flx n, cnt loops){
     return !eq;
 }
 
-static
-flx readx(volatile flx *x){
-    return cas2((flx){}, x, (flx){});
-}
-
 /* static */
 /* flx readx(volatile flx *x){ */
-/*     flx r; */
-/*     do{ */
-/*         r.gen = atomic_read(&x->gen); */
-/*         r.markp = atomic_read(&x->markp); */
-/*     }while(atomic_read(&x->gen) != r.gen); */
-/*     return r; */
+/*     return cas2((flx){}, x, (flx){}); */
 /* } */
-
-static
-bool eqx(volatile flx *a, flx *b){
-    flx old = *b;
-    *b = readx(a);
-    return eq2(old, *b);
-}
 
 static
 err (refupd)(flx *a, flx *held, volatile flx *src, type *t){
@@ -196,7 +215,7 @@ err (refupd)(flx *a, flx *held, volatile flx *src, type *t){
         *held = *a;
         return 0;
     }
-    if(src && eqx(src, a))
+    if(src && soft_eqx(src, a))
         *a = (flx){};
     return -1;
 }
@@ -210,7 +229,7 @@ err (lflist_del)(flx a, type *t){
     howok pn_ok = NOT;
     bool del_won = false;
     flx pn, refp = {}, refpp = {}, p = {};
-    flx np, refn = {}, n = readx(&pt(a)->n);
+    flx np, refn = {}, n = soft_readx(&pt(a)->n);
     for(int lps = 0;; countloops(lps++)){
         if(help_next(a, &n, &np, &refn, t))
             break;
@@ -296,7 +315,7 @@ err (help_next)(flx a, flx *n, flx *np, flx *refn, type *t){
         {
             if(pt(*np) == pt(a))
                 return 0;
-            if(!eqx(&pt(a)->n, n))
+            if(!soft_eqx(&pt(a)->n, n))
                 break;
             if(n->st == ADD || n->st == COMMIT)
                 return -1;
@@ -313,7 +332,7 @@ err (help_prev)(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t){
     flx op = *p, opn = *pn;
     for(cnt pl = 0;; assert(progress(&op, *p, pl++))){
         for(cnt pnl = 0;; countloops(pl + pnl++)){
-            if(!eqx(&pt(a)->p, p))
+            if(!soft_eqx(&pt(a)->p, p))
                 break;
             if(pt(*pn) != pt(a)){
                 if(!a.nil)
@@ -327,17 +346,17 @@ err (help_prev)(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t){
                 return 0;
 
         readpp:;
-            flx pp = readx(&pt(*p)->p);
+            flx pp = soft_readx(&pt(*p)->p);
         newpp:;
             do if(!pt(pp) || pp.st == COMMIT || pp.st == ADD){
-                    must(!eqx(&pt(a)->p, p));
+                    must(!soft_eqx(&pt(a)->p, p));
                     goto newp;
                 } else assert(!eq2(pn, opn) || !eq2(pp, refpp));
             while(refupd(&pp, refpp, &pt(*p)->p, t));
             
-            flx ppn = readx(&pt(pp)->n), oppn = {};
+            flx ppn = soft_readx(&pt(pp)->n), oppn = {};
             for(cnt ppnl = 0;;progress(&oppn, ppn, pl + pnl + ppnl++)){
-                if(!eqx(&pt(*p)->p, &pp))
+                if(!soft_eqx(&pt(*p)->p, &pp))
                     goto newpp;
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
                     goto readpp;
@@ -378,7 +397,7 @@ err (help_prev)(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t){
         while(refupd(p, refp, &pt(a)->p, t));
 
         assert(a.nil || pt(*p) != pt(a));
-        *pn = readx(&pt(*p)->n);
+        *pn = soft_readx(&pt(*p)->n);
     }
 }
 
@@ -418,7 +437,7 @@ flx (lflist_deq)(type *t, lflist *l){
     flx a = {.nil=1,.pt=mpt(&l->nil)};
     flx on = {};
     for(cnt lps = 0;;){
-        flx np = {}, n = readx(&pt(a)->n);
+        flx np = {}, n = soft_readx(&pt(a)->n);
         if(help_next(a, &n, &np, (flx[]){on}, t))
             EWTF();
         if(pt(n) == &l->nil || !progress(&on, n, lps++))

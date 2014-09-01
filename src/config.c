@@ -20,7 +20,7 @@ struct slab *new_slabs(cnt batch){
 }
 
 #include <pthread.h>
-#include <libthread.h>
+#include <thread.h>
 __thread thread manual_tls;
 
 struct thread *this_thread(void){

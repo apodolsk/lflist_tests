@@ -42,6 +42,9 @@ void outd(uint16_t port, uint32_t val);
 /** Delay 1/8 microsecond */
 void iodelay(void);
 
+/** @brief Load a segment selector into the task register. */
+void ltr(unsigned int sel);
+
 /* #define enable_interrupts() trace(SCHED, 3, enable_interrupts) */
 /* #define disable_interrupts() trace(SCHED, 3, disable_interrupts) */
 

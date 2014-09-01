@@ -2,8 +2,8 @@
 
 #include <peb_util.h>
 
-typedef struct sanchor{
-    struct sanchor *n;
+typedef volatile struct sanchor{
+    volatile struct sanchor *n;
 } sanchor;
 #define SANCHOR {}
 
@@ -20,7 +20,7 @@ CASSERT(sizeof(lfstack) == sizeof(dptr));
 #define pudef (lfstack, "(lfstack){top:%,sz:%}", a->top, a->size)
 #include <pudef.h>
 
-typedef struct stack{
+typedef volatile struct stack{
     sanchor *top;
     cnt size;
 } stack;

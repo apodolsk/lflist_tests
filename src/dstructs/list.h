@@ -1,5 +1,4 @@
 #pragma once
-#include <pustr.h>
 
 typedef struct lanchor{
     struct lanchor *n;

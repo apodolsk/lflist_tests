@@ -44,21 +44,24 @@
 #include <nalloc.h>
 #include <config.h>
 #include <atomics.h>
-#include <libthread.h>
+#include <thread.h>
 
 #define HEAP_DBG 1
 #define LINREF_ACCOUNT_DBG 1
 #define NALLOC_MAGIC_INT 0x01FA110C
-#define LINREF_VERB 1
+#define LINREF_VERB 2
 
 typedef struct tyx tyx;
+
+dbg iptr slabs_used;
+dbg cnt bytes_used;
 
 static slab *slab_new(heritage *h);
 static block *alloc_from_slab(slab *s, heritage *h);
 static void dealloc_from_slab(block *b, slab *s);
-static unsigned int slab_max_blocks(slab *s);
-static cnt slab_num_priv_blocks(slab *s);
-static slab *slab_of(block *b);
+static unsigned int slab_max_blocks(const slab *s);
+static cnt slab_num_priv_blocks(const slab *s);
+static slab *slab_of(const block *b);
 static err write_magics(block *b, size bytes);         
 static err magics_valid(block *b, size bytes);
 static void slab_ref_down(slab *s, lfstack *hot_slabs);
@@ -103,7 +106,9 @@ void *(linalloc)(heritage *h){
     slab *s = cof(lfstack_pop(&h->slabs), slab, sanc);
     if(!s && !(s = slab_new(h)))
         return EOOR(), NULL;
-    
+
+    assert(aligned_pow2(s, SLAB_SIZE));
+    assert(!s->owner);
     block *b = alloc_from_slab(s, h);
     if(slab_num_priv_blocks(s))
         lfstack_push(&s->sanc, &h->slabs);
@@ -111,6 +116,8 @@ void *(linalloc)(heritage *h){
         s->owner = this_thread();
         s->her = h;
     }
+
+    assert(xadd(h->t->size, &bytes_used), 1);
     
     assert(b);
     assert(aligned_pow2(b, sizeof(dptr)));
@@ -146,17 +153,22 @@ slab *(slab_new)(heritage *h){
                 lfstack_push(&si->sanc, h->hot_slabs);
         }
     }
+    assert(xadd(1, &slabs_used) >= 0);
     assert(aligned_pow2(s, SLAB_SIZE));
+    assert(!s->tx.linrefs && !s->owner);
+    assert(!s->wayward_blocks.size);
+    
     s->her = h;
     if(s->tx.t != h->t){
         s->tx = (tyx){h->t};
+        cnt mb = s->cold_blocks = slab_max_blocks(s);
         if(h->t->lin_init)
-            for(cnt b = 0; b < slab_max_blocks(s); b++)
+            for(cnt b = 0; b < mb; b++)
                 h->t->lin_init((lineage *) &s->blocks[b * h->t->size]);
     }
-    assert(!s->tx.linrefs);
+    
+    s->hot_slabs = h->hot_slabs;    
     s->tx.linrefs = 1;
-    s->cold_blocks = slab_max_blocks(s);
 
     /* size sz = h->t->size; */
     /* for(uint i = 0; i < s->cold_blocks; i++) */
@@ -176,24 +188,25 @@ void (linfree)(lineage *l){
     *b = (block){SANCHOR};
 
     /* assert(write_magics(l, s->tx.t->size)); */
-    assert(s);
     assert(s->tx.t);
+    assert(xadd(-s->tx.t->size, &bytes_used));
 
-    if(s->owner == this_thread()){
+    heritage *h = s->her;
+    if(s->owner == this_thread() && h->slabs.size < h->max_slabs){
         /* TODO: yeah, you own it till you free 1 block. Not so
            great. More complicated scheme could ensure that it's not lost
            if you don't push it upon first. Consider
            lfstack_push_if(size_is,..)*/
         s->owner = NULL;
         dealloc_from_slab(b, s);
-        heritage *h = s->her;
         lfstack_push(&s->sanc, &h->slabs);
     }else{
         int nwb = lfstack_push(&b->sanc, &s->wayward_blocks);
         if(&s->blocks[s->tx.t->size * (nwb + 2)] > &s->blocks[MAX_BLOCK]){
-            s->owner = NULL;
+            assert(!s->free_blocks.size);
+            s->cold_blocks = s->wayward_blocks.size;
             s->wayward_blocks = (lfstack) LFSTACK;
-            slab_ref_down(s, &hot_slabs);
+            slab_ref_down(s, s->hot_slabs);
         }
     }
 }
@@ -206,8 +219,10 @@ void (dealloc_from_slab)(block *b, slab *s){
 static
 void (slab_ref_down)(slab *s, lfstack *hot_slabs){
     assert(s->tx.linrefs > 0);
+    assert(s->tx.t);
     if(xadd((uptr) -1, &s->tx.linrefs) == 1){
-        s->owner == NULL;
+        assert(xadd(-1, &slabs_used));
+        s->owner = NULL;
         s->her = NULL;
         lfstack_push(&s->sanc, hot_slabs);
     }
@@ -222,7 +237,7 @@ err (linref_up)(volatile void *l, type *t){
     for(tyx tx = s->tx;;){
         if(tx.t != t || !tx.linrefs)
             return EARG("Wrong type.");
-        ppl(LINREF_VERB, l, t, tx.linrefs);
+        log(LINREF_VERB, "linref up! % % %", l, t, tx.linrefs);
         assert(tx.linrefs > 0);
         if(cas2_won(((tyx){t, tx.linrefs + 1}), &s->tx, &tx))
             return T->nallocin.linrefs_held++, 0;
@@ -231,21 +246,22 @@ err (linref_up)(volatile void *l, type *t){
 
 void (linref_down)(volatile void *l){
     T->nallocin.linrefs_held--;
-    slab_ref_down(slab_of((void *) l), &hot_slabs);
+    slab *s = slab_of((void *) l);
+    slab_ref_down(s, s->hot_slabs);
 }
 
 static
-unsigned int slab_max_blocks(slab *s){
+unsigned int slab_max_blocks(const slab *s){
     return MAX_BLOCK / s->tx.t->size;
 }
 
 static
-cnt slab_num_priv_blocks(slab *s){
+cnt slab_num_priv_blocks(const slab *s){
     return s->free_blocks.size + s->cold_blocks;
 }
 
 static
-slab *(slab_of)(block *b){
+slab *(slab_of)(const block *b){
     return cof_aligned_pow2(b, slab);
 }
 
@@ -303,12 +319,20 @@ void fake_linref_down(void){
 }
 
 void linref_account_open(linref_account *a){
-    a->baseline = T->nallocin.linrefs_held;
+    assert(a->baseline = T->nallocin.linrefs_held, 1);
 }
 
 void linref_account_close(linref_account *a){
     if(LINREF_ACCOUNT_DBG)
         assert(T->nallocin.linrefs_held == a->baseline);
+}
+
+void byte_account_open(byte_account *a){
+    assert(a->baseline = bytes_used, 1);
+}
+
+void byte_account_close(byte_account *a){
+    assert(a->baseline == bytes_used);
 }
 
 void *memalign(size align, size sz){

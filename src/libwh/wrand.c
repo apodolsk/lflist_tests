@@ -1,4 +1,4 @@
-#include <libthread.h>
+#include <thread.h>
 #include <asm.h>
 
 static rand_info epool;
