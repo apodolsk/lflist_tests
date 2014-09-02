@@ -39,7 +39,7 @@
 
 #define MODULE LFLISTM
 
-#define E_LFLISTM 0, BRK, LVL_TODO
+#define E_LFLISTM 1, BRK, LVL_TODO
 
 #include <atomics.h>
 #include <lflist.h>
@@ -48,7 +48,7 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 0
-#define FLANC_CHECK_FREQ 0
+#define FLANC_CHECK_FREQ 50
 #define MAX_LOOP 0
 
 #define ADD FL_ADD
@@ -102,27 +102,42 @@ void (flinref_down)(flx *a, type *t){
 }
 
 static
-flx readx(volatile flx *x){
-    flx r;
-    do{
-        r.gen = atomic_read(&x->gen);
-        r.markp = atomic_read(&x->markp);
-    }while(atomic_read(&x->gen) != r.gen);
-    return r;
+flx hard_readx(volatile flx *x){
+    return atomic_read2(x);
 }
 
 static
 flx soft_readx(volatile flx *x){
-    flx r;
-    r.markp = atomic_read(&x->markp);
-    r.gen = atomic_read(&x->gen);
-    return r;
+    return atomic_read2(x);
 }
+
+static
+flx readx(volatile flx *x){
+    return atomic_read2(x);
+}
+
+/* static */
+/* flx readx(volatile flx *x){ */
+/*     flx r; */
+/*     do{ */
+/*         r.gen = atomic_read(&x->gen); */
+/*         r.markp = atomic_read(&x->markp); */
+/*     }while(atomic_read(&x->gen) != r.gen); */
+/*     return r; */
+/* } */
+
+/* static */
+/* flx soft_readx(volatile flx *x){ */
+/*     flx r; */
+/*     r.markp = atomic_read(&x->markp); */
+/*     r.gen = atomic_read(&x->gen); */
+/*     return r; */
+/* } */
 
 static
 bool eqx(volatile flx *a, flx *b){
     flx old = *b;
-    *b = readx(a);
+    *b = hard_readx(a);
     return eq2(old, *b);
 }
 
@@ -247,7 +262,7 @@ err (lflist_del)(flx a, type *t){
             break;
     }
     if(pn_ok) assert(xadd(1, &wins), 1);
-    else if(pt(np) == pt(a)) assert(xadd(1, &paborts), 0);
+    else if(pt(np) == pt(a)) assert(xadd(1, &paborts), 1);
     else if(pt(np) != pt(a)) assert(xadd(1, &naborts), 1);
     
     if(!del_won)
@@ -274,11 +289,10 @@ err (lflist_del)(flx a, type *t){
     finish_del(a, p, n, np, t);
 
 report_finish:
-    if(nabort){
+    if(nabort)
         p = readx(&pt(a)->p);
-        if(p.gen != a.gen)
-            goto cleanup;
-    }
+    if(p.gen != a.gen)
+        goto cleanup;
 
     ppl(2, p, pn, pn_ok);
     casx((flx){.st=COMMIT,.gen=a.gen}, &pt(a)->p, &p);
@@ -300,17 +314,36 @@ cleanup:
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
-    flx ap = soft_readx(&pt(a)->p);
-    if(ap.gen != a.gen || ap.st != COMMIT)
+    flx ap;
+    for(ap = soft_readx(&pt(a)->p);;){
+        /* if(ap.gen != a.gen || ap.st != COMMIT) */
+        /*     return -1; */
+        /* break; */
+
+        if(ap.gen != a.gen || ap.st == ADD)
+            return -1;
+        if(ap.st == COMMIT)
+            break;
+        assert(pt(ap));
+        flx apn = pt(ap)->n;
+        if(!eqx(&pt(a)->p, &ap))
+            continue;
+        if(pt(apn) == pt(a))
+            return -1;
+        else break;
+    }
+    
+    if(!updx_won(((flx){.st=ADD, .gen=a.gen + 1}), &pt(a)->p, (flx[]){ap}))
         return -1;
-    if(!updx_won(fl(ap, ADD, a.gen + 1), &pt(a)->p, &ap))
-        return -1;
-    /* flx n = soft_readx(&pt(a)->n); */
-    /* assert(n.st == COMMIT); */
-    /* if(pt(n) && !refupd(&n, (flx[1]){}, &pt(a)->n, t)){ */
-    /*     finish_del(a, ap, n, soft_readx(&pt(n)->p), t); */
-    /*     flinref_down(&n, t); */
-    /* } */
+    if(ap.st != COMMIT){
+        flx n = readx(&pt(a)->n);
+        assert(n.st == COMMIT);
+        if(pt(n) && !refupd(&n, (flx[1]){}, &pt(a)->n, t)){
+            finish_del(a, ap, n, readx(&pt(n)->p), t);
+            flinref_down(&n, t);
+        }
+    }
+    
     flx nil = pt(a)->n = (flx){.nil=1, ADD, mpt(&l->nil), pt(a)->n.gen + 1};
 
     markp amp;
