@@ -11,6 +11,7 @@ OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 CFLAGS:=$(INC)\
 	-O3 \
+	-flto \
 	-g\
 	-D_GNU_SOURCE\
 	-Wall \
@@ -34,7 +35,7 @@ CFLAGS:=$(INC)\
 LD:=$(CC)
 LDFLAGS:=-fvisibility=hidden $(CFLAGS)
 
-test: $(DIRS) $(SRCD)/TAGS $(OBJS) 
+test: $(DIRS) $(SRCD)/TAGS $(OBJS) Makefile
 		+ $(LD) $(LDFLAGS) -o $@ $(OBJS)
 
 $(DIRS):
@@ -42,6 +43,8 @@ $(DIRS):
 
 $(SRCD)/TAGS: $(SRCS) $(HDRS)
 	etags -o $(SRCD)/TAGS $(HDRS) $(SRCS)
+
+$(OBJS): Makefile
 
 $(OBJD)/%.o: $(SRCD)/%.c
 		$(CC) $(CFLAGS) -MM -MP -MT $(OBJD)/$*.o -o $(OBJD)/$*.dep $<

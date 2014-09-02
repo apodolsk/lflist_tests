@@ -87,6 +87,10 @@ uptr _atomic_read(volatile uptr *p){
     return *p;
 }
 
+dptr _atomic_read2(volatile dptr *p){
+    return _cas2(0, p, 0);
+}
+
 void _atomic_write2(dptr n, volatile dptr *p){
     for(dptr o = *p;;)
         if(_cas2_won(n, p, &o))

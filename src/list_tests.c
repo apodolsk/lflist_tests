@@ -308,10 +308,12 @@ static void launch_test(void *test(void *)){
 
     struct tctxt threadscope[nthreads];
     threads = threadscope;
+    waiters = 1;
     for(uint i = 0; i < nthreads; i++)
         if(pthread_create(&threads[i].id, NULL, (void *(*)(void*))test,
                           (void *) (firstborn + i)))
             EWTF();
+    waiters = 0;
     for(uint i = 0; i < nthreads; i++)
         sem_wait(&kid_done);
     for(uint i = 0; i < nthreads; i++)

@@ -48,8 +48,8 @@ struct flanchor{
     volatile flx p;
 };
 #define FLANCHOR(list)                                \
-    {.n.constexp = (list) ? 3 + (uptr) (list) : 0,    \
-     .p.constexp = (list) ? 3 + (uptr) (list) : 0}
+    {.n.constexp = (list) ? 3 + (uptr) (list) : 6,    \
+     .p.constexp = (list) ? 3 + (uptr) (list) : 6}
 CASSERT(offsetof(list, nil) == 0);
 
 typedef volatile struct lflist{
@@ -109,7 +109,7 @@ const char *flstatestr(flstate s){
 #endif
 
 #ifndef LOG_LFLISTM
-#define LOG_LFLISTM 0
+#define LOG_LFLISTM 3
 #endif
 
 #define lflist_del(as...) linref_account(0, trace(LFLISTM, 1, lflist_del, as))
