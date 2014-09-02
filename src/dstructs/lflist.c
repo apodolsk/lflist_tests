@@ -201,11 +201,6 @@ bool (progress)(flx *o, flx n, cnt loops){
     return !eq;
 }
 
-/* static */
-/* flx readx(volatile flx *x){ */
-/*     return cas2((flx){}, x, (flx){}); */
-/* } */
-
 static
 err (refupd)(flx *a, flx *held, volatile flx *src, type *t){
     if(!pt(*a))
@@ -372,8 +367,6 @@ static void (finish_del)(flx a, flx p, flx n, flx np, type *t){
                 casx(fl(n, RDY, nnp.gen + 1), &pt(nn)->p, &nnp);
         }
     }
-
-    casx((flx){.st=COMMIT,.gen=n.gen}, &pt(a)->n, &n);
 }
 
 static 

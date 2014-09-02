@@ -12,6 +12,7 @@ DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 CFLAGS:=$(INC)\
 	-O3 \
 	-flto \
+	-fuse-linker-plugin\
 	-g\
 	-D_GNU_SOURCE\
 	-Wall \
