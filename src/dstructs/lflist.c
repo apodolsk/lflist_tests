@@ -39,7 +39,7 @@
 
 #define MODULE LFLISTM
 
-#define E_LFLISTM DBG, BRK, LVL_TODO
+#define E_LFLISTM 0, BRK, LVL_TODO
 
 #include <atomics.h>
 #include <lflist.h>
@@ -247,7 +247,7 @@ err (lflist_del)(flx a, type *t){
             break;
     }
     if(pn_ok) assert(xadd(1, &wins), 1);
-    else if(pt(np) == pt(a)) assert(xadd(1, &paborts), 1);
+    else if(pt(np) == pt(a)) assert(xadd(1, &paborts), 0);
     else if(pt(np) != pt(a)) assert(xadd(1, &naborts), 1);
     
     if(!del_won)
@@ -301,8 +301,9 @@ cleanup:
 
 err (lflist_enq)(flx a, type *t, lflist *l){
     flx ap = soft_readx(&pt(a)->p);
-    if(ap.gen != a.gen || ap.st != COMMIT || 
-       !updx_won(fl(ap, ADD, a.gen + 1), &pt(a)->p, &ap))
+    if(ap.gen != a.gen || ap.st != COMMIT)
+        return -1;
+    if(!updx_won(fl(ap, ADD, a.gen + 1), &pt(a)->p, &ap))
         return -1;
     /* flx n = soft_readx(&pt(a)->n); */
     /* assert(n.st == COMMIT); */

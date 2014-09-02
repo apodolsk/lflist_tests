@@ -6,6 +6,10 @@
 
 #include <pthread.h>
 
+dbg cnt wins;
+dbg cnt paborts;
+dbg cnt naborts;
+
 static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 static

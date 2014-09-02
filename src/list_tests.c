@@ -240,7 +240,7 @@ static int magics_valid(notnode *b){
     return 1;
 }
 
-static struct tctxt{
+static volatile struct tctxt{
     pthread_t id;
     bool dead;
 } *threads;
@@ -269,7 +269,7 @@ err pause_universe(void){
         return -1;
     muste(pthread_mutex_lock(&state_lock));
     cnt live = 0;
-    for(struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
+    for(volatile struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
         if(!c->dead && c->id != pthread_self()){
             live++;
             pthread_kill(c->id, SIGUSR1);
@@ -283,7 +283,7 @@ err pause_universe(void){
 
 void resume_universe(void){
     cnt live = 0;
-    for(struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
+    for(volatile struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
         if(!c->dead && c->id != pthread_self())
             live++;
     assert(live == (cnt) waiters - 1);
@@ -307,10 +307,12 @@ static void launch_test(void *test(void *)){
                             .sa_flags=SA_RESTART | SA_NODEFER}, NULL));
 
     struct tctxt threadscope[nthreads];
+    memset(threadscope, 0, sizeof(threadscope));
     threads = threadscope;
     waiters = 1;
     for(uint i = 0; i < nthreads; i++)
-        if(pthread_create(&threads[i].id, NULL, (void *(*)(void*))test,
+        if(pthread_create((pthread_t *) &threads[i].id, NULL,
+                          (void *(*)(void*))test,
                           (void *) (firstborn + i)))
             EWTF();
     waiters = 0;
@@ -345,7 +347,7 @@ static void launch_test(void *test(void *)){
     extern cnt naborts;
     extern cnt paborts;
     extern cnt wins;
-    ppl(1, naborts, paborts, wins);
+    ppl(0, naborts, paborts, wins);
 }
 
 int main(int argc, char **argv){

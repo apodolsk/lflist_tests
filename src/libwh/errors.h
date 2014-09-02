@@ -37,12 +37,9 @@
 
 extern noreturn void panic(const char *, ...);
 
-#if DBG > 0
-#define assert(expr...)                                               \
-    (!(expr) ? TODO("Failed assertion: %.", #expr), 1 : 1)
-#else
-#define assert(expr...) (0 ? expr : 0)
-#endif
+#define assert(expr...) CONCAT3(_assert, E_DBG_LVL) (expr)
+#define _assert1(expr...) (!(expr) ? TODO("Failed assertion: %.", #expr), 1 : 1)
+#define _assert0(expr...) (0 ? expr : 0)
 
 /* --- Fatal Errors (for the kernel) --- */
 
