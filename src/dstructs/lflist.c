@@ -309,12 +309,12 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     if(ap.gen != a.gen || ap.st != COMMIT || 
        !updx_won(fl(ap, ADD, a.gen + 1), &pt(a)->p, &ap))
         return -1;
-    flx n = soft_readx(&pt(a)->n);
-    assert(n.st == COMMIT);
-    if(pt(n) && !refupd(&n, (flx[1]){}, &pt(a)->n, t)){
-        finish_del(a, ap, n, soft_readx(&pt(n)->p), t);
-        flinref_down(&n, t);
-    }
+    /* flx n = soft_readx(&pt(a)->n); */
+    /* assert(n.st == COMMIT); */
+    /* if(pt(n) && !refupd(&n, (flx[1]){}, &pt(a)->n, t)){ */
+    /*     finish_del(a, ap, n, soft_readx(&pt(n)->p), t); */
+    /*     flinref_down(&n, t); */
+    /* } */
     flx nil = pt(a)->n = (flx){.nil=1, ADD, mpt(&l->nil), pt(a)->n.gen + 1};
 
     markp amp;
