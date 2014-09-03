@@ -10,8 +10,8 @@ SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 CFLAGS:=$(INC)\
-	-O3 \
-	-flto \
+	-O0 \
+	-flto=jobserver\
 	-fuse-linker-plugin\
 	-g\
 	-D_GNU_SOURCE\

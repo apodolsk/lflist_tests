@@ -48,7 +48,7 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 0
-#define FLANC_CHECK_FREQ 0
+#define FLANC_CHECK_FREQ 40
 #define MAX_LOOP 0
 
 #define ADD FL_ADD
@@ -311,9 +311,13 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     }
 
     assert(ap.st != ADD);
-    if(!updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, (flx[]){ap}))
+    flx oap = ap;
+    if(!updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, &ap)
+       && (ap.gen != a.gen
+           || !updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, &ap)))
         return -1;
-    if(ap.st != COMMIT){
+       
+    if(oap.st != COMMIT){
         flx n = soft_readx(&pt(a)->n);
         assert(n.st == COMMIT);
         if(pt(n) && !refupd(&n, (flx[1]){}, &pt(a)->n, t)){
