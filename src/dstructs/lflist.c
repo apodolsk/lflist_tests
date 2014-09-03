@@ -265,7 +265,7 @@ err (lflist_del)(flx a, type *t){
     else if(pt(np) == pt(a)) assert(xadd(1, &paborts), 1);
     else if(pt(np) != pt(a)) assert(xadd(1, &naborts), 1);
     
-    if(!del_won)
+    if(!del_won || p.gen != a.gen)
         goto cleanup;
 
     if(pn_ok || pt(np) == pt(a))
@@ -284,13 +284,15 @@ err (lflist_del)(flx a, type *t){
             goto report_finish;
     }
 
+    p = readx(&pt(a)->p);
+    if(p.gen != a.gen)
+        goto cleanup;
+
     ppl(2, n, np, pn_ok);
     assert(flanchor_valid(n));
     finish_del(a, p, n, np, t);
 
 report_finish:
-    if(nabort)
-        p = readx(&pt(a)->p);
     if(p.gen != a.gen)
         goto cleanup;
 
@@ -316,10 +318,6 @@ cleanup:
 err (lflist_enq)(flx a, type *t, lflist *l){
     flx ap;
     for(ap = soft_readx(&pt(a)->p);;){
-        /* if(ap.gen != a.gen || ap.st != COMMIT) */
-        /*     return -1; */
-        /* break; */
-
         if(ap.gen != a.gen || ap.st == ADD)
             return -1;
         if(ap.st == COMMIT)
@@ -596,10 +594,10 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         assert(!on || !*on || *on == cof(a, lflist, nil));
         if(on)
             *on = cof(a, lflist, nil);
-        assert(p && n && pn && np && pp && nn);
+        assert(p && n && pn && np && nn);
         assert(px.st == RDY && nx.st == RDY);
         assert(np == a
-               || (pt(np->p) == a && pt(np->n) == n && np->n.st >= ABORT));
+               || (pt(np->n) == n && np->n.st >= ABORT));
         assert(pn == a
                || (pn->n.st == ADD
                    && pt(pn->n) == a
