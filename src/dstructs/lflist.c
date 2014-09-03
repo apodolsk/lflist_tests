@@ -48,7 +48,7 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 0
-#define FLANC_CHECK_FREQ 50
+#define FLANC_CHECK_FREQ 0
 #define MAX_LOOP 0
 
 #define ADD FL_ADD
@@ -107,37 +107,27 @@ flx hard_readx(volatile flx *x){
 }
 
 static
-flx soft_readx(volatile flx *x){
-    return atomic_read2(x);
+flx readx(volatile flx *x){
+    flx r;
+    do{
+        r.gen = atomic_read(&x->gen);
+        r.markp = atomic_read(&x->markp);
+    }while(atomic_read(&x->gen) != r.gen);
+    return r;
 }
 
 static
-flx readx(volatile flx *x){
-    return atomic_read2(x);
+flx soft_readx(volatile flx *x){
+    flx r;
+    r.markp = atomic_read(&x->markp);
+    r.gen = atomic_read(&x->gen);
+    return r;
 }
-
-/* static */
-/* flx readx(volatile flx *x){ */
-/*     flx r; */
-/*     do{ */
-/*         r.gen = atomic_read(&x->gen); */
-/*         r.markp = atomic_read(&x->markp); */
-/*     }while(atomic_read(&x->gen) != r.gen); */
-/*     return r; */
-/* } */
-
-/* static */
-/* flx soft_readx(volatile flx *x){ */
-/*     flx r; */
-/*     r.markp = atomic_read(&x->markp); */
-/*     r.gen = atomic_read(&x->gen); */
-/*     return r; */
-/* } */
 
 static
 bool eqx(volatile flx *a, flx *b){
     flx old = *b;
-    *b = hard_readx(a);
+    *b = readx(a);
     return eq2(old, *b);
 }
 
@@ -248,7 +238,7 @@ err (lflist_del)(flx a, type *t){
         assert(pt(np) == pt(a));
         if(help_prev(a, &p, &pn, &refp, &refpp, t))
             break;
-        assert(pt(pn) == pt(a) && pn.st < COMMIT);
+        assert(pt(pn) == pt(a) && pn.st < COMMIT && pn.st > ADD);
 
         bool has_winner = n.st >= ABORT;
         if(!updx_won(fl(n, COMMIT, n.gen + 1), &pt(a)->n, &n))
@@ -256,7 +246,6 @@ err (lflist_del)(flx a, type *t){
         assert(!del_won || has_winner);
         del_won = del_won || !has_winner;
 
-        assert(pn.st > ADD);
         pn_ok = updx_ok(fl(n, pn.st, pn.gen + 1), &pt(p)->n, &pn);
         if(pn_ok)
             break;
@@ -269,22 +258,22 @@ err (lflist_del)(flx a, type *t){
         goto cleanup;
 
     if(pn_ok || pt(np) == pt(a))
-        assert(eq2(p, pt(a)->p) || !pt(p) || pt(a)->p.gen != p.gen);
+        assert(eq2(p, pt(a)->p) || pt(a)->p.gen != a.gen);
     if(pn_ok || pt(np) != pt(a))
-        assert(n.pt == pt(a)->n.pt || !pt(n) || pt(a)->p.gen != p.gen);
+        assert(n.pt == pt(a)->n.pt || pt(a)->p.gen != a.gen);
 
     bool nabort = !pn_ok && pt(np) != pt(a);
     /* Must be p abort */
     if(!pn_ok && pt(np) == pt(a)){
-        n = readx(&pt(a)->n);
+        n = soft_readx(&pt(a)->n);
         if(n.st <= RDY)
             goto report_finish;
-        np = refupd(&n, &refn, NULL, t) ? (flx){} : readx(&pt(n)->p);
+        np = refupd(&n, &refn, NULL, t) ? (flx){} : soft_readx(&pt(n)->p);
         if(!pt(np) || pt(a)->p.gen != a.gen)
             goto report_finish;
     }
 
-    p = readx(&pt(a)->p);
+    p = soft_readx(&pt(a)->p);
     if(p.gen != a.gen)
         goto cleanup;
 
@@ -293,20 +282,10 @@ err (lflist_del)(flx a, type *t){
     finish_del(a, p, n, np, t);
 
 report_finish:
-    if(p.gen != a.gen)
-        goto cleanup;
-
     ppl(2, p, pn, pn_ok);
     casx((flx){.st=COMMIT,.gen=a.gen}, &pt(a)->p, &p);
     
 cleanup:
-    /* assert((pt(a)->n.st == COMMIT && */
-    /*         (pt(np) != pt(a) || eq2(p, pt(a)->p)) && */
-    /*         n.pt == pt(a)->n.pt) */
-    /*        || !pt(pt(a)->n) */
-    /*        || !pt(p) */
-    /*        || pt(a)->p.st == COMMIT */
-    /*        || pt(a)->p.gen != a.gen); */
     assert(flanchor_valid(a));
     
     flinref_down(&refn, t);
@@ -318,7 +297,7 @@ cleanup:
 err (lflist_enq)(flx a, type *t, lflist *l){
     flx ap;
     for(ap = soft_readx(&pt(a)->p);;){
-        if(ap.gen != a.gen || ap.st == ADD)
+        if(ap.gen != a.gen || ap.st == ADD || ap.st == ABORT)
             return -1;
         if(ap.st == COMMIT)
             break;
@@ -330,14 +309,15 @@ err (lflist_enq)(flx a, type *t, lflist *l){
             return -1;
         else break;
     }
-    
-    if(!updx_won(((flx){.st=ADD, .gen=a.gen + 1}), &pt(a)->p, (flx[]){ap}))
+
+    assert(ap.st != ADD);
+    if(!updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, (flx[]){ap}))
         return -1;
     if(ap.st != COMMIT){
-        flx n = readx(&pt(a)->n);
+        flx n = soft_readx(&pt(a)->n);
         assert(n.st == COMMIT);
         if(pt(n) && !refupd(&n, (flx[1]){}, &pt(a)->n, t)){
-            finish_del(a, ap, n, readx(&pt(n)->p), t);
+            finish_del(a, ap, n, soft_readx(&pt(n)->p), t);
             flinref_down(&n, t);
         }
     }
@@ -411,7 +391,7 @@ err (help_next)(flx a, flx *n, flx *np, flx *refn, type *t){
         for(flx onp = *np = readx(&pt(*n)->p);;
             progress(&onp, *np, nl + npl++))
         {
-            if(pt(*np) == pt(a))
+            if(pt(*np) == pt(a) && np->st != ABORT)
                 return 0;
             if(!soft_eqx(&pt(a)->n, n))
                 break;
@@ -558,8 +538,6 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
     flanchor *p = pt(px), *n = pt(nx);
     if(retn) *retn = nx;
 
-    assert(px.st == RDY || px.st == COMMIT || px.st == ADD);
-
     /* Early enq(a) or late del(a). */
     if(!p || !n){
         assert(!ax.nil);
@@ -594,10 +572,10 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         assert(!on || !*on || *on == cof(a, lflist, nil));
         if(on)
             *on = cof(a, lflist, nil);
-        assert(p && n && pn && np && nn);
+        assert(p && n && pn && np && nn && pp);
         assert(px.st == RDY && nx.st == RDY);
         assert(np == a
-               || (pt(np->n) == n && np->n.st >= ABORT));
+               || (pt(np->p) == a && pt(np->n) == n && np->n.st >= ABORT));
         assert(pn == a
                || (pn->n.st == ADD
                    && pt(pn->n) == a
@@ -622,6 +600,8 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         case COMMIT:
             assert(nx.st == COMMIT);
             break;
+        case ABORT:
+            assert(pn != a);
         }
         switch(nx.st){
         case ADD:
