@@ -269,7 +269,7 @@ err (lflist_del)(flx a, type *t){
         if(n.st <= RDY)
             goto report_finish;
         np = refupd(&n, &refn, NULL, t) ? (flx){} : soft_readx(&pt(n)->p);
-        if(!pt(np) || pt(a)->p.gen != a.gen)
+        if(!pt(np))
             goto report_finish;
     }
 
@@ -314,6 +314,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
     flx oap = ap;
     if(!updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, &ap)
        && (ap.gen != a.gen
+           || (assert(ap.st == COMMIT), 0)
            || !updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, &ap)))
         return -1;
        
@@ -336,6 +337,7 @@ err (lflist_enq)(flx a, type *t, lflist *l){
         if(help_prev(nil, &p, &pn, (flx[]){p}, &refpp, t))
             EWTF();
         assert(!eq2(op, p) || !eq2(opn, pn)), op = p, opn = pn;
+        assert(pt(p) != pt(a));
 
         pt(a)->p.markp = amp = fl(p, ADD, 0).markp;
         if(updx_won(fl(a, umax(pn.st, RDY), pn.gen + 1), &pt(p)->n, &pn))
@@ -382,7 +384,12 @@ static void (finish_del)(flx a, flx p, flx n, flx np, type *t){
             if(pt(nnp) == pt(a))
                 casx(fl(n, RDY, nnp.gen + 1), &pt(nn)->p, &nnp);
         }
+    }else{
+        flx nn = readx(&pt(n)->n);
+        assert(!pt(nn) || flanchor_valid(nn));
     }
+
+    assert(flanchor_valid(n));
 }
 
 static 
@@ -443,7 +450,7 @@ err (help_prev)(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t){
                 if(pt(ppn) != pt(*p) && pt(ppn) != pt(a))
                     goto readpp;
                 if(pt(ppn) == pt(a)){
-                    if(!updx_ok(fl(pp, RDY, p->gen), &pt(a)->p, p))
+                    if(!updx_ok(fl(pp, RDY, p->gen + a.nil), &pt(a)->p, p))
                         goto newp;
                     swap(refpp, refp);
                     *pn = ppn;
@@ -592,9 +599,6 @@ bool _flanchor_valid(flx ax, flx *retn, lflist **on){
         switch(px.st){
         case ADD:
             assert(nx.st == ADD || nx.st == RDY);
-            /* assert(np == a || */
-            /*        pn != a || */
-            /*        (nx.nil && pt(np->n) == a && nx.st == ADD)); */
             break;
         case RDY:
             assert(np == a
