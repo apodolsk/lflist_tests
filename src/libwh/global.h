@@ -20,10 +20,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <pustr.h>
-#include <config.h>
 #include <log.h>
-
 #include <errors.h>
+
+#include <runtime.h>
+
 #include <peb_util.h>
 #include <wrand.h>
 

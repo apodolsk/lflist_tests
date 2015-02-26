@@ -39,11 +39,14 @@
 
 #define MODULE LFLISTM
 
-#define E_LFLISTM 1, BRK, LVL_TODO
+#define E_LFLISTM 0, BRK, LVL_TODO
 
 #include <atomics.h>
 #include <lflist.h>
 #include <nalloc.h>
+
+dbg cnt naborts, paborts, pn_oks, helpful_enqs,
+        cas_ops, atomic_read_ops, lflist_ops;
 
 #ifndef FAKELOCKFREE
 
@@ -55,13 +58,6 @@
 #define ABORT FL_ABORT
 #define RDY FL_RDY
 #define COMMIT FL_COMMIT
-
-dbg cnt naborts;
-dbg cnt paborts;
-dbg cnt pn_oks;
-dbg cnt helpful_enqs;
-dbg cnt cas_ops;
-dbg cnt atomic_read_ops;
 
 static err help_next(flx a, flx *n, flx *np, flx *refn, type *t);
 static err help_prev(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t);
@@ -229,6 +225,7 @@ err (refupd)(flx *a, flx *held, volatile flx *src, type *t){
 
 err (lflist_del)(flx a, type *t){
     assert(!a.nil);
+    assert(xadd(1, &lflist_ops), 1);
 
     if(pt(a)->p.gen != a.gen || !pt(pt(a)->p))
         return EARG("Early gen abort: %", a);
@@ -299,6 +296,7 @@ cleanup:
 }
 
 err (lflist_enq)(flx a, type *t, lflist *l){
+    assert(xadd(1, &lflist_ops), 1);
     flx ap;
     for(ap = soft_readx(&pt(a)->p);;){
         if(ap.gen != a.gen || ap.st == ADD || ap.st == ABORT)

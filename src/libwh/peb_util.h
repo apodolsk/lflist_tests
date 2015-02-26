@@ -1,5 +1,6 @@
 #pragma once
 #include <pumacros.h>
+#include <assert.h>
 
 #define CASSERT(e) _Static_assert(e, #e)
 

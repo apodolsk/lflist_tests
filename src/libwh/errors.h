@@ -1,6 +1,6 @@
 #pragma once
 #include <pumacros.h>
-#include <config.h>
+#include <runtime.h>
 #include <errverbs.h>
 #include <assert.h>
 
@@ -36,13 +36,6 @@
 #endif
 
 extern noreturn void panic(const char *, ...);
-
-#if DBG > 0
-#define assert(expr...)                                               \
-    (!(expr) ? TODO("Failed assertion: %.", #expr), 1 : 1)
-#else
-#define assert(expr...) (0 ? expr : 0)
-#endif
 
 /* --- Fatal Errors (for the kernel) --- */
 
@@ -137,7 +130,7 @@ extern noreturn void panic(const char *, ...);
     /* "Unreadable or unwriteable memory: %.", (void *) addr    */
 
 #define err_cond(req, verb, e, or...)                   \
-    CONCAT(log_cond, CONCAT2(verb, req)) (e, or)
+    CONCAT(err_cond, CONCAT2(verb, req)) (e, or)
 
 #define err_cond00(e, or...) e
 #define err_cond01(e, or...) or

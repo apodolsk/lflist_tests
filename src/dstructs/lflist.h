@@ -1,17 +1,14 @@
 #pragma once
 
+extern dbg cnt naborts, paborts, pn_oks, helpful_enqs,
+           cas_ops, atomic_read_ops, lflist_ops;
+
 /* #define FAKELOCKFREE */
 #ifdef FAKELOCKFREE
 #include <fakelflist.h>
 #else
 
 #include <nalloc.h>
-
-extern dbg cnt naborts;
-extern dbg cnt paborts;
-extern dbg cnt pn_oks;
-extern dbg cnt helpful_enqs;
-extern dbg cnt cas_ops;
 
 typedef struct flx flx;
 typedef volatile struct flanchor flanchor;

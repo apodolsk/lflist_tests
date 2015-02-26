@@ -42,7 +42,7 @@
 #include <stack.h>
 #include <list.h>
 #include <nalloc.h>
-#include <config.h>
+#include <runtime.h>
 #include <atomics.h>
 #include <thread.h>
 

@@ -1,6 +1,8 @@
 #include <sys/mman.h>
 #include <nalloc.h>
 
+#define MAX_REALIGNS 16
+
 struct slab *new_slabs(cnt batch){
     struct slab *s = mmap(NULL, SLAB_SIZE * batch, PROT_WRITE,
                           MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0);
@@ -8,8 +10,8 @@ struct slab *new_slabs(cnt batch){
         return EOOR(), NULL;
     static cnt realigns = 0;
     if(!aligned_pow2(s, SLAB_SIZE)){
-        assert(realigns++ < 4);
-        munmap(s, SLAB_SIZE * batch);
+        assert(realigns++ < MAX_REALIGNS);
+        /* munmap(s, SLAB_SIZE * batch); */
         s = mmap(NULL, SLAB_SIZE + SLAB_SIZE * batch, PROT_WRITE,
                  MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, -1, 0);
         if(s == MAP_FAILED)
