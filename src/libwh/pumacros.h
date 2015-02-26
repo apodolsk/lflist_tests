@@ -1,5 +1,12 @@
 #pragma once
 
+/* Turn array expr into pointer expr. */
+#define decay(e) ((void) 0, e)
+
+/* Create name-mangled variables to avoid double-eval of expr. */
+#define estore(e, pfx, i) typeof(decay(e)) CONCAT(pfx, i) = e;
+#define eref(_, pfx, i) CONCAT(pfx, i)
+
 #define STRLIT(xs...) _STRLIT(xs)
 #define _STRLIT(xs...) #xs
 

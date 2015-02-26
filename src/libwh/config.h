@@ -4,7 +4,7 @@
 #define PAGE_SIZE   (1 << PAGE_SHIFT)
 #define CACHELINE_SIZE 64
 
-#define SLAB_SIZE (PAGE_SIZE)
+#define SLAB_SIZE (4 * PAGE_SIZE)
 
 #include <tid.h>
 
@@ -12,7 +12,9 @@ void breakpoint(void);
 
 bool interrupts_enabled(void);
 
+struct cpu;
 struct thread;
+
 struct thread *this_thread(void);
 void slabs_init(void);
 struct slab *new_slabs(cnt batch);
@@ -24,3 +26,5 @@ void resume_universe(void);
 
 void *heap_start(void);
 void *heap_end(void);
+
+bool poisoned(void);

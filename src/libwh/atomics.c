@@ -4,10 +4,9 @@
 #include <race.h>
 #include <asm.h>
 
-#define FUZZ_ATOMICS 0
-#define FUZZ_NS 9000
-#define FUZZ_PCNT 50
-#define FUZZ_MOD 2
+#define RACE_NS 9000
+#define RACE_PCNT (E_DBG_LVL ? 50 : 0)
+#define RACE_MOD 2
 
 extern uptr (xadd)(iptr s, volatile uptr *p);
 extern uptr (xchg)(uptr s, volatile uptr *p);
@@ -16,8 +15,7 @@ extern dptr (cmpxchg2)(dptr n, volatile dptr *p, dptr old);
     
 #include <time.h>
 void fuzz_atomics(){
-    if(FUZZ_ATOMICS)
-        race(FUZZ_NS, FUZZ_PCNT, FUZZ_MOD);
+    race(RACE_NS, RACE_PCNT, RACE_MOD);
 }
 
 uptr _xadd(iptr s, volatile uptr *p){
@@ -82,9 +80,25 @@ bool _cas2_won(dptr n, volatile dptr *p, dptr *old){
     return _cas2_ok(n, p, old) == WON;
 }
 
+howok _upd2_ok(dptr n, volatile dptr *p, dptr *old){
+    howok r = _cas2_ok(n, p, old) == WON;
+    if(r == WON)
+        *old = n;
+    return r;
+}
+
+bool _upd2_won(dptr n, volatile dptr *p, dptr *old){
+    return _upd2_ok(n, p, old) == WON;
+}
+
 uptr _atomic_read(volatile uptr *p){
     fuzz_atomics();
     return *p;
+}
+
+void _atomic_write(uptr n, volatile uptr *p){
+    fuzz_atomics();
+    *p = n;
 }
 
 dptr _atomic_read2(volatile dptr *p){

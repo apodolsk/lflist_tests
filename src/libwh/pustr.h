@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pumacros.h"
+#include <pumacros.h>
 
 #include <inttypes.h>
 #include <stdarg.h>
@@ -23,8 +23,8 @@ typedef struct{
 
 size_t puvsnprintf(char *b, size_t max, const char *fmt, va_list args);
 
-#define puprintf(fmt, as...) _puprintf(fmt      \
-                                       COMMAPFX_IF_NZ(PUMAP(pu_arg_of, _, ##as)))
+#define puprintf(fmt, as...)                                            \
+    _puprintf(fmt COMMAPFX_IF_NZ(PUMAP(pu_arg_of, _, as)))
 size_t _puprintf(const char *fmt, ...);
 
 #define pusnprintf(b, l, fmt, as...)                \
@@ -33,8 +33,6 @@ size_t _pusnprintf(char *b, size_t max, const char *fmt, ...);
 
 #define pu_arg_of(a, _,  __)                                             \
     &(pu_arg){(typeof(decay(a))[1]){a}, (typed_snprint) pusnprint_of(a)}
-/* Turn array expressions into pointer expressions. */
-#define decay(v) ((void) 0, v)
 
 #define pusnprint_of(a)                                     \
     _Generic(decay(a),                                      \
@@ -46,12 +44,12 @@ size_t _pusnprintf(char *b, size_t max, const char *fmt, ...);
     
 #define pusnprint_of_dflt(t, _, __)                                     \
     t  : &CONCAT(pusnprint_, t),                                        \
-        volatile t  : &CONCAT(pusnprint_, t),                           \
-        const t  : &CONCAT(pusnprint_, t),                              \
+        volatile t        : &CONCAT(pusnprint_, t),                     \
+        const t           : &CONCAT(pusnprint_, t),                     \
         volatile const t  : &CONCAT(pusnprint_, t),                     \
-        t* : &CONCAT(pusnprint_ptr_, t),                                \
-        volatile t* : &CONCAT(pusnprint_ptr_, t),                       \
-        const t* : &CONCAT(pusnprint_ptr_, t),                          \
+        t*                : &CONCAT(pusnprint_ptr_, t),                 \
+        volatile t*       : &CONCAT(pusnprint_ptr_, t),                 \
+        const t*          : &CONCAT(pusnprint_ptr_, t),                 \
         volatile const t* : &CONCAT(pusnprint_ptr_, t)
 
 /* TODO: I have to do this because gcc 4.9 has a bug where _Generic(b,
@@ -69,6 +67,7 @@ size_t _pusnprintf(char *b, size_t max, const char *fmt, ...);
 
 #define RCHOOSE(i, _) ))))
 
+/* TODO: This is what it should be, were it not for that bug. */
 /* #define pusnprint_of_scoped(i, _)                                   \ */
 /*     typeof(decay((CONCAT(putype_, i)){})): &CONCAT(pusnprint_, i)                   */
 
@@ -82,16 +81,14 @@ size_t _pusnprintf(char *b, size_t max, const char *fmt, ...);
 #define is_void(e) compat(void, typeof(e))
 
 /* To avoid double-eval of function args. */
-#define pu_store(arg, _, i) typeof(decay(arg)) CONCAT(__pu_arg, i) = arg;
-#define pu_ref(arg, _, i) CONCAT(__pu_arg, i)
 #define pu_strfmt(_, __, ___) %
 
 #define putrace(print, fun, as...)                                      \
     ({                                                                  \
-        PUMAP_NOCOMMA(pu_store, _, as);                                 \
+        PUMAP_NOCOMMA(estore, __pu, as);                                \
         print("-- Begin %(" STRLIT(PUMAP(pu_strfmt, _, as))             \
               ") in %:%", #fun                                          \
-              COMMAPFX_IF_NZ(PUMAP3(pu_ref, _, as)),                    \
+              COMMAPFX_IF_NZ(PUMAP3(eref, __pu, as)),                   \
               __func__, __LINE__);                                      \
         typeof(choose(is_void(fun(as)),                                 \
                       1,                                                \
@@ -99,8 +96,8 @@ size_t _pusnprintf(char *b, size_t max, const char *fmt, ...);
             __pu_ret;                                                   \
         __pu_ret =                                                      \
         choose(is_void(fun(as)),                                        \
-               (fun(PUMAP(pu_ref, _, as)), 0),                          \
-               fun(PUMAP(pu_ref, _, as)));                              \
+               (fun(PUMAP(eref, __pu, as)), 0),                            \
+               fun(PUMAP(eref, __pu, as)));                             \
         choose(is_void(fun(as)),                                        \
                ({                                                       \
                    print("-- End %() in %:%:%", #fun,                   \
@@ -109,7 +106,7 @@ size_t _pusnprintf(char *b, size_t max, const char *fmt, ...);
                ({                                                       \
                    print("-- End % = %("STRLIT(PUMAP(pu_strfmt, _, as)) \
                          ") in %:%:%", __pu_ret, #fun                   \
-                         COMMAPFX_IF_NZ(PUMAP3(pu_ref, _, as)),         \
+                         COMMAPFX_IF_NZ(PUMAP3(eref, __pu, as)),        \
                          __FILE__, __func__, __LINE__);                 \
                    __pu_ret;                                            \
                }));                                                     \
@@ -148,8 +145,8 @@ size_t pusnprint_dflt(char *b, size_t l, volatile const void **a);
 #define PUMAP_25(f, g, arg, ...) f(arg, g, 24), PUMAP_24(f, g, __VA_ARGS__)
 #define PUMAP_24(f, g, arg, ...) f(arg, g, 23), PUMAP_23(f, g, __VA_ARGS__)
 #define PUMAP_23(f, g, arg, ...) f(arg, g, 22), PUMAP_22(f, g, __VA_ARGS__)
-#define PUMAP_22(f, g, arg, ...) f(arg, g, 22), PUMAP_11(f, g, __VA_ARGS__)
-#define PUMAP_21(f, g, arg, ...) f(arg, g, 21), PUMAP_20(f, g, __VA_ARGS__)
+#define PUMAP_22(f, g, arg, ...) f(arg, g, 21), PUMAP_21(f, g, __VA_ARGS__)
+#define PUMAP_21(f, g, arg, ...) f(arg, g, 20), PUMAP_20(f, g, __VA_ARGS__)
 #define PUMAP_20(f, g, arg, ...) f(arg, g, 19), PUMAP_19(f, g, __VA_ARGS__)
 #define PUMAP_19(f, g, arg, ...) f(arg, g, 18), PUMAP_18(f, g, __VA_ARGS__)
 #define PUMAP_18(f, g, arg, ...) f(arg, g, 17), PUMAP_17(f, g, __VA_ARGS__)
@@ -183,9 +180,8 @@ size_t pusnprint_dflt(char *b, size_t l, volatile const void **a);
 #define PUMAP2_25(f, g, arg, ...) f(arg, g, 24), PUMAP2_24(f, g, __VA_ARGS__)
 #define PUMAP2_24(f, g, arg, ...) f(arg, g, 23), PUMAP2_23(f, g, __VA_ARGS__)
 #define PUMAP2_23(f, g, arg, ...) f(arg, g, 22), PUMAP2_22(f, g, __VA_ARGS__)
-#define PUMAP2_22(f, g, arg, ...) f(arg, g, 22), PUMAP2_11(f, g, __VA_ARGS__)
-#define PUMAP2_21(f, g, arg, ...) f(arg, g, 21), PUMAP2_20(f, g, __VA_ARGS__)
-#define PUMAP2_20(f, g, arg, ...) f(arg, g, 19), PUMAP2_19(f, g, __VA_ARGS__)
+#define PUMAP2_22(f, g, arg, ...) f(arg, g, 21), PUMAP2_21(f, g, __VA_ARGS__)
+#define PUMAP2_21(f, g, arg, ...) f(arg, g, 20), PUMAP2_20(f, g, __VA_ARGS__)
 #define PUMAP2_20(f, g, arg, ...) f(arg, g, 19), PUMAP2_19(f, g, __VA_ARGS__)
 #define PUMAP2_19(f, g, arg, ...) f(arg, g, 18), PUMAP2_18(f, g, __VA_ARGS__)
 #define PUMAP2_18(f, g, arg, ...) f(arg, g, 17), PUMAP2_17(f, g, __VA_ARGS__)
@@ -211,6 +207,16 @@ size_t pusnprint_dflt(char *b, size_t l, volatile const void **a);
 #define PUMAP3(FUNC, global, ...) CONCAT(PUMAP3_ , NUM_ARGS(__VA_ARGS__)) \
     (FUNC, global, __VA_ARGS__)
 
+#define PUMAP3_30(f, g, arg, ...) f(arg, g, 29), PUMAP3_29(f, g, __VA_ARGS__)
+#define PUMAP3_29(f, g, arg, ...) f(arg, g, 28), PUMAP3_28(f, g, __VA_ARGS__)
+#define PUMAP3_28(f, g, arg, ...) f(arg, g, 27), PUMAP3_27(f, g, __VA_ARGS__)
+#define PUMAP3_27(f, g, arg, ...) f(arg, g, 26), PUMAP3_26(f, g, __VA_ARGS__)
+#define PUMAP3_26(f, g, arg, ...) f(arg, g, 25), PUMAP3_25(f, g, __VA_ARGS__)
+#define PUMAP3_25(f, g, arg, ...) f(arg, g, 24), PUMAP3_24(f, g, __VA_ARGS__)
+#define PUMAP3_24(f, g, arg, ...) f(arg, g, 23), PUMAP3_23(f, g, __VA_ARGS__)
+#define PUMAP3_23(f, g, arg, ...) f(arg, g, 22), PUMAP3_22(f, g, __VA_ARGS__)
+#define PUMAP3_22(f, g, arg, ...) f(arg, g, 21), PUMAP3_21(f, g, __VA_ARGS__)
+#define PUMAP3_21(f, g, arg, ...) f(arg, g, 20), PUMAP3_20(f, g, __VA_ARGS__)
 #define PUMAP3_20(f, g, arg, ...) f(arg, g, 19), PUMAP3_19(f, g, __VA_ARGS__)
 #define PUMAP3_19(f, g, arg, ...) f(arg, g, 18), PUMAP3_18(f, g, __VA_ARGS__)
 #define PUMAP3_18(f, g, arg, ...) f(arg, g, 17), PUMAP3_17(f, g, __VA_ARGS__)
@@ -236,6 +242,16 @@ size_t pusnprint_dflt(char *b, size_t l, volatile const void **a);
 #define PUMAP_NOCOMMA(FUNC, global, ...)          \
     CONCAT(PUMAPNC_ , NUM_ARGS(__VA_ARGS__))(FUNC, global, __VA_ARGS__)
 
+#define PUMAPNC_30(f, g, arg, ...) f(arg, g, 29) PUMAPNC_29(f, g, __VA_ARGS__)
+#define PUMAPNC_29(f, g, arg, ...) f(arg, g, 28) PUMAPNC_28(f, g, __VA_ARGS__)
+#define PUMAPNC_28(f, g, arg, ...) f(arg, g, 27) PUMAPNC_27(f, g, __VA_ARGS__)
+#define PUMAPNC_27(f, g, arg, ...) f(arg, g, 26) PUMAPNC_26(f, g, __VA_ARGS__)
+#define PUMAPNC_26(f, g, arg, ...) f(arg, g, 25) PUMAPNC_25(f, g, __VA_ARGS__)
+#define PUMAPNC_25(f, g, arg, ...) f(arg, g, 24) PUMAPNC_24(f, g, __VA_ARGS__)
+#define PUMAPNC_24(f, g, arg, ...) f(arg, g, 23) PUMAPNC_23(f, g, __VA_ARGS__)
+#define PUMAPNC_23(f, g, arg, ...) f(arg, g, 22) PUMAPNC_22(f, g, __VA_ARGS__)
+#define PUMAPNC_22(f, g, arg, ...) f(arg, g, 21) PUMAPNC_21(f, g, __VA_ARGS__)
+#define PUMAPNC_21(f, g, arg, ...) f(arg, g, 20) PUMAPNC_20(f, g, __VA_ARGS__)
 #define PUMAPNC_20(f, g, arg, ...) f(arg, g, 19) PUMAPNC_19(f, g, __VA_ARGS__)
 #define PUMAPNC_19(f, g, arg, ...) f(arg, g, 18) PUMAPNC_18(f, g, __VA_ARGS__)
 #define PUMAPNC_18(f, g, arg, ...) f(arg, g, 17) PUMAPNC_17(f, g, __VA_ARGS__)
@@ -267,7 +283,7 @@ size_t pusnprint_dflt(char *b, size_t l, volatile const void **a);
 #define R_25(f, g) f(25, g), R_24(f, g)
 #define R_24(f, g) f(24, g), R_23(f, g)
 #define R_23(f, g) f(23, g), R_22(f, g)
-#define R_22(f, g) f(22, g), R_11(f, g)
+#define R_22(f, g) f(22, g), R_21(f, g)
 #define R_21(f, g) f(21, g), R_20(f, g)
 #define R_20(f, g) f(20, g) , R_19(f, g)
 #define R_19(f, g) f(19, g) , R_18(f, g)
@@ -300,7 +316,7 @@ size_t pusnprint_dflt(char *b, size_t l, volatile const void **a);
 #define RNC_25(f, g) f(25, g) RNC_24(f, g)
 #define RNC_24(f, g) f(24, g) RNC_23(f, g)
 #define RNC_23(f, g) f(23, g) RNC_22(f, g)
-#define RNC_22(f, g) f(22, g) RNC_11(f, g)
+#define RNC_22(f, g) f(22, g) RNC_21(f, g)
 #define RNC_21(f, g) f(21, g) RNC_20(f, g)
 #define RNC_20(f, g) f(20, g) RNC_19(f, g)
 #define RNC_19(f, g) f(19, g) RNC_18(f, g)

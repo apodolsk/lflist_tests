@@ -4,9 +4,9 @@
 
 extern err kyield(tid t);
 void race(cnt maxns, uint pcnt, uint idmod){
-    if(!interrupts_enabled())
+    if(!pcnt)
         return;
-    if(randpcnt(pcnt >> 1))
+    if(interrupts_enabled() && randpcnt(pcnt >> 1))
         (kyield)((dptr) -1);
     else if(0 == mod_pow2(PUN(uptr, get_dbg_id()), idmod) && randpcnt(pcnt))
         nanosleep(&(struct timespec){.tv_nsec = wrand() % maxns}, NULL);

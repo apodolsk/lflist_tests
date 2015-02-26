@@ -37,9 +37,12 @@
 
 extern noreturn void panic(const char *, ...);
 
-#define assert(expr...) CONCAT3(_assert, E_DBG_LVL) (expr)
-#define _assert1(expr...) (!(expr) ? TODO("Failed assertion: %.", #expr), 1 : 1)
-#define _assert0(expr...) (0 ? expr : 0)
+#if DBG > 0
+#define assert(expr...)                                               \
+    (!(expr) ? TODO("Failed assertion: %.", #expr), 1 : 1)
+#else
+#define assert(expr...) (0 ? expr : 0)
+#endif
 
 /* --- Fatal Errors (for the kernel) --- */
 
@@ -56,6 +59,7 @@ extern noreturn void panic(const char *, ...);
         elog(0, "My creator has abandoned me. %:%:%. " fmt  \
              , __FILE__ , __func__ , __LINE__, ##as);               \
         ebreakpoint(0);                                             \
+        panic("TODO!");                                             \
     })                                            
 
 
@@ -91,7 +95,7 @@ extern noreturn void panic(const char *, ...);
         elog(3,"Out of resources. %:%:%. " fmt      \
              , __FILE__, __func__, __LINE__, ##as); \
         ebreakpoint(3);                             \
-        (dptr) -1;                                  \
+        (dptr) EOOR;                                \
     })                                                         
 
         
@@ -100,7 +104,7 @@ extern noreturn void panic(const char *, ...);
         elog(4, "Input error. %:%:%. " fmt          \
              , __FILE__, __func__, __LINE__, ##as); \
         ebreakpoint(4);                             \
-        (dptr) -1;                                  \
+        (dptr) EARG;                                \
     })
 
 #define RARITY(fmt, as...)                              \
@@ -113,10 +117,10 @@ extern noreturn void panic(const char *, ...);
 /* --- Helpers --- */
 
 #define elog(lvl, fmt, ...)                                     \
-    ((E_PRINT_LVL >= lvl) ? lprintf(fmt, ##__VA_ARGS__) : 0)
+    err_cond(lvl, E_PRINT_LVL, lprintf(fmt, ##__VA_ARGS__), 0)
 
-#define ebreakpoint(lvl)                             \
-    ((E_BREAK_LVL >= lvl) ? breakpoint() : 0)
+#define ebreakpoint(lvl)                        \
+    err_cond(lvl, E_BREAK_LVL, breakpoint(), 0)
 
 /* TODO: macro-expansion into multiple macro args not happening. Same old
    shit. */
@@ -131,4 +135,44 @@ extern noreturn void panic(const char *, ...);
 
 #define BADMEM_MSG(addr)                                     \
     /* "Unreadable or unwriteable memory: %.", (void *) addr    */
+
+#define err_cond(req, verb, e, or...)                   \
+    CONCAT(log_cond, CONCAT2(verb, req)) (e, or)
+
+#define err_cond00(e, or...) e
+#define err_cond01(e, or...) or
+#define err_cond02(e, or...) or
+#define err_cond03(e, or...) or
+#define err_cond04(e, or...) or
+#define err_cond05(e, or...) or
+#define err_cond10(e, or...) e
+#define err_cond11(e, or...) e
+#define err_cond12(e, or...) or
+#define err_cond13(e, or...) or
+#define err_cond14(e, or...) or
+#define err_cond15(e, or...) or
+#define err_cond20(e, or...) e
+#define err_cond21(e, or...) e
+#define err_cond22(e, or...) e
+#define err_cond23(e, or...) or
+#define err_cond24(e, or...) or
+#define err_cond25(e, or...) or
+#define err_cond30(e, or...) e
+#define err_cond31(e, or...) e
+#define err_cond32(e, or...) e
+#define err_cond33(e, or...) e
+#define err_cond34(e, or...) or
+#define err_cond35(e, or...) or
+#define err_cond40(e, or...) e
+#define err_cond41(e, or...) e
+#define err_cond42(e, or...) e
+#define err_cond43(e, or...) e
+#define err_cond44(e, or...) e
+#define err_cond45(e, or...) or
+#define err_cond50(e, or...) e
+#define err_cond51(e, or...) e
+#define err_cond52(e, or...) e
+#define err_cond53(e, or...) e
+#define err_cond54(e, or...) e
+#define err_cond55(e, or...) e
 

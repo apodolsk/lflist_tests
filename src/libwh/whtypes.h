@@ -9,6 +9,7 @@ typedef unsigned int uint;
 typedef uintptr_t uptr;
 /* Counts any set of objects simultaneously in memory. */
 typedef uptr cnt;
+typedef cnt idx;
 typedef intptr_t iptr;
 typedef size_t size;
 typedef ptrdiff_t ptrdiff;
@@ -38,6 +39,7 @@ typedef uint64_t udptr;
 #endif
 
 #define UPTR_MAX UINTPTR_MAX
+#define CNT_MAX UPTR_MAX
 
 #define WORDBITS (8 * sizeof(void *))
 

@@ -7,22 +7,38 @@
 #define ARR_LEN_2D(a) (sizeof(a)/sizeof(**(a)))
 
 /** 
- * Return the address of the struct s containing member, assuming s
- * has type container_type and member points to its field_name
- * field. If member is NULL, return NULL.
+ * If p, &ret->field == p. Iff !p, ret == NULL.
  */
 #define cof container_of
-#define container_of(member, container_type, field_name)                \
-    ((container_type *)                                                 \
-     subtract_if_not_null((uptr) member, offsetof(container_type, field_name)))
+#define container_of(p, container_t, field)                             \
+    ((container_t *)                                                    \
+     subtract_if_not_null((uptr) (p), offsetof(container_t, field)))
 
-/* Used to do a NULL check without expanding member twice. */
+/* Used to do a NULL check without expanding p twice. */
 static inline void *subtract_if_not_null(uptr p, cnt s){
     return (void *) (p ? (p - s) : p);
 }
 
-#define cof_aligned_pow2(member, container_t)                           \
-    ((container_t *) align_down_pow2(member, sizeof(container_t)))
+#define cof_aligned_pow2(p, container_t)                           \
+    ((container_t *) align_down_pow2(p, sizeof(container_t)))
+
+/* Record update. For each arg of form .f e in changes, the C expr (c =
+   orig, c.f e, ret.f == c.f) is true. Orig is unchanged. */
+#define RUP_PFX(fld,_, __) __rup_copy fld
+#define rup(orig, changes...)({                 \
+            typeof(orig) __rup_copy = orig;     \
+            MAP(RUP_PFX,, changes);             \
+            __rup_copy;                         \
+        })                                      \
+
+
+#define tryp(p, catch...)({                     \
+            typeof(p) try_p = p;                \
+            if(!try_p){                         \
+                catch;                          \
+            }                                   \
+            try_p;                              \
+        })                                      \
 
 
 /* Clang has a buggy statement-expression implementation. */
@@ -145,6 +161,15 @@ static inline uptr ualign_up(uptr addr, size size){
 
 #define aligned_pow2(n, size)                   \
     (!mod_pow2(n, size))
+
+#define limit(n, ceil){                         \
+        typeof(n) __limit_n = n;                \
+        typeof(n) __limit_ceil = ceil;          \
+        if(__ceil_n >= __limit_ceil)            \
+            __limit_ceil - 1;                   \
+        else                                    \
+            __ceil_n;                           \
+    }                                           \
 
 /* TODO: apparently not working */
 /* #define align_next_pow2(n)                                              \ */
