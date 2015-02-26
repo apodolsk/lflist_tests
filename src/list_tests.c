@@ -336,10 +336,7 @@ static void launch_test(void *test(void *)){
     for(node *b; (b = cof(list_deq(&done), node, lanc));)
         linfree(&b->lin);
 
-    extern cnt naborts;
-    extern cnt paborts;
-    extern cnt wins;
-    ppl(0, naborts, paborts, wins);
+    ppl(0, naborts, paborts, pn_oks, helpful_enqs);
 }
 
 int main(int argc, char **argv){

@@ -7,6 +7,12 @@
 
 #include <nalloc.h>
 
+extern dbg cnt naborts;
+extern dbg cnt paborts;
+extern dbg cnt pn_oks;
+extern dbg cnt helpful_enqs;
+extern dbg cnt cas_ops;
+
 typedef struct flx flx;
 typedef volatile struct flanchor flanchor;
 typedef union mptr mptr;
@@ -109,7 +115,7 @@ const char *flstatestr(flstate s){
 #endif
 
 #ifndef LOG_LFLISTM
-#define LOG_LFLISTM 0
+#define LOG_LFLISTM 3
 #endif
 
 #define lflist_del(as...) linref_account(0, trace(LFLISTM, 1, lflist_del, as))

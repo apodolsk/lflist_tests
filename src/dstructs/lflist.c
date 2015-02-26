@@ -48,7 +48,7 @@
 #ifndef FAKELOCKFREE
 
 #define LIST_CHECK_FREQ 0
-#define FLANC_CHECK_FREQ 40
+#define FLANC_CHECK_FREQ 0
 #define MAX_LOOP 0
 
 #define ADD FL_ADD
@@ -58,7 +58,10 @@
 
 dbg cnt naborts;
 dbg cnt paborts;
-dbg cnt wins;
+dbg cnt pn_oks;
+dbg cnt helpful_enqs;
+dbg cnt cas_ops;
+dbg cnt atomic_read_ops;
 
 static err help_next(flx a, flx *n, flx *np, flx *refn, type *t);
 static err help_prev(flx a, flx *p, flx *pn, flx *refp, flx *refpp, type *t);
@@ -103,6 +106,7 @@ void (flinref_down)(flx *a, type *t){
 
 static
 flx hard_readx(volatile flx *x){
+    assert(xadd(1, &atomic_read_ops), 1);
     return atomic_read2(x);
 }
 
@@ -143,6 +147,7 @@ flx (casx)(const char *f, int l, flx n, volatile flx *a, flx *e){
     /* assert(n.nil || (a != &pt(n)->p && a != &pt(n)->n)); */
     /* assert(n.pt || !e->pt); */
     /* assert(!eq2(n, *e)); */
+    assert(xadd(1, &cas_ops), 1);
     log(2, "CAS! %:% - % if %, addr:%", f, l, n, *e, a);
     flx oe = *e;
     /* *e = readx(a); */
@@ -250,7 +255,7 @@ err (lflist_del)(flx a, type *t){
         if(pn_ok)
             break;
     }
-    if(pn_ok) assert(xadd(1, &wins), 1);
+    if(pn_ok) assert(xadd(1, &pn_oks), 1);
     else if(pt(np) == pt(a)) assert(xadd(1, &paborts), 1);
     else if(pt(np) != pt(a)) assert(xadd(1, &naborts), 1);
     
@@ -262,7 +267,6 @@ err (lflist_del)(flx a, type *t){
     if(pn_ok || pt(np) != pt(a))
         assert(n.pt == pt(a)->n.pt || pt(a)->p.gen != a.gen);
 
-    bool nabort = !pn_ok && pt(np) != pt(a);
     /* Must be p abort */
     if(!pn_ok && pt(np) == pt(a)){
         n = soft_readx(&pt(a)->n);
@@ -307,18 +311,21 @@ err (lflist_enq)(flx a, type *t, lflist *l){
             continue;
         if(pt(apn) == pt(a))
             return -1;
-        else break;
+        break;
     }
 
     assert(ap.st != ADD);
     flx oap = ap;
-    if(!updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, &ap)
-       && (ap.gen != a.gen
+    if(!updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, &ap)){
+        oap = ap;
+        if(ap.gen != a.gen
            || (assert(ap.st == COMMIT), 0)
-           || !updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, &ap)))
+           || !updx_won(fl(ap, ABORT, a.gen + 1), &pt(a)->p, &ap))
         return -1;
+    }
        
     if(oap.st != COMMIT){
+        assert(xadd(1, &helpful_enqs), 1);
         flx n = soft_readx(&pt(a)->n);
         assert(n.st == COMMIT);
         if(pt(n) && !refupd(&n, (flx[1]){}, &pt(a)->n, t)){
