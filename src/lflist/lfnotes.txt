@@ -1,0 +1,21 @@
+No need for test and test and set on r since failure will cause a WrX
+signal on a different cacheline.
+
+add_rear:
+    check a->n != nil but a->pat == NULL if something was added right of a
+    (so can't rely on pat check). a->gen if a reinserted.
+
+--remove:
+
+Why must you use ngen? Then you need got_helped, which must read multiple
+cache lines. But does it just not work? p might 
+
+--add_front:
+
+Can't write n->p first and still use help_patron because then help_patron
+has to discover that neither n nor pat points back to a because there's a
+new node there. Not an issue for add_rear because getting p is so easy.
+
+If you wrote nil->n/pat, then what if n assumes that its write of n->n to
+nil->n is still there? This will happen if n is vanishing but hasn't
+locked n->p yet.

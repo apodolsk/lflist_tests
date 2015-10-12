@@ -1,0 +1,308 @@
+Can res == p suffer from ABA? Or is n->p == p safe as a guarantee of progress
+for a? 
+
+When does a->p change? What happens if you write p->n meantime? Suppose wrote
+p->n but a->p changed. Then the signal must be lost, since the write
+succeeded. Does this work with the eager reads done in swing_next?
+
+If client is reading n->p
+
+Redo swing_next if can't NULL because p if wrote a->p, it's likely that p
+failed to write n. (Could also be that p had set out to write you before you
+ever wrote p->n).
+
+Client has no doubts about n->p, because it's swinging towards self. Only
+patron has issue. It'll be swung towards p->p only if client exits swing_next,
+so shall see res != a and res != p only if swing_next has terminated, and can
+arrange a signal. Unless there's some artifact from previous loop iteration?
+
+But even if patron reads n->p == p, does that ensure success? What if p and n
+both were removed? Could use a gen, but better avoid it.
+
+Is eager read in swing_next safe? Lost signal still works?
+
+Can you assume patron is up-to-date if a->n == n?
+
+Checking a->p == NULL checks whether p ignored p->n and died. What's the use
+of writing a->p == NULL?
+
+swing_next has ABA. If n->p was a->patron, doesn't mean n->p should be
+a. Suppose read patron and n. Then patron writes a->n and exits and same for
+local n. Then reinsert, with n->p == a->patron. 
+
+Get rid of swing_next, or use gen? The issue is if n commits to swinging n->n
+to a after a has written n->p to not be a. n->n->p 
+
+Take 2.
+
+a finds n = n or npatron. Sets p->n := n. 
+
+Suppose n->p succeeds. But what if n already wrote a->n? Want n to NULL, so
+that if n->p succeeds, then n will redo its work! And the NULL is permanent
+then.
+
+What if n->p fails? Then p couldn't have succeeded, so it must be on track to
+write to your p. 
+
+Suppose you write p->n then succeed in n->p. But then p had written a->p and
+has missed that write. Does p recheck n? No n needs to fail its write to p->n
+and to write to a->n.
+
+So:
+    write p->n till p is same.
+    write n->p tills n is 
+
+
+8.15:
+
+Working on failure + success cases for help_patron.
+
+If n->px is diff gen than px, could be that n was reborn without patron
+running. So write patron then.
+
+Do I read a->patron before attempting to modify n? Want the gen 
+
+It's preferable to try to help patron first, before trying to write patron's
+p. But do you need to know pat->gen before doing the help?
+
+Need to ret pat->fails because if unlocking, need to know that pat didn't
+write a->n since you read it.
+
+Plan for help:
+
+1 - if n is node and n->p is a, try linking. (n->p may change)
+assume n still node
+2 - if n->p is a->patron, swing n->p to a. To avoid ABA in (n->p == pat
+implies a->patron == pat), get gen of n before the read. Suppose n->p ==
+patron, gen is same as before patron was read, and patron != a->patron
+now. Then patron must have been inserted between a and n.
+3 - if swing good, link n.
+4 - 
+
+had if(npx.p != pat check
+
+Suppose n->gen == gen but n->p != a. Suppose p won.
+
+If gen was the same but n->p was unlocked and other than a, then p won.
+If gen was the same and n->p was locked and a->n != n, then p won.
+
+If a still locked and p->patron is a, then p won if n->p == p.
+If a still locked and p->patron isn't a, then p won.
+
+If p->patron != a but a->p is n, then p won.
+
+If a unlocked, then p failed.
+
+If gen
+was different, then suppose p won. If it won, it
+
+8.18
+
+How to detect if a fails, but then p succeeds after?
+a will still be locked. a->n may have been changed, if n wrote a->n but then p
+won before n could lock.
+
+BTW - how does help_patron work in light of {a fail, p win} situation? Suppose
+a fails b/c n is ded, then new gen of n becomes a->n again and p wins in
+help_patron. So n never writes a->n again, but then n->p is a->patron by
+accident at some point in the future and a's help_patron delinks n and n->p
+because it thinks a->patron is still its patron.
+
+a sets p->n := n. Then n dies, a fails to link n. Then new gen of n becomes
+a->n again. Then p swings n->p := p. Now a is in help_patron.
+
+Can you see a different <lingen, gen> combination than pat?
+
+Suppose pat fails, unlocks, then drops ref. Can client assume pat succeeds?
+
+8.19
+
+Add:
+
+/* If success, neither client nor p died. client hadn't incremented
+    gen since it hadn't set nil.p when npx read, so must increment gen
+    before it can die. p must do same to become nil.p after dying. So
+    client must have still been ADDING, and we finished the job. */
+cas64((pxchg){.p = client, .gen = px.gen + 1}, &l->nil.px, npx);
+
+a marks. a2 finds it.
+    a finishes. a2 only succeeds if p hasn't died and a hasn't finished.
+    a2 finishes. 
+    p finishes.
+
+8.20
+
+Omit ngen how? Suppose a writes p->n then n reinserts with new gen after a
+reads ngen, then p succeeds. How can a detect it? pat->p != a and pat is same
+gen as it was before you confirmed a->pat == pat,
+
+When can you safely swing n, then? Do you need to read pat first? Suppose you
+swung n, locked, failed, unlocked, then p won before n could write a->n. Then
+you get pat+n again. Nobody writes to a->n or a->pat, but 
+
+If p won, then it swung n or pat. If it swung pat then pat->p was
+unlocked. Since pat was unlocked, pat hadn't committed to p yet or was
+guaranteed to fail its swing, so there's no n but pat s.t. n->p == a
+
+If p swung patron, then pat->p != a or pat is nonnode. But what if you read
+pat->p == a but then it changes in the swing. wrote p->n = pat, then pat died,
+you failed, got into help_patron to find pat alive again. P wins and swings
+pat, but you swing n to yourself.
+
+Mark pat->p to prevent p from winning then. p can't swing pat unless you
+unlock it. Suppose you don't do this on the first go. Could someone be
+swinging pat? 
+
+Suppose you wrote p and won, then p read n, pat wrote p and won. 
+
+
+ knew the gen of pat back when you were their
+pat. But if you got between pat and p again, then pat's gen 
+
+Could remove ngen, but then you have to ensure at every write that p hasn't
+swung you - which is damn tricky. And you also have to check whether linref up
+failure means someone else succeeded and you must restart or whether it means
+p just finished your job for you. That means marking fields as dirty/clean to
+ensure that they weren't written to while you did linref_up. Checking for
+change isn't enough: imagine n := a->n failed linref_up b/c pat wrote n1, but
+then n1 exits and n == a->n again. Writing and checking a not-dirty bit is
+doable, but maybe costs too much to justify 4 bytes per anc and the (possible)
+speed bonus of letting p "outlap" a. Seeing the same n := a->n with a
+different gen should be pretty rare, I think.
+
+Can use this dirty pointer technique to omit the failptr concept and do safe
+unlocking (way simpler than full ngen removal). Just check whether a->n was
+written to after the unlock. Or, better yet, do the next thing:
+
+The point of excluding prevn from ref_down is that this guarantees that you
+can linref_up until pat has a chance to update n. Otherwise, pat detects bad
+n, linrefs down, then you fail linref up before pat has updated you. 
+
+Nah, tons of cases. Like what if old n becomes p? Meh... Well, actually, you
+just have two refs now. But nah.
+
+Why is help_patron write to n safe again? You only write if it's the same gen
+as it was when was set as nx.n, and also the same gen that pat recorded.
+
+Why is the unlock safe? Suppose a->n == n. Then, when pat->ngen is read,
+a->n == n 
+
+The big win with using a failptr is that you're guaranteed to stay locked if p
+wins. If p has to unlock like this, detecting p success is a different matter.
+
+If r.gen is same and r.p is anything but a, p won.
+If r.gen is diff, then n wrote some left node's n. Could be p swung n, then
+linked with p->p. Wait. 
+
+The problem with no failptr is that help_patron has to speculatively unlock
+and then recheck that it has reason to unlock, whereas failptr unlock just
+means checking the fail counter in place (your iff expression takes operands
+stored in a single location) and involves no speculation. With non-failptr
+unlock, and no extra rule, you can't be be sure that if p succeeds, then
+p->locked and a->locked. Which is a really useful property. So going back to
+failptr, though it won't work for multi-remove.
+
+What if you store ngen in p? That gives you (simpler) failptr guarantees,
+saves space, cuts down on reads, no?
+
+And yes, an a->swung operation is neat too.
+
+But how to check if pat is still your pat? Use gen? If gen is same as it was
+before you checked pat == a->pat, then it's still your pat. But wait, you
+should have a known ngen there - that's the point. If it's not known, don't
+unlock. 
+
+Having an a->swung gets rid of linref_up problems with ngenless version. If p
+wins, then it keeps a linref on n until it writes a->p := SWUNG. So if linref
+fails and p won, then a->p == SWUNG.
+
+ngenless:
+
+And if you do get ref but a->p != SWUNG? How do you know that pat/n haven't
+been swung without a->p SWUNG being yet written, and then were both reused and
+happened to be linked again? Just look at pat.p, no?
+
+Buy what if n was the one you chose last (ie n->p was a). Then p won, so n->p
+!=a, but p didn't write a->p := SWUNG. 
+
+Again, goal is to help pat and write n->p if pat->p is a. If write fails, then
+pat's write will fail, so notify pat and it'll get the message. 
+
+
+8.23
+
+Could go without failcount, but then need to mark a->n to detect overwrites in
+help_patron. Otherwise, how do you know that you have the right ngen? Well,
+you read npx beforehand anyway. 
+
+Suppose you read npx and it matched ngen too. What could go wrong? IOTW, is
+there any way you can succeed after pat fails? 
+
+Suppose pat wrote n with older gen. Before you read npx, pat tried and failed
+with this n. Then wrote new n and new ngen, and a read ngen, then a->n became
+pat's new n again. pat->ngen happens to match new n's gen.
+
+So recheck n. If you do, could pat be writing with an older gen? read ngen,
+then pat wrote othern, failed, and wrote n again.
+
+Checking for writes to n doesn't help if a fails but pat wins. a fails, n is
+relinked to pat, then pat wins with new n but doesn't write to p.
+
+Sum of ideas:
+mark n to check for pat writes.
+store ngen in pat->p.
+store failcnt in pat->p.
+
+8.26
+
+So it seems like it should be possible to detect p swings with unsynched
+version without too much trouble. But the problem is the unlocking
+decision. You can't unlock and then retest because you may falsely unlock, p
+swings the unlocked pat, but it was false and n swings n->n to point to a (it
+loses the write from p). So it's a case where a fails but n succeeds. Is there
+a reason that p can't swing pat, or a way to make that happen?
+
+Instead, can get by with storing gen in a->p when locking and synchronize on
+that. So if you've written p->n but haven't written a->p := ngen, then p
+writes to a->p instead. That write is kind of likely to fail, sadly.
+
+8.29
+
+synced ngen has a problem with associating new ngen with old n. p succeeds
+in such a case, but a doesn't. 
+
+8.30
+
+Back to ngenless. Do you have to worry about n shifting out under you?
+Sure. Found n->p == a, set p->n = n, n disappeared and was then made a->n anew
+with a new gen. But note that it can only shift if n->p == a and thus pat has
+finished. Could just attempt a pat write - if it fails, detect the swungness
+on the next help_patron loop, or if it succeeds, detect swungness... no, not
+on p write (p->n may contain no indication that it swung). Need to check for
+n->p == p and a->p == locked. But need to NOT think that pat needs to get
+written. And remember, it may be that a->n->p != a without a->n having been
+swung. (In contrast to a->pat, which you can find unlinked only if it was
+swung or if it updated n).
+
+Detecting swungness. Either p has died and set a->p = SWUNG, or n has died and
+p hasn't and p->pat != a, or neither has died and n->p == p.
+
+Who can swing? Just p from the last loop? You have to be pat for them to swing
+your n. If someone other than the last p were
+
+Marking n->p has the purpose of detecting whether pat's next write to any
+node's p will fail. It will unmark each time it changes n and commits to a
+write. If you mark it, then see a is still marked, then see p is still
+marked, pat won't attempt any n writes till it relocks pat->p. Is it
+guaranteed to fail the next n write?
+
+Still need ngen read in pat if marking pat->p? 
+
+9.2
+
+Can you ever wind up with n swung, but falsely thinking that pat needs to be
+unlocked? 
+
+Say x == a->n and x->p == a, then after read and write of p->n = x, x dies, is
+reinserted past x2, and x2 dies to set x as n and pat as x2, then p swings x.
+
