@@ -1,22 +1,12 @@
 #define MODULE LIST_TESTSM
 
-#include <stdlib.h>
-#include <sys/stat.h>
+#include <thread.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <nalloc.h>
 #include <lflist.h>
 #include <list.h>
 #include <getopt.h>
-#include <wrand.h>
-#include <atomics.h>
-#include <asm.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#include <timing.h>
-#include <signal.h>
 #include <test_framework.h>
 
 #define MAXWRITE 8
@@ -41,15 +31,15 @@ cnt niter = 1000;
 cnt nallocs = 100;
 cnt nwrites = 8;
 
-static err succeed();
 static void node_init(node *b);
 static err perm_ref_up();
 static void perm_ref_down();
 
-type *perm_node_t = &(type)TYPE(node,
-                                (err (*)(volatile void *, type *)) perm_ref_up,
-                                (void (*)(volatile void *)) perm_ref_down,
-                                (void (*)(lineage *)) node_init);
+static type *perm_node_t = &(type)TYPE(node,
+                                       (err (*)(volatile void *, type *)) perm_ref_up,
+                                       (void (*)(volatile void *)) perm_ref_down,
+                                       (void (*)(lineage *)) node_init);
+static heritage *thread_heritages;
 
 static lflist *shared;
 static list all = LIST(&all, NULL);
@@ -59,7 +49,6 @@ static void node_init(node *n){
     *n = (node){.lanc = LANCHOR(NULL), .flanc = FLANCHOR(NULL)};
 }
 
-#include <thread.h>
 static err perm_ref_up(){
     T->nallocin.linrefs_held++;
     return 0;
@@ -72,8 +61,7 @@ static void perm_ref_down(){
 static void test_enq_deq(dbg_id id){
     lflist priv = LFLIST(&priv, NULL);
     list perm = LIST(&perm, NULL);
-    heritage *node_h =
-        &(heritage)POSIX_HERITAGE(perm_node_t);
+    heritage *node_h = &thread_heritages[id - firstborn];
     type *t = perm_node_t;
 
     for(cnt i = 0; i < nallocs; i++){
@@ -113,7 +101,7 @@ static void test_enq_deq(dbg_id id){
 static void test_del(dbg_id id){
     lflist priv = LFLIST(&priv, NULL);
     list perm = LIST(&perm, NULL);
-    heritage *node_h = &(heritage)POSIX_HERITAGE(perm_node_t);
+    heritage *node_h = &thread_heritages[id - firstborn];
     type *t = perm_node_t;
 
     for(cnt i = 0; i < nallocs; i++){
@@ -210,8 +198,13 @@ static int magics_valid(notnode *b){
 }
 
 static void launch_list_test(void t(dbg_id), const char *name){
+    heritage hs[nthreads];
+    for(volatile heritage *h = hs; h != &hs[nthreads]; h++)
+        *h = (heritage) POSIX_HERITAGE(perm_node_t);
+    thread_heritages = hs;
+
     launch_test((void *(*)(void *)) t, name);
-    
+
     list done = LIST(&done, NULL);
     cnt nb = nthreads * nallocs;
     /* TODO: should use node_t for those tests which require it */
@@ -239,7 +232,7 @@ static void launch_list_test(void t(dbg_id), const char *name){
 int main(int argc, char **argv){
     int malloc_test_main(int program);
     int program = 1, opt, do_malloc = 0;
-    while( (opt = getopt(argc, argv, "t:l:a:i:p:w")) != -1 ){
+    while( (opt = getopt(argc, argv, "t:l:a:i:p:w:")) != -1 ){
         switch (opt){
         case 't':
             nthreads = atoi(optarg);

@@ -1,4 +1,5 @@
 extern cnt nthreads;
+static const uptr firstborn = 2;
 
 void launch_test(void *test(void *), const char *name);
 void thr_sync(void);

@@ -5,11 +5,9 @@
 #include <semaphore.h>
 #include <timing.h>
 #include <atomics.h>
+#include <test_framework.h>
 
 cnt nthreads = 100;
-
-/* GDB starts counting threads at 1, so the first child is 2. Urgh. */
-const uptr firstborn = 2;
 
 static volatile struct test_thread{
     pthread_t id;
