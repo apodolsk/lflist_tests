@@ -31,7 +31,7 @@ CFLAGS:=$(INC)\
 	-std=gnu11\
 	-pthread\
 	-fno-omit-frame-pointer\
-	-include "global.h"\
+	-include "dialect.h"\
 	-m64
 LD:=$(CC)
 LDFLAGS:=-fvisibility=hidden $(CFLAGS)

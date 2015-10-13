@@ -10,7 +10,6 @@
 #include <getopt.h>
 #include <wrand.h>
 #include <atomics.h>
-#include <global.h>
 #include <asm.h>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -18,6 +17,7 @@
 #include <unistd.h>
 #include <timing.h>
 #include <signal.h>
+#include <test_framework.h>
 
 #define MAXWRITE 8
 typedef align(sizeof(dptr)) struct{
@@ -37,24 +37,14 @@ typedef struct{
 } node;
 
 cnt nlists = 1;
-cnt nthreads = 100;
 cnt niter = 1000;
 cnt nallocs = 100;
 cnt nwrites = 8;
 
-/* GDB starts counting threads at 1, so the first child is 2. Urgh. */
-const uptr firstborn = 2;
-
-static sem_t parent_done;
-static sem_t kid_done;
-
 static err succeed();
 static void node_init(node *b);
-extern void set_dbg_id(uint id);
 static err perm_ref_up();
 static void perm_ref_down();
-static void thr_setup(uint id);
-static void thr_destroy(uint id);
 
 type *perm_node_t = &(type)TYPE(node,
                                 (err (*)(volatile void *, type *)) perm_ref_up,
@@ -79,8 +69,7 @@ static void perm_ref_down(){
     T->nallocin.linrefs_held--;
 }
 
-static void *test_reinsert(uint id){
-    thr_setup(id);
+static void test_enq_deq(dbg_id id){
     lflist priv = LFLIST(&priv, NULL);
     list perm = LIST(&perm, NULL);
     heritage *node_h =
@@ -93,12 +82,11 @@ static void *test_reinsert(uint id){
         list_enq(&b->lanc, &perm);
     }
 
-    sem_post(&kid_done);
-    sem_wait(&parent_done);
+    thr_sync();
 
     for(uint i = 0; i < niter; i++){
         ppl(2, i);
-        lflist *l = &shared[wrand() % nlists];
+        lflist *l = &shared[rand() % nlists];
         flx bx;
         if(randpcnt(50) && flptr(bx = lflist_deq(t, &priv))){
             t->linref_down(flptr(bx));
@@ -120,15 +108,9 @@ static void *test_reinsert(uint id){
         list_enq(&b->lanc, &all);
         pthread_mutex_unlock(&all_lock);
     }
-
-    thr_destroy(id);
-
-    return NULL;
 }
 
-static void *test_del(dbg_id id){
-    thr_setup(id);
-
+static void test_del(dbg_id id){
     lflist priv = LFLIST(&priv, NULL);
     list perm = LIST(&perm, NULL);
     heritage *node_h = &(heritage)POSIX_HERITAGE(perm_node_t);
@@ -143,14 +125,13 @@ static void *test_del(dbg_id id){
         list_enq(&b->lanc, &perm);
     }
 
-    sem_post(&kid_done);
-    sem_wait(&parent_done);
+    thr_sync();
 
     pp(priv);
     for(uint i = 0; i < niter; i++){
         ppl(3, i);
 
-        lflist *l = &shared[wrand() % nlists];
+        lflist *l = &shared[rand() % nlists];
         dbg bool del_failed = false;
         flx bx;
         node *b;
@@ -205,10 +186,6 @@ static void *test_del(dbg_id id){
         list_enq(&b->lanc, &all);
         pthread_mutex_unlock(&all_lock);
     }
-
-    thr_destroy(id);
-
-    return NULL;
 }
 
 typedef union{
@@ -232,89 +209,8 @@ static int magics_valid(notnode *b){
     return 1;
 }
 
-static volatile struct tctxt{
-    pthread_t id;
-    bool dead;
-} *threads;
-static sem_t unpauses;
-static sem_t pauses;
-static pthread_mutex_t state_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static void thr_setup(uint id){
-    set_dbg_id(id);
-    wsrand(GETTIME());
-    muste(pthread_mutex_lock(&state_lock));
-    threads[id - firstborn] = (struct tctxt) {pthread_self()};
-    muste(pthread_mutex_unlock(&state_lock));
-}
-
-static void thr_destroy(uint id){
-    muste(pthread_mutex_lock(&state_lock));
-    threads[id - firstborn].dead = true;
-    muste(pthread_mutex_unlock(&state_lock));    
-}
-
-iptr waiters;
-err pause_universe(void){
-    assert(waiters >= 0);
-    if(!cas_won(1, &waiters, (iptr[]){0}))
-        return -1;
-    muste(pthread_mutex_lock(&state_lock));
-    cnt live = 0;
-    for(volatile struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
-        if(!c->dead && c->id != pthread_self()){
-            live++;
-            pthread_kill(c->id, SIGUSR1);
-        }
-    waiters += live;
-    muste(pthread_mutex_unlock(&state_lock));
-    for(uint i = 0; i < live; i++)
-        muste(sem_wait(&pauses));
-    return 0;
-}
-
-void resume_universe(void){
-    cnt live = 0;
-    for(volatile struct tctxt *c = &threads[0]; c != &threads[nthreads]; c++)
-        if(!c->dead && c->id != pthread_self())
-            live++;
-    assert(live == (cnt) waiters - 1);
-    for(cnt i = 0; i < live; i++)
-        muste(sem_post(&unpauses));
-    _xadd(-1, (uptr *) &waiters);
-}
-
-void wait_for_universe(){
-    muste(sem_post(&pauses));
-    muste(sem_wait(&unpauses));
-    _xadd(-1, (uptr *) &waiters);
-}
-
-static void launch_test(void *test(void *)){
-    muste(sem_init(&pauses, 0, 0));
-    muste(sem_init(&unpauses, 0, 0));
-    muste(sem_init(&parent_done, 0, 0));
-    muste(sigaction(SIGUSR1,
-                    &(struct sigaction){.sa_handler=wait_for_universe,
-                            .sa_flags=SA_RESTART | SA_NODEFER}, NULL));
-
-    struct tctxt threadscope[nthreads];
-    memset(threadscope, 0, sizeof(threadscope));
-    threads = threadscope;
-    waiters = 1;
-    for(uint i = 0; i < nthreads; i++)
-        if(pthread_create((pthread_t *) &threads[i].id, NULL,
-                          (void *(*)(void*))test,
-                          (void *) (firstborn + i)))
-            EWTF();
-    waiters = 0;
-    for(uint i = 0; i < nthreads; i++)
-        sem_wait(&kid_done);
-    for(uint i = 0; i < nthreads; i++)
-        sem_post(&parent_done);
-    
-    for(uint i = 0; i < nthreads; i++)
-        pthread_join(threads[i].id, NULL);
+static void launch_list_test(void t(dbg_id), const char *name){
+    launch_test((void *(*)(void *)) t, name);
     
     list done = LIST(&done, NULL);
     cnt nb = nthreads * nallocs;
@@ -343,7 +239,7 @@ static void launch_test(void *test(void *)){
 int main(int argc, char **argv){
     int malloc_test_main(int program);
     int program = 1, opt, do_malloc = 0;
-    while( (opt = getopt(argc, argv, "t:l:a:i:p:w:m")) != -1 ){
+    while( (opt = getopt(argc, argv, "t:l:a:i:p:w")) != -1 ){
         switch (opt){
         case 't':
             nthreads = atoi(optarg);
@@ -363,9 +259,6 @@ int main(int argc, char **argv){
         case 'w':
             nwrites = atoi(optarg);
             break;
-        case 'm':
-            do_malloc = 1;
-            break;
         }
     }
 
@@ -375,15 +268,12 @@ int main(int argc, char **argv){
     shared = lists;
     pp(1, shared);
 
-    if(do_malloc)
-        return malloc_test_main(program);
-
     switch(program){
     case 1:
-        TIME(launch_test((void *(*)(void *))test_reinsert));
+        launch_list_test(test_enq_deq, "test_enq_deq");
         break;
     case 2:
-        TIME(launch_test((void *(*)(void *))test_del));
+        launch_list_test(test_del, "test_del");
         break;
     /* case 3: */
     /*     TIME(launch_test((void *(*)(void *))test_lin_reinsert)); */

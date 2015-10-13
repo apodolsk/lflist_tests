@@ -1,4 +1,4 @@
 #pragma once
 
-typedef uint dbg_id;
-typedef int tid;
+typedef iptr dbg_id;
+typedef iptr tid;
