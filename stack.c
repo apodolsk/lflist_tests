@@ -9,7 +9,6 @@ void (stack_push)(sanchor *a, stack *s){
     
     a->n = s->top;
     s->top = a;
-    s->size++;
 }
 
 sanchor *(stack_pop)(stack *s){
@@ -17,7 +16,6 @@ sanchor *(stack_pop)(stack *s){
     if(!t)
         return NULL;
     s->top = t->n;
-    s->size--;
     
     t->n = NULL;
     return t;
@@ -29,10 +27,6 @@ sanchor *sanchor_next(sanchor *a){
 
 bool stack_empty(const stack *s){
     return !s->top;
-}
-
-cnt stack_size(const stack *s){
-    return s->size;
 }
 
 sanchor *sanc_read(sanchor *a){
@@ -98,6 +92,10 @@ sanchor *lfstack_peek(const lfstack *s){
     return s->top;
 }
 
+stack lfstack_convert(lfstack *s){
+    return (stack){s->top};
+}
+
 uptr (lfstack_push_iff)(sanchor *a, uptr gen, lfstack *s){
     for(lfstack x = *s;;){
         if(x.gen != gen)
@@ -114,7 +112,7 @@ stack (lfstack_pop_all)(cnt incr, lfstack *s){
     for(lfstack x = *s;;){
         if((!x.top && !incr)
            || cas2_won(rup(x, .top=NULL, .gen+=incr), s, &x))
-            return (stack){x.top, 0};
+            return lfstack_convert(&x);
     }
 }
 
@@ -122,9 +120,9 @@ stack lfstack_pop_all_or_incr(cnt incr, lfstack *s){
     for(lfstack x = *s;;){
         if(!x.top){
             if(cas2_won(rup(x, .gen += incr), s, &x))
-                return (stack){x.top, 0};
+                return lfstack_convert(&x);
         }else if(cas2_won(rup(x, .top=NULL), s, &x))
-            return (stack){x.top, 0};
+            return lfstack_convert(&x);
     }
 }
 

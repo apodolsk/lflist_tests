@@ -9,10 +9,9 @@ typedef volatile struct sanchor{
 
 typedef volatile struct stack{
     sanchor *top;
-    cnt size;
 } stack;
 #define STACK {}
-#define pudef (stack, "(stack){top:%,sz:%}", a->top, a->size)
+#define pudef (stack, "(stack){top:%}", a->top)
 #include <pudef.h>
 
 sanchor *stack_pop(stack *s);
@@ -43,6 +42,8 @@ uptr lfstack_push_iff(sanchor *a, uptr gen, lfstack *s);
 sanchor *lfstack_pop_iff(sanchor *head, uptr gen, lfstack *s);
 stack lfstack_pop_all_or_incr(cnt incr, lfstack *s);
 lfstack lfstack_pop_all_iff(uptr newg, lfstack *s, uptr oldg);
+
+stack lfstack_convert(lfstack *s);
 
 typedef volatile void spanc;
 typedef spanc *(spanc_reader)(spanc *);
