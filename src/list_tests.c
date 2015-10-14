@@ -70,7 +70,7 @@ static void test_enq_deq(dbg_id id){
         list_enq(&b->lanc, &perm);
     }
 
-    thr_sync();
+    thr_sync(start_timing);
 
     for(uint i = 0; i < niter; i++){
         ppl(2, i);
@@ -113,7 +113,7 @@ static void test_del(dbg_id id){
         list_enq(&b->lanc, &perm);
     }
 
-    thr_sync();
+    thr_sync(start_timing);
 
     pp(priv);
     for(uint i = 0; i < niter; i++){
