@@ -225,8 +225,7 @@ static void launch_list_test(void t(dbg_id), const char *name){
     for(node *b; (b = cof(list_deq(&done), node, lanc));)
         linfree(&b->lin);
 
-    ppl(0, lflist_ops, naborts, paborts, pn_oks,
-        helpful_enqs, cas_ops, atomic_read_ops);
+    report_lflist_profile();
 }
 
 int main(int argc, char **argv){
