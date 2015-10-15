@@ -231,8 +231,8 @@ static void launch_list_test(void t(dbg_id), const char *name){
 
 int main(int argc, char **argv){
     int malloc_test_main(int program);
-    int program = 1, opt, do_malloc = 0;
-    while( (opt = getopt(argc, argv, "t:l:a:i:p:w:")) != -1 ){
+    int program = 2;
+    for(int opt; (opt = getopt(argc, argv, "t:l:a:i:p:w:")) != -1;){
         switch (opt){
         case 't':
             nthreads = atoi(optarg);
