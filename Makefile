@@ -10,11 +10,10 @@ SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 CFLAGS:=$(INC)\
-	-O3 \
+	-Og \
 	-fuse-linker-plugin\
-	-fno-omit-frame-pointer\
-	-g\
 	-flto=jobserver\
+	-g\
 	-D_GNU_SOURCE\
 	-Wall \
 	-Wextra \
