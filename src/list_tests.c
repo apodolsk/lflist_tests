@@ -98,7 +98,7 @@ static void test_enq_deq(dbg_id id){
     }
 }
 
-static void test_del(dbg_id id){
+static void test_all(dbg_id id){
     lflist priv = LFLIST(&priv, NULL);
     list perm = LIST(&perm, NULL);
     heritage *node_h = &thread_heritages[id - firstborn];
@@ -106,9 +106,6 @@ static void test_del(dbg_id id){
 
     for(cnt i = 0; i < nallocs; i++){
         node *b = (node *) mustp(linalloc(node_h));
-        pp(&b->flanc);
-        muste(lflist_enq(flx_of(&b->flanc), t, &priv));
-        b->last_priv = (pgen){id, flx_of(&b->flanc).gen};
         b->owner = id;
         list_enq(&b->lanc, &perm);
     }
@@ -173,6 +170,32 @@ static void test_del(dbg_id id){
         pthread_mutex_lock(&all_lock);
         list_enq(&b->lanc, &all);
         pthread_mutex_unlock(&all_lock);
+    }
+}
+
+#define NPRIV 2
+static void test_del(dbg_id id){
+    list priv[NPRIV];
+    for(cnt i = 0; i < NPRIV; i++)
+        priv[i] = (list) LIST(&priv[i], NULL);
+    
+    heritage *node_h = &thread_heritages[id - firstborn];
+    type *t = perm_node_t;
+
+    for(cnt i = 0; i < niter; i++){
+        node *b = (node *) mustp(linalloc(node_h));
+        list_enq(&b->lanc, &priv[rand() % NPRIV]);
+        muste(lflist_enq(flx_of(&b->flanc), t, &shared[rand() % nlists]));
+    }
+
+    thr_sync(start_timing);
+
+    for(cnt i = 0; i < niter; i++){
+        node *b = NULL;
+        for(idx li, max = NPRIV + (li = rand()); must(li < max); li++)
+            if((b = cof(list_deq(&priv[li % NPRIV]), node, lanc)))
+                break;
+        muste(lflist_del(flx_of(&b->flanc), t));
     }
 }
 
@@ -265,11 +288,11 @@ int main(int argc, char **argv){
         launch_list_test(test_enq_deq, "test_enq_deq");
         break;
     case 2:
+        launch_list_test(test_all, "test_all");
+        break;
+    case 3:
         launch_list_test(test_del, "test_del");
         break;
-    /* case 3: */
-    /*     TIME(launch_test((void *(*)(void *))test_lin_reinsert)); */
-    /*     break; */
     }
 
     return 0;
