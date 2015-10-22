@@ -24,6 +24,7 @@ typedef struct{
     flanchor flanc;
     dbg_id owner;
     volatile pgen last_priv;
+    bool enq_attempted;
 } node;
 
 cnt nlists = 1;
@@ -140,6 +141,7 @@ static void test_all(dbg_id id){
             else
                 del_failed = true;
         }
+        b->enq_attempted = true;
         pgen pg = b->last_priv;
         lflist *nl = randpcnt(30) ? &priv : l;
         pp(&b->flanc, pg.owner, pg.gen, bx);
@@ -167,6 +169,8 @@ static void test_all(dbg_id id){
         
 
     for(node *b; (b = cof(list_deq(&perm), node, lanc));){
+        if(!b->enq_attempted)
+            lflist_enq(flx_of(&b->flanc), t, &shared[0]);
         pthread_mutex_lock(&all_lock);
         list_enq(&b->lanc, &all);
         pthread_mutex_unlock(&all_lock);
@@ -174,7 +178,7 @@ static void test_all(dbg_id id){
 }
 
 #define NPRIV 2
-static void test_del(dbg_id id){
+static void time_del(dbg_id id){
     list priv[NPRIV];
     for(cnt i = 0; i < NPRIV; i++)
         priv[i] = (list) LIST(&priv[i], NULL);
@@ -291,7 +295,7 @@ int main(int argc, char **argv){
         launch_list_test(test_all, "test_all");
         break;
     case 3:
-        launch_list_test(test_del, "test_del");
+        launch_list_test(time_del, "time_del");
         break;
     }
 
