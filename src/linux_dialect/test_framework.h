@@ -10,6 +10,7 @@ typedef struct syncx syncx;
 void syncx_init(syncx *s, cnt expected);
 void thr_sync(syncx* x);
 syncx *start_timing;
+syncx *stop_timing;
 
 err pause_universe(void);
 void resume_universe(void);

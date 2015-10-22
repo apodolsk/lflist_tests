@@ -40,6 +40,12 @@ static type *perm_node_t = &(type)TYPE(node,
                                        (err (*)(volatile void *, type *)) perm_ref_up,
                                        (void (*)(volatile void *)) perm_ref_down,
                                        (void (*)(lineage *)) node_init);
+
+/* static type *perm_node_t = &(type)TYPE(node, */
+/*                                        (err (*)(volatile void *, type *)) linref_up, */
+/*                                        (void (*)(volatile void *)) linref_down, */
+/*                                        (void (*)(lineage *)) node_init); */
+
 static heritage *thread_heritages;
 
 static lflist *shared;
@@ -86,6 +92,8 @@ static void test_enq_deq(dbg_id id){
             muste(lflist_enq(bx, t, &priv));
         }
     }
+
+    thr_sync(stop_timing);
 
     log(2, "done!");
 
@@ -162,7 +170,7 @@ static void test_all(dbg_id id){
         t->linref_down(flptr(bx));
     }
 
-    log(1, "done!");
+    thr_sync(stop_timing);
 
     for(flx bx; flptr(bx = lflist_deq(t, &priv));)
         lflist_enq(bx, t, &shared[0]), t->linref_down(flptr(bx));
@@ -201,6 +209,8 @@ static void time_del(dbg_id id){
                 break;
         muste(lflist_del(flx_of(&b->flanc), t));
     }
+
+    thr_sync(stop_timing);
 }
 
 typedef union{

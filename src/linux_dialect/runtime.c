@@ -48,8 +48,7 @@ err kyield(tid t){
 }
 
 void *heap_start(){
-    TODO();
-    return NULL;
+    return (void *) HEAP_START;
     /* extern void *end; */
     /* return &end; */
 }

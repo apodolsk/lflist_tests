@@ -103,6 +103,9 @@ void launch_test(void *t(void *), const char *test_name){
 
     start_timing = &(syncx){};
     syncx_init(start_timing, nthreads + 1);
+    stop_timing = &(syncx){};
+    syncx_init(stop_timing, nthreads + 1);
+    
     syncx_init(&terminal_sync, nthreads);
     syncx_init(&universe_ready, nthreads);
     
@@ -119,9 +122,11 @@ void launch_test(void *t(void *), const char *test_name){
 
     thr_sync(start_timing);
     struct timespec start = job_get_time();
+    thr_sync(stop_timing);
+    ppl(0, test_name, (iptr) job_time_diff(start));
+    
     for(cnt i = 0; i < nthreads; i++)
         pthread_join(threads[i], NULL);
-    ppl(0, test_name, (iptr) job_time_diff(start));
 
     /* TODO: bit hacky */
     pausing = true;
