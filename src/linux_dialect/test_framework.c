@@ -38,6 +38,7 @@ static volatile uptr pausing;
 static volatile cnt sigs;
 static sem_t paused;
 static sem_t unpaused;
+static bool fully_paused;
 
 err (pause_universe)(void){
     if(cas(1, &pausing, 0))
@@ -55,12 +56,15 @@ err (pause_universe)(void){
     
     for(cnt i = 0; i < sigs; i++)
         muste(sem_wait(&paused));
+
+    fully_paused = true;
     return 0;
 }
 
 void resume_universe(void){
     for(cnt i = 0; i < sigs; i++)
         muste(sem_post(&unpaused));
+    fully_paused = false;
 }
 
 void wait_for_universe(){
@@ -73,6 +77,9 @@ void wait_for_universe(){
     xadd(-1, &pausing);
 }
 
+bool universe_paused(void){
+    return fully_paused;
+}
 
 syncx terminal_sync;
 static void *(*test)(void *);

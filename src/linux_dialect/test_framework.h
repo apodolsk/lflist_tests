@@ -15,6 +15,7 @@ syncx *stop_timing;
 err pause_universe(void);
 void resume_universe(void);
 void wait_for_universe();
+bool universe_paused(void);
 
 #define thr_sync(as...) trace(TESTM, 1, thr_sync, as)
 #define pause_universe(as...) trace(TESTM, 1, pause_universe, as)
