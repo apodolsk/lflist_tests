@@ -66,7 +66,7 @@ void rdtsc(){
 #include <signal.h>
 inline
 void breakpoint(void){
-    /* fflush(stdout); */
+    fflush(stdout);
     raise(SIGINT);
     asm volatile("int $3;");
 }
