@@ -1,0 +1,12 @@
+[submodule "src/lists"]
+	path = src/lists
+	url = ./src/lists
+[submodule "src/nalloc"]
+	path = src/nalloc
+	url = ./src/nalloc
+[submodule "src/linux_dialect"]
+	path = src/linux_dialect
+	url = ./src/linux_dialect
+[submodule "src/stacks"]
+	path = src/stacks
+	url = ./src/stacks
