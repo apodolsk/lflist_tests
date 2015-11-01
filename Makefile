@@ -10,15 +10,17 @@ SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 CFLAGS:=$(INC)\
-	-Og \
+	-O3 \
 	-fuse-linker-plugin\
 	-flto=jobserver\
 	-g\
+	-ftrack-macro-expansion=0\
 	-D_GNU_SOURCE\
 	-Wall \
 	-Wextra \
 	-Werror \
 	-Wcast-align\
+	-Wdesignated-init\
 	-Wno-missing-field-initializers \
 	-Wno-ignored-qualifiers \
 	-Wno-missing-braces \
