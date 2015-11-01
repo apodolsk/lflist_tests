@@ -310,7 +310,7 @@ static int magics_valid(notnode *b){
     return 1;
 }
 
-static void launch_list_test(void t(dbg_id), const char *name){
+static void launch_list_test(void t(dbg_id), bool gc, const char *name){
     heritage hs[nthreads];
     for(volatile heritage *h = hs; h != &hs[nthreads]; h++)
         *h = (heritage) POSIX_HERITAGE(perm_node_t);
@@ -318,9 +318,11 @@ static void launch_list_test(void t(dbg_id), const char *name){
 
     launch_test((void *(*)(void *)) t, name);
 
+    if(!gc)
+        return;
+
     list done = LIST(&done, NULL);
     cnt nb = nthreads * nallocs;
-    /* TODO: should use node_t for those tests which require it */
     for(uint i = 0; i < nlists; i++)
         for(node *b; (b = cof(flptr(lflist_deq(perm_node_t, &shared[i])),
                               node, flanc)); nb--)
@@ -375,16 +377,16 @@ int main(int argc, char **argv){
 
     switch(program){
     case 1:
-        launch_list_test(test_enq_deq, "test_enq_deq");
+        launch_list_test(test_enq_deq, 1, "test_enq_deq");
         break;
     case 2:
-        launch_list_test(test_all, "test_all");
+        launch_list_test(test_all, 1, "test_all");
         break;
     case 3:
-        launch_list_test(time_del, "time_del");
+        launch_list_test(time_del, 0, "time_del");
         break;
     case 4:
-        launch_list_test(test_jam, "test_jam");
+        launch_list_test(test_jam, 1, "test_jam");
         break;
     }
 

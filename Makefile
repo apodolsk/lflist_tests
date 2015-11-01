@@ -2,7 +2,7 @@
 CC:=gcc
 SRCD:=src
 OBJD:=obj
-INC:=$(shell find -L $(SRCD) -type d | sed s/^/-I/)
+INC:=$(shell find -L $(SRCD) -not -path "*/.*" -type d | sed s/^/-I/)
 HDRS:=$(shell find -L $(SRCD) -type f -name *.h)
 SRCS_C:=$(shell find -L $(SRCD) -type f -name *.c)
 SRCS_S:=$(shell find -L $(SRCD) -type f -name *.S)
@@ -10,7 +10,7 @@ SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 CFLAGS:=$(INC)\
-	-O3 \
+	-Og \
 	-fuse-linker-plugin\
 	-flto=jobserver\
 	-g\
