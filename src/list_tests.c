@@ -269,14 +269,16 @@ static void test_all(dbg_id id){
     ltthread_finish(priv, perm, t, id);
 }
 
-#ifndef FAKELOCKFREE
-
 static void test_validity_bits(dbg_id id){
     lflist priv[NPRIV];
     list perm[NPRIV];
     heritage *h;
     type *t;
     ltthread_init(priv, perm, &h, &t, id);
+
+#ifdef FAKELOCKFREE
+    return;
+#else
 
     for(uint i = 0; i < niter; i++){
         dbg bool del_failed = false;
@@ -334,11 +336,11 @@ static void test_validity_bits(dbg_id id){
         
         t->linref_down(flptr(bx));
     }
+
+#endif
     
     ltthread_finish(priv, perm, t, id);
 }
-
-#endif
 
 static void time_del(dbg_id id){
     list priv[NPRIV];
@@ -446,7 +448,7 @@ int main(int argc, char **argv){
         launch_list_test(test_all, 1, "test_all");
         break;
     case 5:
-        launch_list_test(test_all, 1, "test_validity_bits");
+        launch_list_test(test_validity_bits, 1, "test_validity_bits");
         break;
     }
 
