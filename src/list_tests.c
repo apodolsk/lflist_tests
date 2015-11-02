@@ -24,6 +24,7 @@ typedef struct{
     flanchor flanc;
     dbg_id owner;
     bool enq_attempted;
+    bool invalidated;
 } node;
 
 cnt nlists = 1;
@@ -142,13 +143,15 @@ void ltthread_finish(lflist priv[static NPRIV], list perm[static NPRIV],
 
     for(idx i = 0; i < NPRIV; i ++)
         for(flx bx; flptr(bx = lflist_deq(t, &priv[i]));){
-            lflist_enq(bx, t, &shared[rand() % nlists]);
+            muste(lflist_enq(bx, t, &shared[0]));
             t->linref_down(flptr(bx));
         }
         
     for(idx i = 0; i < NPRIV; i++){
         for(node *b; (b = cof(list_deq(&perm[i]), node, lanc));){
-            if(!b->enq_attempted)
+            if(b->invalidated)
+                flanchor_ordered_init(flx_of(&b->flanc).gen, &b->flanc);
+            if(!b->enq_attempted || b->invalidated)
                 lflist_enq(flx_of(&b->flanc), t, &shared[0]);
             pthread_mutex_lock(&all_lock);
             list_enq(&b->lanc, &all);
@@ -295,12 +298,18 @@ static void test_validity_bits(dbg_id id){
             assert(lp.last_priv == (deq_priv ? id : 0));
         }else{
         grow:
-            if(!(b = cof(list_deq(&perm[rand() % NPRIV]), node, lanc)))
+            while(!(b = cof(list_deq(&perm[rand() % NPRIV]), node, lanc)))
                 continue;
             assert(b->owner == id);
             list_enq(&b->lanc, &perm[rand() % NPRIV]);
 
             muste(t->linref_up(b, t));
+            if(b->invalidated){
+                flanchor_ordered_init(bx.gen, &b->flanc);
+                bx.validity = FLANC_VALID;
+                b->invalidated = false;
+            }
+
             bx = flx_of(&b->flanc);
             if(randpcnt(50)){
                 if(!lflist_del(bx, t))
@@ -317,14 +326,21 @@ static void test_validity_bits(dbg_id id){
                 assert(flx_of(&b->flanc).gen == bx.gen);
             }
 
-            if(!del_failed && randpcnt(50)){
-                b->flanc.n.validity = 0;
-                b->flanc.p.validity = bx.validity = 0;
+            if(!del_failed && randpcnt(32)){
+                b->invalidated = true;
+                if(randpcnt(32))
+                    b->flanc.n.rsvd = 1;
+                if(randpcnt(32))
+                    b->flanc.n.validity = 1;
+                if(randpcnt(32))
+                    b->flanc.p.rsvd = 1;
+                b->flanc.p.validity = 1;
+                continue;
             }
         }
         
         b->enq_attempted = true;
-        bool enq_priv = randpcnt(30);
+        bool enq_priv = randpcnt(32);
         lpgen lp = PUN(lpgen, (uptr) bx.gen);
         lflist *nl = enq_priv ? &priv[rand() % NPRIV] : &shared[rand() % nlists];
         
@@ -332,7 +348,7 @@ static void test_validity_bits(dbg_id id){
                               .gen++,
                               .last_priv = (enq_priv ? id : 0)),
                           bx, t, nl))
-            assert(b->owner != id || del_failed || !bx.validity);
+            assert(b->owner != id || del_failed);
         
         t->linref_down(flptr(bx));
     }
