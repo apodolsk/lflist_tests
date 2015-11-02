@@ -305,6 +305,7 @@ static void test_validity_bits(dbg_id id){
 
             muste(t->linref_up(b, t));
             if(b->invalidated){
+                assert(bx.validity != FLANC_VALID);
                 flanchor_ordered_init(bx.gen, &b->flanc);
                 bx.validity = FLANC_VALID;
                 b->invalidated = false;
@@ -327,13 +328,12 @@ static void test_validity_bits(dbg_id id){
             }
 
             if(!del_failed && randpcnt(32)){
+                must(mgen_upd_won(rup(bx.mgen, .validity=0), bx, t));
                 b->invalidated = true;
-                if(randpcnt(32))
-                    b->flanc.n.rsvd = 1;
-                if(randpcnt(32))
-                    b->flanc.n.validity = 1;
-                if(randpcnt(32))
-                    b->flanc.p.rsvd = 1;
+                
+                b->flanc.n.rsvd = 1;
+                b->flanc.n.validity = 1;
+                b->flanc.p.rsvd = 1;
                 b->flanc.p.validity = 1;
                 continue;
             }
