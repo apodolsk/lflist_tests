@@ -111,7 +111,7 @@ static void test_enq_deq(dbg_id id){
 #define ID_BITS 16
 typedef struct{
     uptr last_priv:ID_BITS;
-    /* TODO: 2 invalid bits per markgen. Advertise this somewhere. */
+    /* TODO: 2 invalid bits per mgen. Advertise this somewhere. */
     uptr gen:WORDBITS - 2 - ID_BITS;
 } lpgen;
 
