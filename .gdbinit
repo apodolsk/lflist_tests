@@ -18,3 +18,6 @@ end
 define cof_aligned
   p ($arg1 *) ((uptr) $arg0 - (uptr) $arg0 % sizeof($arg1))
 end
+
+define flwatch
+  watch -l *(flx *) $arg0
