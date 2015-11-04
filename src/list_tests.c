@@ -22,10 +22,10 @@ typedef struct{
         lanchor lanc;
     };
     cnt ephrefs;
-    flanchor flanc;
     dbg_id owner;
     bool enq_attempted;
     bool invalidated;
+    flanchor flanc;
     flanchor danc;
 } node;
 #define NODE {                                  \
@@ -92,24 +92,24 @@ static type *eph_node_t = &(type)TYPE(node,
                                       (void (*)(volatile void *)) eph_ref_down,
                                       (void (*)(lineage *)) node_init);
 
-static err eph_ref_up(void *f, type *_){
-    assert(0);
+static err eph_ref_up(volatile void *f, type *_){
+    assert(aligned_pow2(f, alignof(flanchor)));
     cnt *p = &cof(f, node, flanc)->ephrefs;
     for(cnt r = *p; r;)
-        if(!cas_won(r + 1, p, &r))
+        if(cas_won(r + 1, p, &r))
             return fake_linref_up(),
                    0;
     return -1;
 }
 
-static void eph_ref_down(void *flanc){
-    assert(0);
-    node *n = cof(flanc, node, flanc);
+static void eph_ref_down(volatile void *f){
+    assert(aligned_pow2(f, alignof(flanchor)));
+    node *n = cof(f, node, flanc);
     if(must(xadd(-1, &n->ephrefs)) == 1){
-        n->flanc.n = n->flanc.p = (flx)
-            {.markp = PUN(markp, (dptr) rand()),
-             .mgen = PUN(mgen, (dptr) rand())};
-        muste(lflist_enq(flx_of(&n->danc), eph_node_t, &dead));
+        /* n->flanc.n = n->flanc.p = (flx) */
+        /*     {.markp = PUN(markp, (dptr) rand()), */
+        /*      .mgen = PUN(mgen, (dptr) rand())}; */
+        muste(lflist_enq(flx_of(&n->danc), perm_node_t, &dead));
     }
         
     fake_linref_down();
@@ -373,57 +373,57 @@ static void test_linref_failure(dbg_id id){
         node *b;
         
         if(randpcnt(20)){
-            b = cof(flptr(lflist_deq(perm_node_t, &live)), node, danc);
+            b = cof(flptr(bx = lflist_deq(perm_node_t, &live)), node, danc);
             if(!b)
                 continue;
-            /* eph_ref_down(b); */
+            t->linref_down(&b->flanc);
             continue;
         }else if(randpcnt(20)){
-            /* b = cof(flptr(bx = lflist_deq(perm_node_t, &dead)), node, danc); */
-            /* if(!b) */
-            /*     continue; */
-            /* assert(!b->ephrefs); */
-            /* b->flanc = (flanchor) FLANCHOR(NULL); */
-            /* b->ephrefs = 1; */
-            /* lflist_enq(bx, perm_node_t, &live); */
-            /* continue; */
+            b = cof(flptr(bx = lflist_deq(perm_node_t, &dead)), node, danc);
+            if(!b)
+                continue;
+            assert(!b->ephrefs);
+            b->flanc = (flanchor) FLANCHOR(NULL);
+            b->ephrefs = 1;
+            muste(lflist_enq(bx, perm_node_t, &live));
+            continue;
         }
 
         
-        if(randpcnt(50)){
-            /* bool deq_priv = randpcnt(50); */
-            /* lflist *l = deq_priv */
-            /*           ? &priv[rand() % NPRIV] */
-            /*           : &shared[rand() % nlists]; */
-            /* if(!(b = cof(flptr(bx = lflist_deq(t, l)), node, flanc))) */
-            /*     goto grow; */
-            /* assert(PUN(lpgen, (uptr) bx.gen).last_priv == (deq_priv ? id : 0)); */
-        }else{
+        /* if(randpcnt(50)){ */
+        /*     bool deq_priv = randpcnt(50); */
+        /*     lflist *l = deq_priv */
+        /*               ? &priv[rand() % NPRIV] */
+        /*               : &shared[rand() % nlists]; */
+        /*     if(!(b = cof(flptr(bx = lflist_deq(t, l)), node, flanc))) */
+        /*         goto grow; */
+        /*     assert(PUN(lpgen, (uptr) bx.gen).last_priv == (deq_priv ? id : 0)); */
+        /* }else{ */
         /* grow: */
-            if(!(b = cof(list_deq(&perm[rand() % NPRIV]), node, lanc)))
-                continue;
-            assert(b->owner == id);
-            list_enq(&b->lanc, &perm[rand() % NPRIV]);
+        /*     if(!(b = cof(list_deq(&perm[rand() % NPRIV]), node, lanc))) */
+        /*         continue; */
+        /*     assert(b->owner == id); */
+        /*     list_enq(&b->lanc, &perm[rand() % NPRIV]); */
 
-            /* if(!t->linref_up(&b->flanc, t)) */
-            /*     continue; */
+        /*     if(!t->linref_up(&b->flanc, t)) */
+        /*         continue; */
             
-            /* bx = flx_of(&b->flanc); */
-            /* if(randpcnt(30)){ */
-            /*     /\* if(!lflist_del(bx, t)) *\/ */
-            /*     /\*     assert(flx_of(&b->flanc).gen == bx.gen); *\/ */
-            /*     /\* else *\/ */
-            /*     /\*     del_failed = true; *\/ */
-            /* }else{ */
-            /*     /\* while(lflist_jam(bx, t)){ *\/ */
-            /*     /\*     flx obx = bx; *\/ */
-            /*     /\*     bx = flx_of(&b->flanc); *\/ */
-            /*     /\*     assert(bx.gen != obx.gen); *\/ */
-            /*     /\* } *\/ */
-            /*     /\* bx.gen++; *\/ */
-            /*     /\* assert(flx_of(&b->flanc).gen == bx.gen); *\/ */
-            /* } */
-        }
+        /*     bx = flx_of(&b->flanc); */
+        /*     if(randpcnt(30)){ */
+        /*         /\* if(!lflist_del(bx, t)) *\/ */
+        /*         /\*     assert(flx_of(&b->flanc).gen == bx.gen); *\/ */
+        /*         /\* else *\/ */
+        /*         /\*     del_failed = true; *\/ */
+        /*     }else{ */
+        /*         /\* while(lflist_jam(bx, t)){ *\/ */
+        /*         /\*     flx obx = bx; *\/ */
+        /*         /\*     bx = flx_of(&b->flanc); *\/ */
+        /*         /\*     assert(bx.gen != obx.gen); *\/ */
+        /*         /\* } *\/ */
+        /*         /\* bx.gen++; *\/ */
+        /*         /\* assert(flx_of(&b->flanc).gen == bx.gen); *\/ */
+        /*     } */
+        /* } */
         
         /* b->enq_attempted = true; */
         /* bool enq_priv = randpcnt(30); */
@@ -439,7 +439,7 @@ static void test_linref_failure(dbg_id id){
         /* t->linref_down(flptr(bx)); */
     }
 
-    /* ltthread_finish(priv, perm, t, id); */
+    ltthread_finish(priv, perm, perm_node_t, id);
 }
 
 #endif 
