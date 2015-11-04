@@ -106,9 +106,9 @@ static void eph_ref_down(volatile void *f){
     assert(aligned_pow2(f, alignof(flanchor)));
     node *n = cof(f, node, flanc);
     if(must(xadd(-1, &n->ephrefs)) == 1){
-        /* n->flanc.n = n->flanc.p = (flx) */
-        /*     {.markp = PUN(markp, (dptr) rand()), */
-        /*      .mgen = PUN(mgen, (dptr) rand())}; */
+        n->flanc.n = n->flanc.p = (flx)
+            {.markp = PUN(markp, (dptr) rand()),
+             .mgen = PUN(mgen, (dptr) rand())};
         muste(lflist_enq(flx_of(&n->danc), perm_node_t, &dead));
     }
         
@@ -390,31 +390,32 @@ static void test_linref_failure(dbg_id id){
         }
 
         
-        /* if(randpcnt(50)){ */
-        /*     bool deq_priv = randpcnt(50); */
-        /*     lflist *l = deq_priv */
-        /*               ? &priv[rand() % NPRIV] */
-        /*               : &shared[rand() % nlists]; */
-        /*     if(!(b = cof(flptr(bx = lflist_deq(t, l)), node, flanc))) */
-        /*         goto grow; */
-        /*     assert(PUN(lpgen, (uptr) bx.gen).last_priv == (deq_priv ? id : 0)); */
-        /* }else{ */
-        /* grow: */
-        /*     if(!(b = cof(list_deq(&perm[rand() % NPRIV]), node, lanc))) */
-        /*         continue; */
-        /*     assert(b->owner == id); */
-        /*     list_enq(&b->lanc, &perm[rand() % NPRIV]); */
+        if(randpcnt(50)){
+            bool deq_priv = randpcnt(50);
+            lflist *l = deq_priv
+                      ? &priv[rand() % NPRIV]
+                      : &shared[rand() % nlists];
+            if(!(b = cof(flptr(bx = lflist_deq(t, l)), node, flanc)))
+                goto grow;
+            assert(PUN(lpgen, (uptr) bx.gen).last_priv == (deq_priv ? id : 0));
+        }else
+        {
+        grow:
+            if(!(b = cof(list_deq(&perm[rand() % NPRIV]), node, lanc)))
+                continue;
+            assert(b->owner == id);
+            list_enq(&b->lanc, &perm[rand() % NPRIV]);
 
-        /*     if(!t->linref_up(&b->flanc, t)) */
-        /*         continue; */
+            if(t->linref_up(&b->flanc, t))
+                continue;
             
-        /*     bx = flx_of(&b->flanc); */
-        /*     if(randpcnt(30)){ */
-        /*         /\* if(!lflist_del(bx, t)) *\/ */
-        /*         /\*     assert(flx_of(&b->flanc).gen == bx.gen); *\/ */
-        /*         /\* else *\/ */
-        /*         /\*     del_failed = true; *\/ */
-        /*     }else{ */
+            bx = flx_of(&b->flanc);
+            if(randpcnt(30)){
+                if(!lflist_del(bx, t))
+                    assert(flx_of(&b->flanc).gen == bx.gen);
+                else
+                    del_failed = true;
+            }else{
         /*         /\* while(lflist_jam(bx, t)){ *\/ */
         /*         /\*     flx obx = bx; *\/ */
         /*         /\*     bx = flx_of(&b->flanc); *\/ */
@@ -422,21 +423,21 @@ static void test_linref_failure(dbg_id id){
         /*         /\* } *\/ */
         /*         /\* bx.gen++; *\/ */
         /*         /\* assert(flx_of(&b->flanc).gen == bx.gen); *\/ */
-        /*     } */
-        /* } */
+            }
+        }
         
-        /* b->enq_attempted = true; */
-        /* bool enq_priv = randpcnt(30); */
-        /* lpgen lp = PUN(lpgen, (uptr) bx.gen); */
-        /* lflist *nl = enq_priv ? &priv[rand() % NPRIV] : &shared[rand() % nlists]; */
+        b->enq_attempted = true;
+        bool enq_priv = randpcnt(30);
+        lpgen lp = PUN(lpgen, (uptr) bx.gen);
+        lflist *nl = enq_priv ? &priv[rand() % NPRIV] : &shared[rand() % nlists];
         
-        /* if(lflist_enq_upd(rup(lp, */
-        /*                       .gen++, */
-        /*                       .last_priv = (enq_priv ? id : 0)), */
-        /*                   bx, t, nl)) */
-        /*     assert(b->owner != id || del_failed); */
+        if(lflist_enq_upd(rup(lp,
+                              .gen++,
+                              .last_priv = (enq_priv ? id : 0)),
+                          bx, t, nl))
+            assert(b->owner != id || del_failed);
         
-        /* t->linref_down(flptr(bx)); */
+        t->linref_down(flptr(bx));
     }
 
     ltthread_finish(priv, perm, perm_node_t, id);
