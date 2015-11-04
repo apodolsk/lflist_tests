@@ -264,7 +264,7 @@ static void test_validity_bits(dbg_id id){
             bx = flx_of(&b->flanc);
             if(b->invalidated){
                 assert(bx.validity != FLANC_VALID);
-                flanchor_ordered_init(bx.gen, &b->flanc);
+                flanc_ordered_init(bx.gen, &b->flanc);
                 bx.validity = FLANC_VALID;
                 b->invalidated = false;
             }
@@ -372,7 +372,7 @@ static void launch_list_test(void t(dbg_id), bool gc, const char *name){
     for(node *b; (b = cof(list_deq(&done), node, lanc));)
         linfree(&b->lin);
 
-    report_lflist_profile();
+    lflist_report_profile();
 }
 
 static
@@ -412,7 +412,7 @@ void ltthread_finish(lflist priv[static NPRIV], list perm[static NPRIV],
     for(idx i = 0; i < NPRIV; i++){
         for(node *b; (b = cof(list_deq(&perm[i]), node, lanc));){
             if(b->invalidated)
-                flanchor_ordered_init(flx_of(&b->flanc).gen, &b->flanc);
+                flanc_ordered_init(flx_of(&b->flanc).gen, &b->flanc);
             if(!b->enq_attempted || b->invalidated)
                 lflist_enq(flx_of(&b->flanc), t, &shared[0]);
             pthread_mutex_lock(&all_lock);
