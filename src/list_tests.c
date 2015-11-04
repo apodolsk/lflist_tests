@@ -196,7 +196,7 @@ static void test_all(dbg_id id){
 
             muste(t->linref_up(b, t));
             bx = flx_of(&b->flanc);
-            if(randpcnt(50)){
+            if(randpcnt(30)){
                 if(!lflist_del(bx, t))
                     assert(flx_of(&b->flanc).gen == bx.gen);
                 else
@@ -470,6 +470,7 @@ int main(int argc, char **argv){
         launch_list_test(test_validity_bits, 1, "test_validity_bits");
         break;
     }
+
 
     return 0;
 }
