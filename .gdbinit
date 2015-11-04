@@ -10,3 +10,11 @@ define fl
   set $p = (flanchor *)(($a->p).constexp & ~15)
   printf "a: %p n: %p p: %p\n", $a, $n, $p
 end
+
+define cof
+  p ($arg1 *)((uptr) $arg0 - (uptr) &(($arg1 *) 0)->$arg2)
+end
+
+define cof_aligned
+  p ($arg1 *) ((uptr) $arg0 - (uptr) $arg0 % sizeof($arg1))
+end
