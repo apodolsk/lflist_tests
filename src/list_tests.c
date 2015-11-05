@@ -109,6 +109,7 @@ static void eph_ref_down(volatile void *f){
         assert(n->flanc.p.st == FL_COMMIT);
         while(!flanc_valid(&n->flanc))
             continue;
+        /* TODO: something random, but less random. */
         n->flanc.n = n->flanc.p = (flx)
             {.markp = PUN(markp, (dptr) rand()),
              .mgen = PUN(mgen, (dptr) rand())};
@@ -381,6 +382,10 @@ static void test_linref_failure(dbg_id id){
                 continue;
             if(lflist_del(flx_of(&b->flanc), t))
                 continue;
+            /* TODO: need to ensure b isn't enqd after this. But a priv
+               deq followed by enq could well happen. Can't omit that enq
+               as it's the way the shared lists grow. But could use
+               mgen_upd_won here to invalidate. */
             t->linref_down(&b->flanc);
             continue;
         }else if(randpcnt(20)){
@@ -403,8 +408,7 @@ static void test_linref_failure(dbg_id id){
             if(!(b = cof(flptr(bx = lflist_deq(t, l)), node, flanc)))
                 goto grow;
             assert(PUN(lpgen, (uptr) bx.gen).last_priv == (deq_priv ? id : 0));
-        }else
-        {
+        }else{
         grow:
             if(!(b = cof(list_deq(&perm[rand() % NPRIV]), node, lanc)))
                 continue;
@@ -413,22 +417,12 @@ static void test_linref_failure(dbg_id id){
 
             if(t->linref_up(&b->flanc, t))
                 continue;
-            
+
             bx = flx_of(&b->flanc);
-            if(randpcnt(30)){
-                if(!lflist_del(bx, t))
-                    assert(flx_of(&b->flanc).gen == bx.gen);
-                else
-                    del_failed = true;
-            }else{
-                /* while(lflist_jam(bx, t)){ */
-                /*     flx obx = bx; */
-                /*     bx = flx_of(&b->flanc); */
-                /*     assert(bx.gen != obx.gen); */
-                /* } */
-                /* bx.gen++; */
-                /* assert(flx_of(&b->flanc).gen == bx.gen); */
-            }
+            if(!lflist_del(bx, t))
+                assert(flx_of(&b->flanc).gen == bx.gen);
+            else
+                del_failed = true;
         }
         
         b->enq_attempted = true;
