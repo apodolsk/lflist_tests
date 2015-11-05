@@ -379,6 +379,8 @@ static void test_linref_failure(dbg_id id){
             b = cof(flptr(bx = lflist_deq(perm_node_t, &live)), node, danc);
             if(!b)
                 continue;
+            if(lflist_del(flx_of(&b->flanc), t))
+                continue;
             t->linref_down(&b->flanc);
             continue;
         }else if(randpcnt(20)){
@@ -419,13 +421,13 @@ static void test_linref_failure(dbg_id id){
                 else
                     del_failed = true;
             }else{
-        /*         /\* while(lflist_jam(bx, t)){ *\/ */
-        /*         /\*     flx obx = bx; *\/ */
-        /*         /\*     bx = flx_of(&b->flanc); *\/ */
-        /*         /\*     assert(bx.gen != obx.gen); *\/ */
-        /*         /\* } *\/ */
-        /*         /\* bx.gen++; *\/ */
-        /*         /\* assert(flx_of(&b->flanc).gen == bx.gen); *\/ */
+                /* while(lflist_jam(bx, t)){ */
+                /*     flx obx = bx; */
+                /*     bx = flx_of(&b->flanc); */
+                /*     assert(bx.gen != obx.gen); */
+                /* } */
+                /* bx.gen++; */
+                /* assert(flx_of(&b->flanc).gen == bx.gen); */
             }
         }
         
