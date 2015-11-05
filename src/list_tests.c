@@ -106,6 +106,9 @@ static void eph_ref_down(volatile void *f){
     assert(aligned_pow2(f, alignof(flanchor)));
     node *n = cof(f, node, flanc);
     if(must(xadd(-1, &n->ephrefs)) == 1){
+        assert(n->flanc.p.st == FL_COMMIT);
+        while(!flanc_valid(&n->flanc))
+            continue;
         n->flanc.n = n->flanc.p = (flx)
             {.markp = PUN(markp, (dptr) rand()),
              .mgen = PUN(mgen, (dptr) rand())};
@@ -435,7 +438,8 @@ static void test_linref_failure(dbg_id id){
                               .gen++,
                               .last_priv = (enq_priv ? id : 0)),
                           bx, t, nl))
-            assert(b->owner != id || del_failed);
+            /* assert(b->owner != id || del_failed); */
+        {};
         
         t->linref_down(flptr(bx));
     }
