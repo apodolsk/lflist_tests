@@ -9,9 +9,6 @@
 #include <getopt.h>
 #include <test_framework.h>
 
-CASSERT(sizeof(dptr) == 16);
-/* CASSERT(sizeof(struct markp) == 8); */
-
 #define MAXWRITE 8
 typedef align(sizeof(dptr)) struct{
     dbg_id owner;

@@ -12,9 +12,9 @@ DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 override CFLAGS+=$(INC)\
 	-O3 \
 	-g\
+	-fms-extensions\
 	-fprofile-use\
 	-fprofile-correction\
-	-fms-extensions\
 	-std=gnu11\
 	-pthread\
 	-include "dialect.h"\
