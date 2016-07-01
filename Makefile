@@ -8,35 +8,48 @@ SRCS_S:=$(shell find -L $(SRCD) -type f -name *.S)
 SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
+
 CFLAGS:=$(INC)\
-	-O3 \
-	-flto=jobserver\
-	-fuse-linker-plugin\
-	-fno-fat-lto-objects\
-	-fprofile-use\
-	-fprofile-correction\
+	-O0 \
 	-g\
-	-ftrack-macro-expansion=0\
+	-fms-extensions\
+	-std=gnu11\
+	-pthread\
+	-include "dialect.h"\
 	-D_GNU_SOURCE\
 	-Wall \
 	-Wextra \
 	-Werror \
 	-Wcast-align\
-	-Wdesignated-init\
 	-Wno-missing-field-initializers \
 	-Wno-ignored-qualifiers \
 	-Wno-missing-braces \
 	-Wno-unused-parameter \
 	-Wno-unused-function\
 	-Wno-unused-value\
-	-Wno-misleading-indentation\
 	-Wno-type-limits\
-	-fplan9-extensions\
 	-Wno-unused-variable\
-	-std=gnu11\
-	-pthread\
-	-include "dialect.h"\
+	-march=native\
 	-mcx16
+
+ifeq ($(CC),gcc)
+CFLAGS+=\
+	-flto=jobserver\
+	-fuse-linker-plugin\
+	-fno-fat-lto-objects\
+	-ftrack-macro-expansion=0\
+	-Wdesignated-init\
+	-Wno-misleading-indentation\
+
+else
+CFLAGS+=\
+	-flto\
+	-Wno-microsoft-anon-tag\
+	-Wno-unknown-pragmas\
+	-Wno-cast-align\
+
+endif
+
 LD:=$(CC)
 LDFLAGS:=-fvisibility=hidden $(CFLAGS)
 
