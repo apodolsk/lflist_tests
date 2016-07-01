@@ -1,8 +1,8 @@
 #pragma once
 
-#define DBG 1
-#define BRK 2
-#define PRNT 4
+#define DBG 0
+#define BRK LVL_EWTF
+#define PRNT LVL_EOOR
 
 #define E_MODULE DBG BRK PRNT
 

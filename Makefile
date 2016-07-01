@@ -9,7 +9,12 @@ SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 CFLAGS:=$(INC)\
-	-O0 \
+	-O3 \
+	-flto=jobserver\
+	-fuse-linker-plugin\
+	-fno-fat-lto-objects\
+	-fprofile-use\
+	-fprofile-correction\
 	-g\
 	-ftrack-macro-expansion=0\
 	-D_GNU_SOURCE\
@@ -24,12 +29,13 @@ CFLAGS:=$(INC)\
 	-Wno-unused-parameter \
 	-Wno-unused-function\
 	-Wno-unused-value\
+	-Wno-misleading-indentation\
+	-Wno-type-limits\
 	-fplan9-extensions\
 	-Wno-unused-variable\
 	-std=gnu11\
 	-pthread\
 	-include "dialect.h"\
-	-m64\
 	-mcx16
 LD:=$(CC)
 LDFLAGS:=-fvisibility=hidden $(CFLAGS)
