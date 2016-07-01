@@ -9,9 +9,11 @@ SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
-CFLAGS:=$(INC)\
-	-O0 \
+override CFLAGS+=$(INC)\
+	-O3 \
 	-g\
+	-fprofile-use\
+	-fprofile-correction\
 	-fms-extensions\
 	-std=gnu11\
 	-pthread\
@@ -33,7 +35,7 @@ CFLAGS:=$(INC)\
 	-mcx16
 
 ifeq ($(CC),gcc)
-CFLAGS+=\
+override CFLAGS+=\
 	-flto=jobserver\
 	-fuse-linker-plugin\
 	-fno-fat-lto-objects\
@@ -42,7 +44,7 @@ CFLAGS+=\
 	-Wno-misleading-indentation\
 
 else
-CFLAGS+=\
+override CFLAGS+=\
 	-flto\
 	-Wno-microsoft-anon-tag\
 	-Wno-unknown-pragmas\
@@ -51,7 +53,7 @@ CFLAGS+=\
 endif
 
 LD:=$(CC)
-LDFLAGS:=-fvisibility=hidden $(CFLAGS)
+LDFLAGS:= $(CFLAGS)
 
 all: test ref
 
