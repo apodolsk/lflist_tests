@@ -13,8 +13,6 @@ override CFLAGS+=$(INC)\
 	-O3 \
 	-g\
 	-fms-extensions\
-	-fprofile-use\
-	-fprofile-correction\
 	-std=gnu11\
 	-pthread\
 	-include "dialect.h"\
@@ -32,6 +30,7 @@ override CFLAGS+=$(INC)\
 	-Wno-type-limits\
 	-Wno-unused-variable\
 	-march=native\
+	-mtune=native\
 	-mcx16
 
 ifeq ($(CC),gcc)

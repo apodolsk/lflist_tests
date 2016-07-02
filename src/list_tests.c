@@ -458,7 +458,7 @@ static void time_del(dbg_id id){
         for(idx li, max = NPRIV + (li = rand()); must(li < max); li++)
             if((b = cof(list_deq(&priv[li % NPRIV]), node, lanc)))
                 break;
-        muste(lflist_del(flx_of(&b->flanc), t));
+        muste(lflist_jam(flx_of(&b->flanc), t));
     }
 
     thr_sync(stop_timing);
