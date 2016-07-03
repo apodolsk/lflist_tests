@@ -1,4 +1,4 @@
-CC:=gcc
+CC:=clang
 SRCD:=src
 OBJD:=obj
 INC:=$(shell find -L $(SRCD) -not -path "*/.*" -type d | sed s/^/-I/)
