@@ -95,13 +95,13 @@ static bool has_eph_ref(void *f, bool up){
     }else{
         node *n = cof(f, node, flanc);
         if(must(xadd(-1, &n->ephrefs)) == 1){
-            assert(n->flanc.p.st == FL_COMMIT);
+            assert(n->flanc.p.st);
             while(!flanc_valid(&n->flanc))
                 continue;
             /* TODO: something random, but less random. */
             n->flanc.n = n->flanc.p = (flx)
                 {.markp = PUN(markp, (uptr) rand()),
-                 .mgen = PUN(mgen, (uptr) rand())};
+                 .gen = (uptr) rand()};
             muste(lflist_enq(flx_of(&n->danc), perm_node_t, &dead));
         }
         

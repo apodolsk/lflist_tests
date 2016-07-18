@@ -3,6 +3,7 @@
 #define LOG_MASTER 1
 
 #define LOG_LIST_TESTSM 0
+#define LOG_LFLISTM 0
 #define LOG_NALLOC_TESTSM 0
 #define LOG_ATOMICS 0
 #define LOG_MODULE 0
