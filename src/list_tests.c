@@ -273,87 +273,87 @@ static void test_enq_deq_jam(dbg_id id){
 
 #ifndef FAKELOCKFREE
 
-static void test_validity_bits(dbg_id id){
-    lflist priv[NPRIV];
-    list perm[NPRIV];
-    heritage *h;
-    type *t;
-    ltthread_init(priv, perm, &h, &t, id);
+/* static void test_validity_bits(dbg_id id){ */
+/*     lflist priv[NPRIV]; */
+/*     list perm[NPRIV]; */
+/*     heritage *h; */
+/*     type *t; */
+/*     ltthread_init(priv, perm, &h, &t, id); */
 
-    return;
+/*     return; */
 
-    for(uint i = 0; i < niter; i++){
-        dbg bool del_failed = false;
-        flx bx;
-        node *b;
-        if(randpcnt(50)){
-            bool deq_priv = randpcnt(50);
-            lflist *l = deq_priv
-                      ? &priv[rand() % NPRIV]
-                      : &shared[rand() % nlists];
-            if(!(b = cof(flptr(bx = lflist_deq(t, l)), node, flanc)))
-                goto grow;
-            lpgen lp = PUN(lpgen, (uptr) bx.gen);
-            assert(lp.last_priv == (deq_priv ? id : 0));
-        }else{
-        grow:
-            while(!(b = cof(list_deq(&perm[rand() % NPRIV]), node, lanc)))
-                continue;
-            assert(b->owner == id);
-            list_enq(&b->lanc, &perm[rand() % NPRIV]);
+/*     for(uint i = 0; i < niter; i++){ */
+/*         dbg bool del_failed = false; */
+/*         flx bx; */
+/*         node *b; */
+/*         if(randpcnt(50)){ */
+/*             bool deq_priv = randpcnt(50); */
+/*             lflist *l = deq_priv */
+/*                       ? &priv[rand() % NPRIV] */
+/*                       : &shared[rand() % nlists]; */
+/*             if(!(b = cof(flptr(bx = lflist_deq(t, l)), node, flanc))) */
+/*                 goto grow; */
+/*             lpgen lp = PUN(lpgen, (uptr) bx.gen); */
+/*             assert(lp.last_priv == (deq_priv ? id : 0)); */
+/*         }else{ */
+/*         grow: */
+/*             while(!(b = cof(list_deq(&perm[rand() % NPRIV]), node, lanc))) */
+/*                 continue; */
+/*             assert(b->owner == id); */
+/*             list_enq(&b->lanc, &perm[rand() % NPRIV]); */
 
-            muste(linref_up(b, t));
-            bx = flx_of(&b->flanc);
-            if(b->invalidated){
-                assert(bx.validity != FLANC_VALID);
-                flanc_ordered_init(bx.gen, &b->flanc);
-                bx.validity = FLANC_VALID;
-                b->invalidated = false;
-            }
+/*             muste(linref_up(b, t)); */
+/*             bx = flx_of(&b->flanc); */
+/*             if(b->invalidated){ */
+/*                 assert(bx.validity != FLANC_VALID); */
+/*                 flanc_ordered_init(bx.gen, &b->flanc); */
+/*                 bx.validity = FLANC_VALID; */
+/*                 b->invalidated = false; */
+/*             } */
             
-            if(randpcnt(50)){
-                if(!lflist_del(bx, t))
-                    assert(flx_of(&b->flanc).gen == bx.gen);
-                else
-                    del_failed = true;
-            }else{
-                while(lflist_jam(bx, t)){
-                    flx obx = bx;
-                    bx = flx_of(&b->flanc);
-                    assert(bx.gen != obx.gen);
-                }
-                bx.gen++;
-                assert(flx_of(&b->flanc).gen == bx.gen);
-            }
+/*             if(randpcnt(50)){ */
+/*                 if(!lflist_del(bx, t)) */
+/*                     assert(flx_of(&b->flanc).gen == bx.gen); */
+/*                 else */
+/*                     del_failed = true; */
+/*             }else{ */
+/*                 while(lflist_jam(bx, t)){ */
+/*                     flx obx = bx; */
+/*                     bx = flx_of(&b->flanc); */
+/*                     assert(bx.gen != obx.gen); */
+/*                 } */
+/*                 bx.gen++; */
+/*                 assert(flx_of(&b->flanc).gen == bx.gen); */
+/*             } */
 
-            if(!del_failed && randpcnt(32)){
-                must(mgen_upd_won(rup(bx.mgen, .validity=0), bx, t));
-                b->invalidated = true;
+/*             if(!del_failed && randpcnt(32)){ */
+/*                 must(mgen_upd_won(rup(bx.mgen, .validity=0), bx, t)); */
+/*                 b->invalidated = true; */
                 
-                b->flanc.n.rsvd = 1;
-                b->flanc.n.validity = 1;
-                b->flanc.p.rsvd = 1;
-                b->flanc.p.validity = 1;
-                continue;
-            }
-        }
+/*                 b->flanc.n.rsvd = 1; */
+/*                 b->flanc.n.validity = 1; */
+/*                 b->flanc.p.rsvd = 1; */
+/*                 b->flanc.p.validity = 1; */
+/*                 continue; */
+/*             } */
+/*         } */
         
-        b->enq_attempted = true;
-        bool enq_priv = randpcnt(32);
-        lpgen lp = PUN(lpgen, (uptr) bx.gen);
-        lflist *nl = enq_priv ? &priv[rand() % NPRIV] : &shared[rand() % nlists];
+/*         b->enq_attempted = true; */
+/*         bool enq_priv = randpcnt(32); */
+/*         lpgen lp = PUN(lpgen, (uptr) bx.gen); */
+/*         lflist *nl = enq_priv ? &priv[rand() % NPRIV] : &shared[rand() % nlists]; */
         
-        if(lflist_enq_upd(rup(lp,
-                              .gen++,
-                              .last_priv = (enq_priv ? id : 0)),
-                          bx, t, nl))
-            assert(b->owner != id || del_failed);
+/*         if(lflist_enq_upd(rup(lp, */
+/*                               .gen++, */
+/*                               .last_priv = (enq_priv ? id : 0)), */
+/*                           bx, t, nl)) */
+/*             assert(b->owner != id || del_failed); */
         
-        linref_down(flptr(bx), t);
-    }
+/*         linref_down(flptr(bx), t); */
+/*     } */
 
-    ltthread_finish(priv, perm, t, id);
-}
+/*     ltthread_finish(priv, perm, t, id); */
+/* } */
 
 static void test_linref_failure(dbg_id id){
     lflist priv[NPRIV];
@@ -592,9 +592,9 @@ int main(int argc, char **argv){
 
 /* TODO: just a bit tired of updating fakelflist */
 #ifndef FAKELOCKFREE        
-    case 5:
-        launch_list_test(test_validity_bits, 1, "test_validity_bits");
-        break;
+    /* case 5: */
+    /*     launch_list_test(test_validity_bits, 1, "test_validity_bits"); */
+    /*     break; */
     case 6:
         launch_list_test(test_linref_failure, 1, "test_linref_failure");
         break;
