@@ -1,4 +1,4 @@
-CC:=clang
+CC:=gcc
 SRCD:=src
 OBJD:=obj
 INC:=$(shell find -L $(SRCD) -not -path "*/.*" -type d | sed s/^/-I/)
@@ -8,30 +8,6 @@ SRCS_S:=$(shell find -L $(SRCD) -type f -name *.S)
 SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
-
-override CFLAGS+=$(INC)\
-	-O3 \
-	-g\
-	-fms-extensions\
-	-std=gnu11\
-	-pthread\
-	-include "dialect.h"\
-	-D_GNU_SOURCE\
-	-Wall \
-	-Wextra \
-	-Werror \
-	-Wcast-align\
-	-Wno-missing-field-initializers \
-	-Wno-ignored-qualifiers \
-	-Wno-missing-braces \
-	-Wno-unused-parameter \
-	-Wno-unused-function\
-	-Wno-unused-value\
-	-Wno-type-limits\
-	-Wno-unused-variable\
-	-march=native\
-	-mtune=native\
-	-mcx16
 
 ifeq ($(CC),gcc)
 override CFLAGS+=\
@@ -50,6 +26,29 @@ override CFLAGS+=\
 	-Wno-cast-align\
 
 endif
+
+override CFLAGS+=$(INC)\
+	-fno-lto\
+	-Og \
+	-g\
+	-fms-extensions\
+	-std=gnu11\
+	-pthread\
+	-include "dialect.h"\
+	-D_GNU_SOURCE\
+	-Wall \
+	-Wextra \
+	-Werror \
+	-Wcast-align\
+	-Wno-missing-field-initializers \
+	-Wno-missing-braces \
+	-Wno-unused-parameter \
+	-Wno-unused-function\
+	-Wno-unused-value\
+	-march=native\
+	-mtune=native\
+	-mcx16
+
 
 LD:=$(CC)
 LDFLAGS:= $(CFLAGS)

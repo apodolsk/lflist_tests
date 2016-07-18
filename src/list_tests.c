@@ -455,10 +455,12 @@ static void time_del(dbg_id id){
 
     for(cnt i = 0; i < niter; i++){
         node *b = NULL;
-        for(idx li, max = NPRIV + (li = rand()); must(li < max); li++)
-            if((b = cof(list_deq(&priv[li % NPRIV]), node, lanc)))
+        for(int j = 0; j < NPRIV; j++){
+            b = cof(list_deq(&priv[(i + j) % NPRIV]), node, lanc);
+            if(b)
                 break;
-        muste(lflist_jam(flx_of(&b->flanc), t));
+        }
+        muste(lflist_del(flx_of(&b->flanc), t));
     }
 
     thr_sync(stop_timing);
@@ -493,8 +495,6 @@ static void launch_list_test(void t(dbg_id), bool gc, const char *name){
 
     for(node *b; (b = cof(list_deq(&done), node, lanc));)
         linfree(&b->lin);
-
-    lflist_report_profile();
 }
 
 static
@@ -600,7 +600,6 @@ int main(int argc, char **argv){
         break;
 #endif
     }
-
 
     return 0;
 }
