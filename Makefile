@@ -1,4 +1,4 @@
-CC:=gcc
+CC:=clang
 SRCD:=src
 OBJD:=obj
 INC:=$(shell find -L $(SRCD) -not -path "*/.*" -type d | sed s/^/-I/)
@@ -9,27 +9,8 @@ SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
-ifeq ($(CC),gcc)
-override CFLAGS+=\
-	-flto=jobserver\
-	-fuse-linker-plugin\
-	-fno-fat-lto-objects\
-	-ftrack-macro-expansion=0\
-	-Wdesignated-init\
-	-Wno-misleading-indentation\
-
-else
-override CFLAGS+=\
-	-flto\
-	-Wno-microsoft-anon-tag\
-	-Wno-unknown-pragmas\
-	-Wno-cast-align\
-
-endif
-
 override CFLAGS+=$(INC)\
-	-fno-lto\
-	-Og \
+	-O3 \
 	-g\
 	-fms-extensions\
 	-std=gnu11\
@@ -48,6 +29,24 @@ override CFLAGS+=$(INC)\
 	-march=native\
 	-mtune=native\
 	-mcx16
+
+ifeq ($(CC),gcc)
+override CFLAGS+=\
+	-flto=jobserver\
+	-fuse-linker-plugin\
+	-fno-fat-lto-objects\
+	-ftrack-macro-expansion=0\
+	-Wdesignated-init\
+	-Wno-misleading-indentation\
+
+else
+override CFLAGS+=\
+	-flto\
+	-Wno-microsoft-anon-tag\
+	-Wno-unknown-pragmas\
+	-Wno-cast-align\
+
+endif
 
 
 LD:=$(CC)
