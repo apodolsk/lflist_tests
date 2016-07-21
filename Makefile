@@ -2,20 +2,20 @@ CC:=clang
 SRCD:=src
 OBJD:=obj
 INC:=$(shell find -L $(SRCD) -not -path "*/.*" -type d | sed s/^/-I/)
-HDRS:=$(shell find -L $(SRCD) -type f -name *.h)
-SRCS_C:=$(shell find -L $(SRCD) -type f -name *.c)
-SRCS_S:=$(shell find -L $(SRCD) -type f -name *.S)
+HDRS:=$(shell find -L $(SRCD) -type f -name "*.h")
+SRCS_C:=$(shell find -L $(SRCD) -type f -name "*.c")
+SRCS_S:=$(shell find -L $(SRCD) -type f -name "*.S")
 SRCS:=$(SRCS_C) $(SRCS_S)
 OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
 override CFLAGS+=$(INC)\
-	-O3 \
+	-O0 \
 	-g\
 	-fms-extensions\
 	-std=gnu11\
 	-pthread\
-	-include "dialect.h"\
+	-include "src/linux_dialect/dialect/dialect.h"\
 	-D_GNU_SOURCE\
 	-Wall \
 	-Wextra \
@@ -59,7 +59,7 @@ test: $(DIRS) $(SRCD)/TAGS $(OBJS) Makefile
 
 ifndef REF
 ref: test
-	$(MAKE) ref OBJD:=obj/fake CFLAGS='$(CFLAGS) -DFAKELOCKFREE' REF=1
+	$(MAKE) ref OBJD:=obj/fake CFLAGS='-DFAKELOCKFREE' REF=1
 else
 ref: $(DIRS) $(SRCD)/TAGS $(OBJS) Makefile
 	+ $(LD) $(LDFLAGS) -o $@ $(OBJS)
@@ -88,8 +88,9 @@ check-syntax:
 
 clean:
 	rm -rf $(OBJD) 
-	rm $(SRCD)/TAGS
+	rm -f $(SRCD)/TAGS
 	rm -f test;
+	rm -f ref;
 
 define \n
 
