@@ -55,14 +55,14 @@ LDFLAGS:= $(CFLAGS)
 all: test ref
 
 test: $(DIRS) $(SRCD)/TAGS $(OBJS) Makefile
-		+ $(LD) $(LDFLAGS) -o $@ $(OBJS)
+		$(LD) $(LDFLAGS) -o $@ $(OBJS)
 
 ifndef REF
 ref: test
 	$(MAKE) ref OBJD:=obj/fake CFLAGS='-DFAKELOCKFREE' REF=1
 else
 ref: $(DIRS) $(SRCD)/TAGS $(OBJS) Makefile
-	+ $(LD) $(LDFLAGS) -o $@ $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
 endif
 
 $(DIRS):

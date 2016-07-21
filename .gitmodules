@@ -1,12 +1,12 @@
 [submodule "src/lists"]
 	path = src/lists
-	url = cmu:~apodolsk/repo/lists
+	url = unix.andrew.cmu.edu:~apodolsk/repo/lists
 [submodule "src/nalloc"]
 	path = src/nalloc
-	url = cmu:~apodolsk/repo/nalloc
+	url = unix.andrew.cmu.edu:~apodolsk/repo/nalloc
 [submodule "src/linux_dialect"]
 	path = src/linux_dialect
-	url = cmu:~apodolsk/repo/linux_dialect
+	url = unix.andrew.cmu.edu:~apodolsk/repo/linux_dialect
 [submodule "src/stacks"]
 	path = src/stacks
-	url = cmu:~apodolsk/repo/stacks
+	url = unix.andrew.cmu.edu:~apodolsk/repo/stacks
