@@ -10,8 +10,7 @@ OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
 override CFLAGS+=$(INC)\
-	-O0 \
-	-g\
+	-O3 \
 	-fms-extensions\
 	-std=gnu11\
 	-pthread\
@@ -55,14 +54,14 @@ LDFLAGS:= $(CFLAGS)
 all: test ref
 
 test: $(DIRS) $(SRCD)/TAGS $(OBJS) Makefile
-		$(LD) $(LDFLAGS) -o $@ $(OBJS)
+		+ $(LD) $(LDFLAGS) -o $@ $(OBJS)
 
 ifndef REF
 ref: test
 	$(MAKE) ref OBJD:=obj/fake CFLAGS='-DFAKELOCKFREE' REF=1
 else
 ref: $(DIRS) $(SRCD)/TAGS $(OBJS) Makefile
-	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+	+ $(LD) $(LDFLAGS) -o $@ $(OBJS)
 endif
 
 $(DIRS):

@@ -11,6 +11,18 @@ define fl
   printf "a: %p n: %p p: %p\n", $a, $n, $p
 end
 
+define ppflx
+  # if ($arg0).st
+  #   set $str = "COMMIT"
+  # else
+  #   set $str = "RDY"
+  # end
+  set $ptr = (flanchor *)(($arg0).constexp & ~15)
+
+  # printf "{%p:%lu:%s, %lu}\n", $ptr, ($arg0).nil, $str, ($arg0).gen
+  printf "{%p:%lu:%lu, %lu}\n", $ptr, ($arg0).nil, ($arg0).st, ($arg0).gen
+end
+
 define cof
   p ($arg1 *)((uptr) $arg0 - (uptr) &(($arg1 *) 0)->$arg2)
 end

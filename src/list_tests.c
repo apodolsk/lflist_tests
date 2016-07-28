@@ -245,7 +245,7 @@ static void test_enq_deq_jam(dbg_id id){
                     del_failed = true;
             }else{
                 while(lflist_jam(bx, t)){
-                    flx obx = bx;
+                    dbg flx obx = bx;
                     bx = flx_of(&b->flanc);
                     assert(bx.gen != obx.gen);
                 }
@@ -487,7 +487,7 @@ static void launch_list_test(void t(dbg_id), bool gc, const char *name){
             list_enq(&b->lanc, &done);
         }
 
-    cnt all_size = list_size(&all);
+    dbg cnt all_size = list_size(&all);
     for(node *lost; (lost = cof(list_deq(&all), node, lanc));)
         ppl(0, &lost->flanc);
     assert(!all_size);
