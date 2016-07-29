@@ -14,7 +14,7 @@ class FlxPrinter:
                                        str(self.val['gen']))
 
 def lookup_type (val):
-        if str(val.type) == 'flx':
+        if str(val.type.unqualified()) == 'flx':
             return FlxPrinter(val)
         return None
     

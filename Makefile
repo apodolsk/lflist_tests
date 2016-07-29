@@ -10,7 +10,7 @@ OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
 override CFLAGS+=$(INC)\
-	-O3 \
+	-O0 \
 	-g3 \
 	-fms-extensions\
 	-std=gnu11\
