@@ -11,6 +11,7 @@ DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
 override CFLAGS+=$(INC)\
 	-O3 \
+	-g3 \
 	-fms-extensions\
 	-std=gnu11\
 	-pthread\
@@ -25,6 +26,7 @@ override CFLAGS+=$(INC)\
 	-Wno-unused-parameter \
 	-Wno-unused-function\
 	-Wno-unused-value\
+	-Wno-unused-variable\
 	-march=native\
 	-mtune=native\
 	-mcx16
@@ -41,6 +43,7 @@ override CFLAGS+=\
 else
 override CFLAGS+=\
 	-flto\
+	-fmacro-backtrace-limit=1\
 	-Wno-microsoft-anon-tag\
 	-Wno-unknown-pragmas\
 	-Wno-cast-align\

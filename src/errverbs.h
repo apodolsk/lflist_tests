@@ -1,6 +1,6 @@
 #pragma once
 
-#define DBG 1
+#define DBG 0
 #define BRK LVL_EWTF
 #define PRNT LVL_EOOR
 
