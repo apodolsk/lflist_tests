@@ -1,19 +1,24 @@
-CC:=clang
+BUILTIN_VARS:=$(.VARIABLES)
+CC:=gcc
 SRCD:=src
 OBJD:=obj
 INC:=$(shell find -L $(SRCD) -not -path "*/.*" -type d | sed s/^/-I/)
 HDRS:=$(shell find -L $(SRCD) -type f -name "*.h")
 SRCS_C:=$(shell find -L $(SRCD) -type f -name "*.c")
 SRCS_S:=$(shell find -L $(SRCD) -type f -name "*.S")
-SRCS:=$(SRCS_C) $(SRCS_S)
-OBJS:=$(subst $(SRCD),$(OBJD),$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(SRCS))))
+SRCS_CPP:=$(shell find -L $(SRCD) -type f -name "*.cpp")
+SRCS:=$(SRCS_C) $(SRCS_S) $(SRCS_CPP)
+OBJS:=$(subst $(SRCD),$(OBJD),\
+	$(patsubst %.c,%.o,\
+	$(patsubst %.S,%.o,\
+	$(patsubst %.cpp,%.o,$(SRCS)))))
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
 override CFLAGS+=$(INC)\
-	-O3 \
+	-O0 \
 	-g3 \
-	-fms-extensions\
-	-std=gnu11\
+	-fms-extensions \
+	-std=gnu11 \
 	-pthread\
 	-include "src/linux_dialect/dialect/dialect.h"\
 	-D_GNU_SOURCE\
@@ -31,16 +36,15 @@ override CFLAGS+=$(INC)\
 	-mtune=native\
 	-mcx16
 
-ifeq ($(CC),gcc)
+ifeq ($(CC), gcc)
 override CFLAGS+=\
 	-flto=jobserver\
 	-fuse-linker-plugin\
 	-fno-fat-lto-objects\
 	-ftrack-macro-expansion=0\
-	-Wdesignated-init\
 	-Wno-misleading-indentation\
 
-else
+else ifeq ($(CC), clang)
 override CFLAGS+=\
 	-flto\
 	-fmacro-backtrace-limit=1\
@@ -49,10 +53,12 @@ override CFLAGS+=\
 	-Wno-cast-align\
 
 endif
+CXXFLAGS:=$(CFLAGS:gnu11=gnu++14)
 
 
-LD:=$(CC)
-LDFLAGS:= $(CFLAGS)
+# LD:=$(CC)
+LD:=g++
+LDFLAGS:=$(CFLAGS) -Wno-lto-type-mismatch
 
 all: test ref
 
@@ -82,6 +88,10 @@ $(OBJD)/%.o: $(SRCD)/%.c
 $(OBJD)/%.o: $(SRCD)/%.S
 		$(CC) $(CFLAGS) -MM -MP -MT $(OBJD)/$*.o -o $(OBJD)/$*.dep $<
 		$(CC) $(CFLAGS) -o $@ -c $<
+
+$(OBJD)/%.o: $(SRCD)/%.cpp
+		g++ $(CXXFLAGS) -MM -MP -MT $(OBJD)/$*.o -o $(OBJD)/$*.dep $<
+		g++ $(CXXFLAGS) -o $@ -c $<;
 
 -include $(OBJS:.o=.dep)
 

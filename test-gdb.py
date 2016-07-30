@@ -8,7 +8,7 @@ class FlxPrinter:
         self.val = val
 
     def to_string(self):
-        return '{0x%08x:%s %s, %s}' % (int(self.val['constexp'] & ~15),
+        return '{0x%08x:%s %s, %s}' % (int(self.val['pt'] << 3),
                                        str(self.val['nil']),
                                        str(self.val['st']),
                                        str(self.val['gen']))

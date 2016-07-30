@@ -1,13 +1,13 @@
 handle SIGUSR1 nostop noprint pass
 
 define pt
-  p (flanchor *)(($arg0).constexp & ~15)
+  p (flanchor *)(($arg0).pt << 3)
 end
 
 define fl
-  set $a = (flanchor *)(($arg0).constexp & ~15)
-  set $n = (flanchor *)(($a->n).constexp & ~15)
-  set $p = (flanchor *)(($a->p).constexp & ~15)
+  set $a = (flanchor *)(($arg0).pt << 3)
+  set $n = (flanchor *)(($a->n).pt << 3)
+  set $p = (flanchor *)(($a->p).pt << 3)
   printf "a: %p n: %p p: %p\n", $a, $n, $p
 end
 
@@ -17,7 +17,7 @@ define ppflx
   # else
   #   set $str = "RDY"
   # end
-  set $ptr = (flanchor *)(($arg0).constexp & ~15)
+  set $ptr = (flanchor *)(($arg0).pt << 3)
 
   # printf "{%p:%lu:%s, %lu}\n", $ptr, ($arg0).nil, $str, ($arg0).gen
   printf "{%p:%lu:%lu, %lu}\n", $ptr, ($arg0).nil, ($arg0).st, ($arg0).gen

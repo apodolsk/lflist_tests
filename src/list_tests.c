@@ -54,8 +54,8 @@ static node *all[MAX_ALLOCS];
 static lflist dead = LFLIST(&dead, NULL);
 static lflist live = LFLIST(&live, NULL);;
 
-__thread static heritage h = POSIX_HERITAGE(&t);
-__thread static node **owned;
+static __thread heritage h = POSIX_HERITAGE(&t);
+static __thread node **owned;
 
 static void node_init(node *n){
     *n = (node) NODE();
@@ -87,9 +87,9 @@ static bool has_eph_ref(void *f, bool up){
             while(!flanc_valid(&n->flanc))
                 continue;
             /* TODO: something random, but less random. */
-            n->flanc.n = n->flanc.p = (flx)
-                {.markp = PUN(markp, (uptr) rand()),
-                 .gen = (uptr) rand()};
+            /* n->flanc.n = n->flanc.p = (flx) */
+            /*     {.markp = PUN(markp, (uptr) rand()), */
+            /*      .gen = (uptr) rand()}; */
             muste(lflist_enq(flx_of(&n->danc), perm_node_t, &dead));
         }
         
@@ -104,7 +104,7 @@ static bool has_eph_ref(void *f, bool up){
 #endif
 
 static node *next_owned(void){
-    __thread static uptr next_idx = 0;
+    static __thread uptr next_idx = 0;
     return owned[next_idx++ % nallocs];
 }
 
@@ -341,8 +341,8 @@ static void time_enq(uptr id){
 
 typedef struct {
     enum{
-        DEL,
-        ADD,
+        JAM,
+        ENQ,
     } st:1;
     uptr gen:WORDBITS - 1;
 } stgen;
@@ -356,15 +356,15 @@ static void test_enq_jam_generally(uptr id){
         stgen stg = PUN(stgen, bx.gen);
 
         if(randpcnt(50)){
-            lflist_jam_upd(rup(stg, .gen++, .st = DEL), bx, &t);
+            lflist_jam_upd(rup(stg, .gen++, .st = JAM), bx, &t);
             assert(bx.gen != flx_of(&b->flanc).gen);
         }else{
-            if(!lflist_enq_upd(rup(stg, .gen++, .st = ADD), bx, &t,
+            if(!lflist_enq_upd(rup(stg, .gen++, .st = ENQ), bx, &t,
                                rand_shared()))
-                assert(stg.st == DEL &&
+                assert(stg.st == JAM &&
                        bx.gen != flx_of(&b->flanc).gen);
             else
-                assert(stg.st == ADD ||
+                assert(stg.st == ENQ ||
                        bx.gen != flx_of(&b->flanc).gen);
         }
     }
