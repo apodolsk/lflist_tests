@@ -126,8 +126,8 @@ static void launch_list_test(void test(uptr), bool gc, const char *name){
         lists[i] = (lflist) LFLIST(&lists[i], NULL);
     shared = lists;
 
-    assert(nallocs < MAX_ALLOCS);
-    
+    assertl(0, nallocs * nthreads <= MAX_ALLOCS);
+
     launch_test((void *(*)(void *)) test, name);
     
     if(!gc)
