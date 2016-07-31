@@ -14,8 +14,14 @@ class FlxPrinter:
                                        str(self.val['gen']))
 
 def lookup_type (val):
-        if str(val.type.unqualified()) == 'flx':
-            return FlxPrinter(val)
-        return None
+    if val.type.unqualified().strip_typedefs().tag == 'flx':
+        return FlxPrinter(val)
+    return None
+    # tag = val.type.tag()
+    # if tag == None:
+    #     return None
+    # if tag == 'flx':
+    #     return FlxPrinter(val)
+    # return None
     
 gdb.pretty_printers.append(lookup_type)

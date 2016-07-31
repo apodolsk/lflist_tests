@@ -15,9 +15,11 @@ OBJS:=$(subst $(SRCD),$(OBJD),\
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
 override CFLAGS+=$(INC)\
-	-O3 \
+	-O0 \
 	-g3 \
 	-fms-extensions \
+	-fno-strict-aliasing\
+	-freg-struct-return \
 	-std=gnu11 \
 	-pthread\
 	-include "src/linux_dialect/dialect/dialect.h"\
