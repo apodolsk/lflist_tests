@@ -1,5 +1,7 @@
 BUILTIN_VARS:=$(.VARIABLES)
-CC:=gcc
+
+CC:=clang
+
 SRCD:=src
 OBJD:=obj
 INC:=$(shell find -L $(SRCD) -not -path "*/.*" -type d | sed s/^/-I/)
@@ -16,14 +18,12 @@ DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
 override CFLAGS+=$(INC)\
 	-O0 \
-	-g3 \
+	-g \
 	-fms-extensions \
-	-fno-strict-aliasing\
-	-freg-struct-return \
+	-fno-exceptions \
 	-std=gnu11 \
-	-pthread\
+	-pthread \
 	-include "src/linux_dialect/dialect/dialect.h"\
-	-D_GNU_SOURCE\
 	-Wall \
 	-Wextra \
 	-Werror \
@@ -55,12 +55,11 @@ override CFLAGS+=\
 	-Wno-cast-align\
 
 endif
+
 CXXFLAGS:=$(CFLAGS:gnu11=gnu++14)
 
-
-# LD:=$(CC)
-LD:=g++
-LDFLAGS:=$(CFLAGS) -Wno-lto-type-mismatch
+LD:=$(CC)
+LDFLAGS:=$(CFLAGS) -Wno-lto-type-mismatch -latomic
 
 all: test ref
 
@@ -92,8 +91,8 @@ $(OBJD)/%.o: $(SRCD)/%.S
 		$(CC) $(CFLAGS) -o $@ -c $<
 
 $(OBJD)/%.o: $(SRCD)/%.cpp
-		g++ $(CXXFLAGS) -MM -MP -MT $(OBJD)/$*.o -o $(OBJD)/$*.dep $<
-		g++ $(CXXFLAGS) -o $@ -c $<;
+		$(CC) $(CXXFLAGS) -MM -MP -MT $(OBJD)/$*.o -o $(OBJD)/$*.dep $<
+		$(CC) $(CXXFLAGS) -o $@ -c $<;
 
 -include $(OBJS:.o=.dep)
 
