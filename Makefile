@@ -17,7 +17,7 @@ OBJS:=$(subst $(SRCD),$(OBJD),\
 DIRS:=$(shell echo $(dir $(OBJS)) | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
 override CFLAGS+=$(INC)\
-	-O0 \
+	-O3 \
 	-g \
 	-fms-extensions \
 	-fno-exceptions \
