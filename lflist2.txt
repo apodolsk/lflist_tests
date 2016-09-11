@@ -1,0 +1,159 @@
+It'd be nice if del(a) could do the following:
+    [Set p->n = n
+         n->p = p
+     iff a->n == n
+         a->p == p
+         p->n == a
+         n->p == a]
+
+There's no atomic primitive for this, del(a) should approximate it
+somehow. It does this with two CAS2 writes: on p->n, and then on
+n->p. This is roughly equivalent because:
+  - The p->n write succeeds iff all conditions listed above hold. 
+  - If the p->n write succeeds, almost all conditions will hold until the
+    n->p write. The exception is just that p->n == a instead of p->n == n.
+
+There's a total order of CAS2 writes and all writes to lflist nodes are
+CAS2. I say "time t" to mean any time between writes t and t+1.
+  - NB: initialization is non-atomic. Brush that under the rug.
+
+At each time t, for each node a:
+
+Let flx p = a->p.
+    flx n = a->n.
+
+One of the following predicates must hold. They're mutually exclusive, so
+you can talk about the states defined by these predicates.
+
+Q(a) (quiescent):
+    p->n == a &&
+    (n->p == a || n->p->p == a) &&
+    n.st != COMMIT &&
+    p.st != COMMIT &&
+
+C(a) (del() committed to p->n write attempt):
+    p->n == a &&
+    n->p == a &&
+    n.st == COMMIT &&
+    p.st != COMMIT &&
+
+DP(a) (del() wrote p->n, about to write n->p)
+    p->n == n &&
+    n->p == a &&
+    n.st == COMMIT &&
+    p.st != COMMIT &&
+
+DN(a) (del() wrote n->p)
+    n.st == COMMIT &&
+    p->n != a &&
+    n->p != a &&
+    p.st != COMMIT
+
+D(a) (deleted):
+    p.st == COMMIT
+
+The goal of del(a) is to effect D(a), if possible. 
+
+Q->C:
+   [Set a->n.st = COMMIT
+    iff a->n->p == a &&
+        Q(a)]
+
+C->DP:
+   [Set p->n = n
+    iff C(a)]
+   
+DP->DN:
+   [Set n->p = p
+    iff DP(a)]
+
+DN->D:
+   [Set p.st = COMMIT
+    iff DN(a)]
+
+C->Q:
+   [Set a->n.st = RDY
+    iff C(A)]
+
+It's not obvious, but each transition can be done in a single CAS2
+operation.
+
+state_of(a):
+    n := a->n
+    p := a->p
+    if(p.st == COMMIT)
+        return D
+    if(n.st != COMMIT)
+        return Q
+    np := n->p
+    if(n != a->n)
+        restart
+    if
+
+Q->C:
+    n := a->n
+    np := n->p
+    if n.st == COMMIT || a->p.st == COMMIT
+        return
+        
+    if np != a
+        if n != a->n
+            return
+        [n->p = a iff n->p == np] else return
+    [n.st = COMMIT iff n == a] else return
+
+    Let N be the time of n := a->n.
+        P the time of the read in a->p.st == COMMIT.
+
+    Lemma 1 - If n == a->n after the check, then Q(a):
+        N2 be the time of the read in n == a->n.
+    
+        n.gen gets a unique value on every write, so n == a->n implies
+        a->n wasn't written between N and N2. Thus a->n.st != COMMIT.
+
+        P is between N and N2, so a->p.st != COMMIT && a->n.st != COMMIT
+        was true at N2.
+
+        Only Q(a) allows this, so the IH implies Q(a) was true at P.
+
+        The only transition from Q is Q->C, which writes a->n, so Q(a) was
+        true between N and N2.
+
+    The first CAS succeeds only if Q(a) && n->p->p == a:
+        Suppose it succeeds:
+            By lemma 1, Q(a) was true when np := n->p.
+
+            [HELP]
+
+        
+    The second CAS succeeds only if Q(a) && n->p == a:
+        Suppose it succeeds:
+            Let W be the time of [...]
+
+            By lemma 1, Q(a) was true at W.
+
+            By construction, n->p
+                                    
+
+        If the first CAS succeeds:
+            n->p == np was true, with np != a.
+            
+
+        
+
+    The first CAS must 
+
+
+    Suppose the first CAS succeeds. Then Q(a) must have been true
+
+    If n->p != a but n == a->n, 
+
+
+    This works because of an important property: every write to a->n 
+
+C->Q
+   [Set a->n.st 
+
+Q->C:
+
+With the help of special 
