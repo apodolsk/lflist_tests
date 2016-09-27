@@ -459,7 +459,6 @@ static void test_validity_bits(uptr id){
 #endif
 #endif
 
-
 int run_list_tests(int argc, char **argv){
     int program = 2;
     for(int opt; (opt = getopt(argc, argv, "t:l:a:i:p:w:")) != -1;){
