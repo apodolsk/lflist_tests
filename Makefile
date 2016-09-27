@@ -1,6 +1,6 @@
 BUILTIN_VARS:=$(.VARIABLES)
 
-CC:=clang
+CC:=gcc
 
 SRCD:=src
 OBJD:=obj
