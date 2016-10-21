@@ -241,7 +241,7 @@ static void test_enq_unenq_del(uptr id){
         lpgen lp = PUN(lpgen, (uptr) bx.gen);
         lflist *nl = randpcnt(30) ? &priv : rand_shared();
         
-        if(lflist_enq_upd(rup(lp,
+        if(lflist_enq_cas(rup(lp,
                               .gen++,
                               .last_priv = (nl == &priv ? id : 0)),
                           bx, &t, nl))
@@ -297,7 +297,7 @@ static void test_enq_unenq_jam(uptr id){
         lpgen lp = PUN(lpgen, (uptr) bx.gen);
         lflist *nl = randpcnt(30) ? &priv : rand_shared();
         
-        if(lflist_enq_upd(rup(lp,
+        if(lflist_enq_cas(rup(lp,
                               .gen++,
                               .last_priv = (nl == &priv ? id : 0)),
                           bx, &t, nl))
@@ -356,10 +356,10 @@ static void test_enq_jam_generally(uptr id){
         stgen stg = PUN(stgen, bx.gen);
 
         if(randpcnt(50)){
-            lflist_del_upd(rup(stg, .gen++, .st = JAM), bx, &t);
+            lflist_del_cas(rup(stg, .gen++, .st = JAM), bx, &t);
             assert(bx.gen != flref_of(&b->flanc).gen);
         }else{
-            if(!lflist_enq_upd(rup(stg, .gen++, .st = ENQ), bx, &t,
+            if(!lflist_enq_cas(rup(stg, .gen++, .st = ENQ), bx, &t,
                                rand_shared()))
                 assert(stg.st == JAM &&
                        bx.gen != flref_of(&b->flanc).gen);
@@ -444,7 +444,7 @@ static void test_validity_bits(uptr id){
         lpgen lp = PUN(lpgen, (uptr) bx.gen);
         lflist *nl = enq_priv ? &priv[rand() % NPRIV] : rand_shared();
         
-        if(lflist_enq_upd(rup(lp,
+        if(lflist_enq_cas(rup(lp,
                               .gen++,
                               .last_priv = (enq_priv ? id : 0)),
                           bx, &t, nl))
