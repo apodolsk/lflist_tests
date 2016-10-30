@@ -90,7 +90,7 @@ static bool has_eph_ref(void *f, bool up){
             /* n->flanc.n = n->flanc.p = (flx) */
             /*     {.markp = PUN(markp, (uptr) rand()), */
             /*      .gen = (uptr) rand()}; */
-            muste(lflist_enq(flref_of(&n->danc), perm_node_t, &dead));
+            muste(lflist_enq(flref_of(&n->danc), &dead, perm_node_t));
         }
         
         return true;
@@ -103,20 +103,20 @@ static bool has_eph_ref(void *f, bool up){
 
 #endif
 
-static node *next_owned(void){
+static node *next_owned_node(void){
     static __thread uptr next_idx = 0;
     return owned[next_idx++ % nallocs];
 }
 
-static node *rand_owned(void){
+static node *rand_owned_node(void){
     return owned[rand() % nallocs];
 }
 
 static node *rand_node(void){
-    return all[rand() % nallocs];
+    return all[rand() % (nallocs * nthreads)];
 }
 
-static lflist *rand_shared(void){
+static lflist *rand_shared_list(void){
     return &shared[rand() % nlists];
 }
 
@@ -136,14 +136,14 @@ static void launch_list_test(void test(uptr), bool gc, const char *name){
     list done = LIST(&done, NULL);
     for(cnt i = 0; i < nlists; i++)
         for(node *b;
-            (b = cof(flptr(lflist_unenq(&t, &shared[i])), node, flanc));)
+            (b = cof(flptr(lflist_unenq(&shared[i], &t)), node, flanc));)
         {
             lflist_del(flref_of(&b->danc), &t);
             linfree(&b->lin);
         }
 
     cnt nlost = 0;
-    for(node *lost; (lost = cof(flptr(lflist_unenq(&t, &live)), node, flanc));){
+    for(node *lost; (lost = cof(flptr(lflist_unenq(&live, &t)), node, flanc));){
         if(lost->invalidated || !lost->enq_attempted)
             continue;
         ppl(0, &lost->flanc);
@@ -166,8 +166,8 @@ void ltthread_init(lflist *fill, uptr id){
         owned[i] = b;
 
         if(fill)
-            lflist_enq(flref_of(&b->flanc), &t, fill);
-        lflist_enq(flref_of(&b->danc), &t, &live);
+            lflist_enq(flref_of(&b->flanc), fill, &t);
+        lflist_enq(flref_of(&b->danc), &live, &t);
     }
 
     thr_sync(start_timing);
@@ -181,8 +181,8 @@ void ltthread_finish(lflist *clear)
     if(!clear)
         return;
 
-    for(flref bx; flptr(bx = lflist_unenq(&t, clear));){
-        muste(lflist_enq(bx, &t, &shared[0]));
+    for(flref bx; flptr(bx = lflist_unenq(clear, &t));){
+        muste(lflist_enq(bx, &shared[0], &t));
         linref_down(flptr(bx), &t);
     }
 }
@@ -192,9 +192,23 @@ static void test_enq_unenq(uptr id){
 
     for(uint i = 0; i < niter; i++){
         flref bx;
-        while(!flptr(bx = lflist_unenq(&t, rand_shared())))
+        while(!flptr(bx = lflist_unenq(rand_shared_list(), &t)))
             continue;
-        muste(lflist_enq(bx, &t, rand_shared()));
+        muste(lflist_enq(bx, rand_shared_list(), &t));
+        linref_down(flptr(bx), &t);
+    }
+
+    ltthread_finish(NULL);
+}
+
+static void test_enq_deq(uptr id){
+    ltthread_init(&shared[0], id);
+
+    for(uint i = 0; i < niter; i++){
+        flref bx;
+        while(!flptr(bx = lflist_deq(rand_shared_list(), &t)))
+            continue;
+        muste(lflist_enq(bx, rand_shared_list(), &t));
         linref_down(flptr(bx), &t);
     }
 
@@ -220,13 +234,13 @@ static void test_enq_unenq_del(uptr id){
             bool unenq_priv = randpcnt(50);
             lflist *l = unenq_priv
                       ? &priv
-                      : rand_shared();
-            if(!(b = cof(flptr(bx = lflist_unenq(&t, l)), node, flanc)))
+                      : rand_shared_list();
+            if(!(b = cof(flptr(bx = lflist_unenq(l, &t)), node, flanc)))
                 goto grow;
             assert(PUN(lpgen, (uptr) bx.gen).last_priv == (unenq_priv ? id : 0));
         }else{
         grow:
-            if(!(b = rand_owned()))
+            if(!(b = rand_owned_node()))
                 continue;
 
             muste(linref_up(b, &t));
@@ -239,12 +253,12 @@ static void test_enq_unenq_del(uptr id){
         
         b->enq_attempted = true;
         lpgen lp = PUN(lpgen, (uptr) bx.gen);
-        lflist *nl = randpcnt(30) ? &priv : rand_shared();
+        lflist *nl = randpcnt(30) ? &priv : rand_shared_list();
         
         if(lflist_enq_cas(rup(lp,
                               .gen++,
                               .last_priv = (nl == &priv ? id : 0)),
-                          bx, &t, nl))
+                          bx, nl, &t))
             assert(b->owner != id || del_failed);
         
         linref_down(flptr(bx), &t);
@@ -265,13 +279,13 @@ static void test_enq_unenq_jam(uptr id){
             bool unenq_priv = randpcnt(50);
             lflist *l = unenq_priv
                       ? &priv
-                      : rand_shared();
-            if(!(b = cof(flptr(bx = lflist_unenq(&t, l)), node, flanc)))
+                      : rand_shared_list();
+            if(!(b = cof(flptr(bx = lflist_unenq(l, &t)), node, flanc)))
                 goto grow;
             assert(PUN(lpgen, (uptr) bx.gen).last_priv == (unenq_priv ? id : 0));
         }else{
         grow:
-            if(!(b = rand_owned()))
+            if(!(b = rand_owned_node()))
                 continue;
             assert(b->owner == id);
 
@@ -295,12 +309,12 @@ static void test_enq_unenq_jam(uptr id){
         
         b->enq_attempted = true;
         lpgen lp = PUN(lpgen, (uptr) bx.gen);
-        lflist *nl = randpcnt(30) ? &priv : rand_shared();
+        lflist *nl = randpcnt(30) ? &priv : rand_shared_list();
         
         if(lflist_enq_cas(rup(lp,
                               .gen++,
                               .last_priv = (nl == &priv ? id : 0)),
-                          bx, &t, nl))
+                          bx, nl, &t))
             assert(b->owner != id || del_failed);
         
         linref_down(flptr(bx), &t);
@@ -313,7 +327,7 @@ static void time_del(uptr id){
     ltthread_init(&shared[0], id);
 
     for(cnt i = 0; i < nallocs; i++)
-        muste(lflist_del(flref_of(&next_owned()->flanc), &t));
+        muste(lflist_del(flref_of(&next_owned_node()->flanc), &t));
 
     ltthread_finish(NULL);    
 }
@@ -322,10 +336,10 @@ static void time_enq_del(uptr id){
     ltthread_init(NULL, id);
 
     for(cnt i = 0; i < nallocs; i++)
-        muste(lflist_enq(flref_of(&next_owned()->flanc), &t, rand_shared()));
+        muste(lflist_enq(flref_of(&next_owned_node()->flanc), rand_shared_list(), &t));
 
     for(cnt i = 0; i < nallocs; i++)
-        muste(lflist_del(flref_of(&next_owned()->flanc), &t));
+        muste(lflist_del(flref_of(&next_owned_node()->flanc), &t));
 
     ltthread_finish(NULL);
 }
@@ -334,7 +348,7 @@ static void time_enq(uptr id){
     ltthread_init(NULL, id);
 
     for(cnt i = 0; i < nallocs; i++)
-        muste(lflist_enq(flref_of(&next_owned()->flanc), &t, rand_shared()));
+        muste(lflist_enq(flref_of(&next_owned_node()->flanc), rand_shared_list(), &t));
 
     ltthread_finish(NULL);
 }
@@ -347,7 +361,7 @@ typedef struct {
     uptr gen:WORDBITS - 1;
 } stgen;
 
-static void test_enq_jam_generally(uptr id){
+static void test_enq_del_generally(uptr id){
     ltthread_init(&shared[0], id);
 
     for(cnt i = 0; i < niter; i++){
@@ -359,8 +373,8 @@ static void test_enq_jam_generally(uptr id){
             lflist_del_cas(rup(stg, .gen++, .st = JAM), bx, &t);
             assert(bx.gen != flref_of(&b->flanc).gen);
         }else{
-            if(!lflist_enq_cas(rup(stg, .gen++, .st = ENQ), bx, &t,
-                               rand_shared()))
+            if(!lflist_enq_cas(rup(stg, .gen++, .st = ENQ), bx,
+                               rand_shared_list(), &t))
                 assert(stg.st == JAM &&
                        bx.gen != flref_of(&b->flanc).gen);
             else
@@ -381,7 +395,7 @@ static void test_validity_bits(uptr id){
     list perm[NPRIV];
     heritage *h;
     type *t;
-    ltthread_init(priv, perm, &h, &t, id);
+    ltthread_init(priv, perm, &h, id, &t);
 
     for(uint i = 0; i < niter; i++){
         dbg bool del_failed = false;
@@ -391,8 +405,8 @@ static void test_validity_bits(uptr id){
             bool unenq_priv = randpcnt(50);
             lflist *l = unenq_priv
                       ? &priv[rand() % NPRIV]
-                      : rand_shared();
-            if(!(b = cof(flptr(bx = lflist_unenq(&t, l)), node, flanc)))
+                      : rand_shared_list();
+            if(!(b = cof(flptr(bx = lflist_unenq(l, &t)), node, flanc)))
                 goto grow;
             lpgen lp = PUN(lpgen, (uptr) bx.gen);
             assert(lp.last_priv == (unenq_priv ? id : 0));
@@ -442,22 +456,24 @@ static void test_validity_bits(uptr id){
         b->enq_attempted = true;
         bool enq_priv = randpcnt(32);
         lpgen lp = PUN(lpgen, (uptr) bx.gen);
-        lflist *nl = enq_priv ? &priv[rand() % NPRIV] : rand_shared();
+        lflist *nl = enq_priv ? &priv[rand() % NPRIV] : rand_shared_list();
         
         if(lflist_enq_cas(rup(lp,
                               .gen++,
                               .last_priv = (enq_priv ? id : 0)),
-                          bx, &t, nl))
+                          bx, nl, &t))
             assert(b->owner != id || del_failed);
         
         linref_down(flptr(bx), &t);
     }
 
-    ltthread_finish(priv, perm, &t, id);
+    ltthread_finish(priv, perm, id, &t);
 }
 
 #endif
 #endif
+
+#include <signal.h>
 
 int run_list_tests(int argc, char **argv){
     int program = 2;
@@ -514,8 +530,12 @@ int run_list_tests(int argc, char **argv){
         launch_list_test(time_enq, 0, "time_enq");
         break;
     case 7:
-        launch_list_test(test_enq_jam_generally, 0, "test_enq_jam_generally");
+        launch_list_test(test_enq_del_generally, 0, "test_enq_del_generally");
         break;
+    case 8:
+        launch_list_test(test_enq_deq, 1, "test_enq_deq");
+        break;
+        
         
 /* TODO: just a bit tired of updating fakelflist */
 /* TODO: and these are probably broken by now. */
